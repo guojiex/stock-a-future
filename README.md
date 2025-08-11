@@ -1,128 +1,375 @@
-# A股股票买卖点预测程序开发提纲
+# Stock-A-Future - A股股票买卖点预测API
 
-## 一、程序整体架构（模块划分）
+基于Go语言开发的A股股票买卖点预测系统，使用Tushare作为数据源，提供技术指标计算和买卖点预测功能。
 
-### 1. 数据层模块
-- **数据获取子模块**  
-  - 对接免费数据源（如Tushare、AkShare、baostock）  
-  - 支持本地历史数据缓存（CSV/数据库存储）  
-  - 实时数据更新接口（可选）  
+## 功能特性
 
-- **数据预处理子模块**  
-  - 缺失值处理（插值/删除）  
-  - 异常值清洗（如股价异动过滤）  
-  - 时间序列标准化（归一化/标准化）  
-  - 数据格式转换（K线周期转换：日线→小时线/分钟线）  
+### 📊 数据获取
+- 集成Tushare API，获取A股实时和历史数据
+- 支持股票日线数据查询
+- 自动数据预处理和清洗
 
-### 2. 特征工程模块
-- **技术指标计算子模块**  
-  - 自动计算各类指标（见下文“核心指标”）  
-  - 指标组合生成（如多指标交叉信号）  
+### 📈 技术指标计算
+- **MACD** - 指数平滑异同平均线，识别趋势转折
+- **RSI** - 相对强弱指数，判断超买超卖
+- **布林带** - 价格波动区间分析
+- **移动平均线** - MA5/MA10/MA20/MA60/MA120多周期均线
+- **KDJ** - 随机指标，短期买卖信号
 
-- **特征选择子模块**  
-  - 过滤冗余特征（相关性分析）  
-  - 特征重要性评估（用于模型输入优化）  
+### 🎯 智能预测
+- 基于多指标综合分析的买卖点预测
+- 预测概率和置信度计算
+- 详细的预测理由说明
+- 支持多时间周期预测
 
-### 3. 预测模型模块
-- **模型训练子模块**  
-  - 训练集/验证集/测试集划分（时间序列交叉验证）  
-  - 超参数调优（网格搜索/贝叶斯优化）  
-  - 模型保存与加载  
+### 🚀 RESTful API
+- 完整的REST API接口
+- JSON格式数据交换
+- CORS支持，便于前端集成
+- 详细的错误处理和日志记录
 
-- **买卖点预测子模块**  
-  - 局部极值（高低点）识别算法  
-  - 预测结果概率输出（胜率计算）  
+## 快速开始
 
-### 4. 策略回测模块
-- **历史回测引擎**  
-  - 模拟交易执行（买入/卖出信号触发）  
-  - 收益计算（年化收益率、夏普比率等）  
-  - 风险指标统计（最大回撤、波动率）  
+### 环境要求
+- Go 1.22+
+- Tushare Pro账号和Token
 
-- **胜率验证子模块**  
-  - 预测结果与实际高低点匹配度计算  
-  - 不同市场环境下的胜率分析（牛市/熊市/震荡市）  
+### 安装步骤
 
-### 5. 可视化与交互模块
-- 预测结果可视化（K线图叠加买卖点标记）  
-- 策略绩效图表（收益曲线、胜率分布）  
-- 参数调整界面（可选，用于动态优化）  
+1. **克隆项目**
+   ```bash
+   git clone <repository-url>
+   cd stock-a-future
+   ```
 
+2. **安装依赖**
+   ```bash
+   make deps
+   ```
 
-## 二、核心预测策略
+3. **配置环境变量**
+   ```bash
+   make env
+   # 编辑.env文件，填入您的Tushare Token
+   vim .env
+   ```
 
-### 1. 技术分析策略（基于指标信号）
-- **趋势跟踪策略**  
-  - 金叉/死叉信号（如MACD、均线交叉）  
-  - 突破策略（价格突破布林带上下轨、前高前低）  
+4. **启动服务**
+   ```bash
+   # 开发模式
+   make dev
+   
+   # 或者构建后运行
+   make build
+   make run
+   ```
 
-- **反转策略**  
-  - 超买超卖信号（RSI>70视为超买，RSI<30视为超卖）  
-  - 背离信号（价格与指标背离，如MACD顶背离/底背离）  
+服务将在 `http://localhost:8080` 启动。
 
-- **波动策略**  
-  - 基于ATR（平均真实波幅）的波动区间预测  
-  - 高低点周期规律（如斐波那契时间窗口）  
+## API文档
 
-### 2. 机器学习/深度学习策略
-- **分类任务**：将“买入/卖出/持有”视为分类问题  
-  - 输入：技术指标+量能特征  
-  - 输出：未来N天内出现局部高低点的概率  
+### 基础信息
+- **Base URL**: `http://localhost:8080`
+- **Content-Type**: `application/json`
 
-- **回归任务**：直接预测价格拐点时间  
-  - 输入：历史价格序列+市场情绪特征  
-  - 输出：未来价格走势的局部极值点坐标  
+### 接口列表
 
-- **时间序列预测**：基于序列模式识别高低点  
-  - 如LSTM捕捉价格序列的长期依赖关系  
-  - Transformer模型处理多时间尺度特征  
+#### 1. 健康检查
+```http
+GET /api/v1/health
+```
 
+**响应示例**:
+```json
+{
+  "success": true,
+  "data": {
+    "status": "healthy",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "version": "1.0.0",
+    "services": {
+      "tushare": "healthy"
+    }
+  }
+}
+```
 
-## 三、关键关注指标
+#### 2. 获取股票日线数据
+```http
+GET /api/v1/stocks/{code}/daily?start_date=20240101&end_date=20240131
+```
 
-### 1. 价格与成交量指标
-- 基础K线数据：开盘价、收盘价、最高价、最低价、成交量  
-- 量价关系指标：量比、换手率、成交量加权平均价（VWAP）  
+**参数说明**:
+- `code`: 股票代码 (如: 000001.SZ, 600000.SH)
+- `start_date`: 开始日期 (YYYYMMDD格式，可选)
+- `end_date`: 结束日期 (YYYYMMDD格式，可选)
 
-### 2. 趋势指标
-- 均线系统：MA5/MA10/MA20（短期）、MA60/MA120（中长期）  
-- 趋势强度：ADX（平均趋向指标）、DMI（方向指标）  
+**响应示例**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "ts_code": "000001.SZ",
+      "trade_date": "20240115",
+      "open": 8.75,
+      "high": 8.85,
+      "low": 8.69,
+      "close": 8.70,
+      "pre_close": 8.72,
+      "change": -0.02,
+      "pct_chg": -0.23,
+      "vol": 525152.77,
+      "amount": 460697.377
+    }
+  ]
+}
+```
 
-### 3. 动量与反转指标
-- RSI（相对强弱指数）：衡量超买超卖  
-- MACD（指数平滑异同平均线）：捕捉趋势转折  
-- KDJ（随机指标）：短期价格波动信号  
+#### 3. 获取技术指标
+```http
+GET /api/v1/stocks/{code}/indicators
+```
 
-### 4. 波动率指标
-- 布林带（BOLL）：价格波动区间  
-- ATR（平均真实波幅）：市场波动强度  
-- 波动率指数（如自行计算的价格标准差）  
+**响应示例**:
+```json
+{
+  "success": true,
+  "data": {
+    "ts_code": "000001.SZ",
+    "trade_date": "20240115",
+    "macd": {
+      "dif": 0.05,
+      "dea": 0.03,
+      "macd": 0.04,
+      "signal": "BUY"
+    },
+    "rsi": {
+      "rsi6": 45.2,
+      "rsi12": 48.5,
+      "rsi24": 52.1,
+      "signal": "HOLD"
+    },
+    "boll": {
+      "upper": 9.20,
+      "middle": 8.70,
+      "lower": 8.20,
+      "signal": "HOLD"
+    }
+  }
+}
+```
 
-### 5. 资金流向指标
-- 大单净流入/流出  
-- 主力资金持仓变化（需数据源支持）  
+#### 4. 获取买卖点预测
+```http
+GET /api/v1/stocks/{code}/predictions
+```
 
+**响应示例**:
+```json
+{
+  "success": true,
+  "data": {
+    "ts_code": "000001.SZ",
+    "trade_date": "20240115",
+    "predictions": [
+      {
+        "type": "BUY",
+        "price": 8.70,
+        "date": "20240116",
+        "probability": 0.65,
+        "reason": "MACD金叉信号，DIF线上穿DEA线",
+        "indicators": ["MACD"]
+      }
+    ],
+    "confidence": 0.68,
+    "updated_at": "2024-01-15T10:30:00Z"
+  }
+}
+```
 
-## 四、推荐算法
+## 技术架构
 
-### 1. 传统算法（适合入门）
-- **滑动窗口极值检测**：基于局部窗口内的价格极值识别高低点（简单但实用）  
-- **决策树/随机森林**：处理非线性特征，输出买卖点概率（解释性强）  
-- **SVM（支持向量机）**：适合小样本数据的分类任务  
+### 项目结构
+```
+stock-a-future/
+├── cmd/server/          # 应用程序入口
+├── config/              # 配置管理
+├── internal/            # 内部包
+│   ├── client/          # Tushare API客户端
+│   ├── handler/         # HTTP处理器
+│   ├── indicators/      # 技术指标计算
+│   ├── models/          # 数据模型
+│   └── service/         # 业务逻辑服务
+├── Makefile            # 构建脚本
+└── README.md           # 项目文档
+```
 
-### 2. 进阶算法（适合复杂场景）
-- **LSTM/GRU**：处理时间序列数据，捕捉价格走势的时序依赖  
-- **XGBoost/LightGBM**：梯度提升树，适合特征维度高的场景，可输出预测概率  
-- **强化学习（如DQN）**：通过与市场环境交互优化买卖策略，动态调整决策  
+### 技术栈
+- **语言**: Go 1.22
+- **HTTP框架**: 标准库 net/http + ServeMux
+- **数据源**: Tushare Pro API
+- **数值计算**: shopspring/decimal
+- **配置管理**: godotenv
 
-### 3. 胜率计算方法
-- 混淆矩阵：统计“预测正确的买卖点”占总预测次数的比例  
-- 时间窗口匹配：允许预测点与实际高低点存在±N天的误差（更贴合实际交易）  
-- 贝叶斯概率修正：结合先验胜率与实时市场数据动态更新可信度  
+### 核心算法
 
+#### 买卖点预测逻辑
+1. **多指标综合分析**: 结合MACD、RSI、布林带、KDJ、移动平均线
+2. **概率计算**: 基于指标强度和历史表现计算预测概率
+3. **置信度评估**: 根据信号一致性评估整体置信度
+4. **风险控制**: 设置概率阈值，过滤低质量信号
 
-## 五、开发注意事项
-1. **过拟合风险**：避免为历史数据“量身定制”策略，需通过多时段验证  
-2. **市场有效性**：A股存在政策干预、流动性变化等因素，需加入鲁棒性处理  
-3. **实盘差距**：回测收益≠实盘收益，需考虑滑点、手续费、流动性限制  
-4. **动态优化**：市场风格切换时（如从价值股转向成长股），模型需定期重训
+#### 技术指标实现
+- **精确计算**: 使用decimal库确保金融计算精度
+- **标准算法**: 严格按照技术分析标准公式实现
+- **性能优化**: 高效的滑动窗口算法
+
+## 开发指南
+
+### 本地开发
+```bash
+# 安装开发工具
+make tools
+
+# 代码格式化
+make fmt
+
+# 代码检查
+make vet
+
+# 运行测试
+make test
+
+# 代码质量检查
+make lint
+```
+
+### 环境配置
+创建`.env`文件：
+```bash
+TUSHARE_TOKEN=your_tushare_token_here
+TUSHARE_BASE_URL=http://api.tushare.pro
+SERVER_PORT=8080
+SERVER_HOST=localhost
+LOG_LEVEL=info
+```
+
+### 部署
+```bash
+# 构建生产版本
+make build
+
+# 运行
+./bin/stock-a-future
+```
+
+## 使用示例
+
+### cURL示例
+```bash
+# 健康检查
+curl http://localhost:8080/api/v1/health
+
+# 获取平安银行日线数据
+curl "http://localhost:8080/api/v1/stocks/000001.SZ/daily?start_date=20240101&end_date=20240131"
+
+# 获取技术指标
+curl http://localhost:8080/api/v1/stocks/000001.SZ/indicators
+
+# 获取买卖点预测
+curl http://localhost:8080/api/v1/stocks/000001.SZ/predictions
+```
+
+### Python示例
+```python
+import requests
+
+# 基础配置
+base_url = "http://localhost:8080"
+stock_code = "000001.SZ"
+
+# 获取预测结果
+response = requests.get(f"{base_url}/api/v1/stocks/{stock_code}/predictions")
+data = response.json()
+
+if data["success"]:
+    predictions = data["data"]["predictions"]
+    for pred in predictions:
+        print(f"预测类型: {pred['type']}")
+        print(f"预测价格: {pred['price']}")
+        print(f"预测概率: {pred['probability']}")
+        print(f"预测理由: {pred['reason']}")
+        print("---")
+```
+
+## 注意事项
+
+### Tushare使用限制
+- 需要注册Tushare Pro账号获取Token
+- 免费账号有调用频率限制
+- 部分高级数据需要积分
+
+### 风险提示
+- 本系统仅供学习和研究使用
+- 预测结果不构成投资建议
+- 股市有风险，投资需谨慎
+- 请根据自身情况做出投资决策
+
+### 性能考虑
+- 技术指标计算需要足够的历史数据
+- 建议为计算密集型操作添加缓存
+- 生产环境建议使用数据库存储历史数据
+
+## 重要配置说明
+
+### 开始使用前的必要步骤
+
+**⚠️ 需要注意的是，您需要：**
+
+1. **获取Tushare API Token**
+   - 访问 [Tushare官网](https://tushare.pro) 注册账号
+   - 在个人中心获取您的API Token
+   - 免费账号有一定的调用限制，请合理使用
+
+2. **配置环境变量**
+   ```bash
+   # 复制配置文件模板
+   cp .env.example .env
+   
+   # 编辑.env文件，将your_tushare_token_here替换为您的真实Token
+   vim .env
+   ```
+
+3. **验证配置**
+   ```bash
+   # 启动服务
+   make dev
+   
+   # 在另一个终端测试健康检查
+   curl http://localhost:8080/api/v1/health
+   ```
+
+如果健康检查显示Tushare服务状态为"healthy"，说明配置成功。
+
+## 贡献指南
+
+1. Fork 本项目
+2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
+
+## 许可证
+
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
+
+## 联系方式
+
+- 项目地址: [GitHub Repository]
+- 问题反馈: [Issues]
+- 文档: [Wiki]
+
+---
+
+**免责声明**: 本项目仅用于技术学习和研究目的，不构成任何投资建议。使用者应当自行承担投资风险。
