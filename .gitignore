@@ -30,3 +30,6 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+/.idea/modules.xml
+/.idea/stock-a-future.iml
+/.idea/vcs.xml
