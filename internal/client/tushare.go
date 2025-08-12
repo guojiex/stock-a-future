@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sort"
 	"time"
 
 	"stock-a-future/internal/models"
@@ -198,6 +199,10 @@ func (c *TushareClient) parseDailyData(data *TushareData) ([]models.StockDaily, 
 		dailyData = append(dailyData, daily)
 	}
 
+	// 按交易日期升序排序，确保时间轴从左到右（从早到晚）显示
+	// Tushare API默认返回降序数据，我们需要反转为升序
+	c.sortDailyDataByDate(dailyData)
+
 	return dailyData, nil
 }
 
@@ -310,6 +315,14 @@ func (c *TushareClient) parseStockBasic(data *TushareData, tsCode string) (*mode
 	}
 
 	return stockBasic, nil
+}
+
+// sortDailyDataByDate 按交易日期升序排序日线数据
+func (c *TushareClient) sortDailyDataByDate(data []models.StockDaily) {
+	sort.Slice(data, func(i, j int) bool {
+		// 按交易日期升序排序（从早到晚）
+		return data[i].TradeDate < data[j].TradeDate
+	})
 }
 
 // TestConnection 测试Tushare连接
