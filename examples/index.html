@@ -14,9 +14,12 @@
         <header class="header">
             <h1>🚀 Stock-A-Future API</h1>
             <p>A股股票买卖点预测系统</p>
-            <div class="status-indicator">
-                <div id="connectionStatus" class="status-dot offline"></div>
-                <span id="statusText">连接中...</span>
+            <div class="header-controls">
+                <div class="status-indicator">
+                    <div id="connectionStatus" class="status-dot offline"></div>
+                    <span id="statusText">连接中...</span>
+                </div>
+                <button id="configBtn" class="btn btn-outline">⚙️ 配置</button>
             </div>
         </header>
 
@@ -102,6 +105,41 @@
                 </div>
             </div>
         </footer>
+    </div>
+
+    <!-- 配置模态框 -->
+    <div id="configModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚙️ 服务器配置</h3>
+                <button id="closeConfigBtn" class="btn-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="config-form">
+                    <div class="input-group">
+                        <label for="serverURL">服务器地址</label>
+                        <input type="url" id="serverURL" placeholder="http://localhost:8081" value="">
+                        <small>请输入完整的服务器地址，包括协议和端口</small>
+                    </div>
+                    <div class="button-group">
+                        <button id="testConnectionBtn" class="btn btn-secondary">🔗 测试连接</button>
+                        <button id="saveConfigBtn" class="btn btn-primary">💾 保存配置</button>
+                    </div>
+                    <div id="connectionTestResult" class="test-result" style="display: none;"></div>
+                </div>
+                
+                <div class="common-ports">
+                    <h4>常用端口</h4>
+                    <div class="port-buttons">
+                        <button class="btn btn-outline port-btn" data-port="8080">8080</button>
+                        <button class="btn btn-outline port-btn" data-port="8081">8081</button>
+                        <button class="btn btn-outline port-btn" data-port="3000">3000</button>
+                        <button class="btn btn-outline port-btn" data-port="8000">8000</button>
+                        <button class="btn btn-outline port-btn" data-port="9000">9000</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 加载遮罩 -->
