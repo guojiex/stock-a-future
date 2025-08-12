@@ -61,7 +61,7 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler) {
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{
+		if _, err := w.Write([]byte(`{
 			"service": "Stock-A-Future API",
 			"version": "1.0.0",
 			"description": "A股股票买卖点预测API服务",
@@ -72,7 +72,9 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler) {
 				"predictions": "GET /api/v1/stocks/{code}/predictions"
 			},
 			"example": "curl http://localhost:8080/api/v1/stocks/000001.SZ/daily"
-		}`))
+		}`)); err != nil {
+			log.Printf("写入根路径响应失败: %v", err)
+		}
 	})
 }
 

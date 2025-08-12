@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -81,7 +82,7 @@ func (c *TushareClient) GetDailyData(tsCode, startDate, endDate string) ([]model
 	}
 
 	if response.Code != 0 {
-		return nil, fmt.Errorf("Tushare API错误: %s (代码: %d)", response.Msg, response.Code)
+		return nil, fmt.Errorf("tushare API错误: %s (代码: %d)", response.Msg, response.Code)
 	}
 
 	return c.parseDailyData(response.Data)
@@ -106,7 +107,7 @@ func (c *TushareClient) GetDailyDataByDate(tradeDate string) ([]models.StockDail
 	}
 
 	if response.Code != 0 {
-		return nil, fmt.Errorf("Tushare API错误: %s (代码: %d)", response.Msg, response.Code)
+		return nil, fmt.Errorf("tushare API错误: %s (代码: %d)", response.Msg, response.Code)
 	}
 
 	return c.parseDailyData(response.Data)
@@ -131,7 +132,11 @@ func (c *TushareClient) makeRequest(req TushareRequest) (*TushareResponse, error
 	if err != nil {
 		return nil, fmt.Errorf("发送HTTP请求失败: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("关闭响应体失败: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("HTTP请求失败，状态码: %d", resp.StatusCode)
@@ -224,7 +229,7 @@ func (c *TushareClient) TestConnection() error {
 	// 使用简单的API调用测试连接
 	_, err := c.GetDailyDataByDate("20240101")
 	if err != nil {
-		return fmt.Errorf("Tushare连接测试失败: %w", err)
+		return fmt.Errorf("tushare连接测试失败: %w", err)
 	}
 	return nil
 }

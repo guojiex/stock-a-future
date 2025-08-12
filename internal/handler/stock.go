@@ -246,7 +246,9 @@ func (h *StockHandler) writeSuccessResponse(w http.ResponseWriter, data interfac
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write(jsonData)
+	if _, err := w.Write(jsonData); err != nil {
+		log.Printf("写入响应失败: %v", err)
+	}
 }
 
 // writeErrorResponse 写入错误响应
@@ -260,10 +262,14 @@ func (h *StockHandler) writeErrorResponse(w http.ResponseWriter, statusCode int,
 	if err != nil {
 		log.Printf("序列化错误响应失败: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"success":false,"error":"内部服务器错误"}`))
+		if _, writeErr := w.Write([]byte(`{"success":false,"error":"内部服务器错误"}`)); writeErr != nil {
+			log.Printf("写入错误响应失败: %v", writeErr)
+		}
 		return
 	}
 
 	w.WriteHeader(statusCode)
-	w.Write(jsonData)
+	if _, err := w.Write(jsonData); err != nil {
+		log.Printf("写入错误响应失败: %v", err)
+	}
 }

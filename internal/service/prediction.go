@@ -341,9 +341,10 @@ func (s *PredictionService) calculateOverallConfidence(predictions []models.Trad
 
 	for _, pred := range predictions {
 		totalProbability = totalProbability.Add(pred.Probability)
-		if pred.Type == "BUY" {
+		switch pred.Type {
+		case "BUY":
 			buyCount++
-		} else if pred.Type == "SELL" {
+		case "SELL":
 			sellCount++
 		}
 	}
