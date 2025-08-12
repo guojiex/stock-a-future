@@ -3,10 +3,74 @@
 # Stock-A-Future API测试脚本
 # 使用前请确保服务器已启动: make dev
 
-BASE_URL="http://localhost:8080"
+# 从.env文件读取配置
+ENV_FILE="../.env"
+DEFAULT_PORT="8080"
+DEFAULT_HOST="localhost"
+
+# 读取.env文件中的配置
+if [ -f "$ENV_FILE" ]; then
+    echo "🔧 从.env文件读取配置..."
+    # 使用source读取.env文件，但只提取需要的变量
+    SERVER_PORT=$(grep "^SERVER_PORT=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | head -1)
+    SERVER_HOST=$(grep "^SERVER_HOST=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | head -1)
+else
+    echo "⚠️  未找到.env文件，使用默认配置"
+    echo "💡 提示: 可以创建.env文件来配置服务器设置："
+    echo "   echo 'SERVER_PORT=8081' > .env"
+    echo "   echo 'SERVER_HOST=localhost' >> .env"
+    echo "   echo 'TUSHARE_TOKEN=your_token_here' >> .env"
+    echo ""
+fi
+
+# 设置默认值
+SERVER_PORT=${SERVER_PORT:-$DEFAULT_PORT}
+SERVER_HOST=${SERVER_HOST:-$DEFAULT_HOST}
+
+# 支持命令行参数覆盖配置
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -p|--port)
+            SERVER_PORT="$2"
+            shift 2
+            ;;
+        -h|--host)
+            SERVER_HOST="$2"
+            shift 2
+            ;;
+        --help)
+            echo "用法: $0 [选项]"
+            echo "选项:"
+            echo "  -p, --port PORT    指定服务器端口 (默认: $DEFAULT_PORT)"
+            echo "  -h, --host HOST    指定服务器地址 (默认: $DEFAULT_HOST)"
+            echo "  --help             显示此帮助信息"
+            echo ""
+            echo "示例:"
+            echo "  $0                 # 使用.env文件或默认配置"
+            echo "  $0 -p 8081         # 使用端口8081"
+            echo "  $0 -h 192.168.1.100 -p 8080  # 使用自定义地址和端口"
+            exit 0
+            ;;
+        *)
+            echo "未知选项: $1"
+            echo "使用 --help 查看帮助信息"
+            exit 1
+            ;;
+    esac
+done
+
+BASE_URL="http://${SERVER_HOST}:${SERVER_PORT}"
 
 echo "=== Stock-A-Future API 测试 ==="
-echo "基础URL: $BASE_URL"
+echo "配置信息:"
+echo "  服务器地址: $SERVER_HOST"
+echo "  服务器端口: $SERVER_PORT"
+echo "  基础URL: $BASE_URL"
+if [ -f "$ENV_FILE" ]; then
+    echo "  配置来源: .env文件"
+else
+    echo "  配置来源: 默认值"
+fi
 echo ""
 
 # 检查jq是否安装
@@ -98,12 +162,14 @@ echo -e "\n"
 echo "=== 测试完成 ==="
 echo ""
 echo "🌐 网页示例使用说明："
-echo "1. 确保API服务器正在运行"
+echo "1. 确保API服务器正在运行在端口 $SERVER_PORT"
 echo "2. 在浏览器中打开 examples/index.html"
 echo "3. 或使用本地服务器: cd examples && python3 -m http.server 8000"
+echo "4. 网页客户端会自动检测服务器端口"
 echo ""
 echo "如果看到错误，请检查:"
-echo "1. 服务器是否已启动 (make dev)"
+echo "1. 服务器是否已启动 (make dev 或 SERVER_PORT=$SERVER_PORT go run cmd/server/main.go)"
 echo "2. .env文件中的TUSHARE_TOKEN是否正确"
-echo "3. 网络连接是否正常"
-echo "4. 防火墙设置是否阻止了请求"
+echo "3. .env文件中的SERVER_PORT配置是否正确"
+echo "4. 网络连接是否正常"
+echo "5. 防火墙设置是否阻止了请求"
