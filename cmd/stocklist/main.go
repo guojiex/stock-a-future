@@ -13,7 +13,7 @@ func main() {
 	// 定义命令行参数
 	var (
 		output = flag.String("output", "data/stock_list.json", "输出文件路径")
-		source = flag.String("source", "all", "数据源 (sse|szse|all)")
+		source = flag.String("source", "all", "数据源 (sse|all)")
 		help   = flag.Bool("help", false, "显示帮助信息")
 	)
 	flag.Parse()
@@ -29,7 +29,7 @@ func main() {
 		fmt.Println("")
 		fmt.Println("示例:")
 		fmt.Printf("  %s -source=sse -output=sse_stocks.json\n", os.Args[0])
-		fmt.Printf("  %s -source=szse -output=szse_stocks.json\n", os.Args[0])
+
 		fmt.Printf("  %s -source=all -output=all_stocks.json\n", os.Args[0])
 		return
 	}
@@ -51,12 +51,11 @@ func main() {
 	switch *source {
 	case "sse":
 		err = fetchSSEStocks(exchangeClient, *output)
-	case "szse":
-		err = fetchSZSEStocks(exchangeClient, *output)
+
 	case "all":
 		err = fetchAllStocks(exchangeClient, *output)
 	default:
-		log.Fatalf("不支持的数据源: %s (支持: sse, szse, all)", *source)
+		log.Fatalf("不支持的数据源: %s (支持: sse, all)", *source)
 	}
 
 	if err != nil {
@@ -78,21 +77,6 @@ func fetchSSEStocks(client *client.ExchangeClient, output string) error {
 	}
 
 	log.Printf("成功获取上交所股票 %d 只", len(stocks))
-	return nil
-}
-
-// fetchSZSEStocks 获取深交所股票
-func fetchSZSEStocks(client *client.ExchangeClient, output string) error {
-	stocks, err := client.GetSZSEStockList()
-	if err != nil {
-		return fmt.Errorf("获取深交所股票失败: %w", err)
-	}
-
-	if err := client.SaveStockListToFile(stocks, output); err != nil {
-		return fmt.Errorf("保存股票列表失败: %w", err)
-	}
-
-	log.Printf("成功获取深交所股票 %d 只", len(stocks))
 	return nil
 }
 

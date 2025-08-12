@@ -3,10 +3,13 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -42,24 +45,176 @@ func NewExchangeClient() *ExchangeClient {
 func (c *ExchangeClient) GetSSEStockList() ([]StockListItem, error) {
 	log.Println("正在获取上海证券交易所股票列表...")
 
-	// 由于直接从官网获取可能有反爬虫限制，我们使用一个更可靠的方法
-	// 返回常见的上交所股票列表
-	stocks := c.getSSEStockList()
+	// 尝试从官网API获取真实数据
+	stocks, err := c.fetchSSEStocksFromAPI()
+	if err != nil {
+		log.Printf("从官网API获取失败: %v，使用备用数据", err)
+		// 如果API获取失败，使用备用数据
+		stocks = c.getSSEStockList()
+	}
 
 	log.Printf("从上海证券交易所获取到 %d 只股票", len(stocks))
 	return stocks, nil
 }
 
-// GetSZSEStockList 获取深圳证券交易所股票列表
-func (c *ExchangeClient) GetSZSEStockList() ([]StockListItem, error) {
-	log.Println("正在获取深圳证券交易所股票列表...")
+// fetchSSEStocksFromAPI 从上交所官网API获取股票列表
+func (c *ExchangeClient) fetchSSEStocksFromAPI() ([]StockListItem, error) {
+	var allStocks []StockListItem
 
-	// 由于直接从官网获取可能有反爬虫限制，我们使用一个更可靠的方法
-	// 返回常见的深交所股票列表
-	stocks := c.getSZSEStockList()
+	// 上交所股票列表API的基础URL
+	baseURL := "https://query.sse.com.cn/security/stock/getStockListData2.do"
 
-	log.Printf("从深圳证券交易所获取到 %d 只股票", len(stocks))
-	return stocks, nil
+	// 设置请求头，模拟浏览器访问
+	headers := map[string]string{
+		"User-Agent":       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+		"Accept":           "application/json, text/javascript, */*; q=0.01",
+		"Accept-Language":  "zh-CN,zh;q=0.9,en;q=0.8",
+		"Referer":          "https://www.sse.com.cn/assortment/stock/list/share/",
+		"X-Requested-With": "XMLHttpRequest",
+	}
+
+	// 分页获取数据
+	pageSize := 100 // 每页数量
+	pageNo := 1
+
+	for {
+		log.Printf("正在获取第 %d 页股票数据...", pageNo)
+
+		// 构建请求URL
+		params := url.Values{}
+		params.Set("jsonCallBack", "jsonpCallback"+strconv.FormatInt(time.Now().UnixNano()/1000000, 10))
+		params.Set("isPagination", "true")
+		params.Set("stockCode", "")
+		params.Set("csrcCode", "")
+		params.Set("areaName", "")
+		params.Set("stockType", "1") // 1表示A股
+		params.Set("pageHelp.pageSize", strconv.Itoa(pageSize))
+		params.Set("pageHelp.pageNo", strconv.Itoa(pageNo))
+		params.Set("pageHelp.beginPage", strconv.Itoa(pageNo))
+		params.Set("pageHelp.cacheSize", "1")
+		params.Set("pageHelp.endPage", strconv.Itoa(pageNo+4))
+		params.Set("_", strconv.FormatInt(time.Now().UnixNano()/1000000, 10))
+
+		requestURL := baseURL + "?" + params.Encode()
+
+		// 发送请求
+		req, err := http.NewRequest("GET", requestURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("创建请求失败: %w", err)
+		}
+
+		// 设置请求头
+		for key, value := range headers {
+			req.Header.Set(key, value)
+		}
+
+		resp, err := c.client.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("请求失败: %w", err)
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		if err != nil {
+			return nil, fmt.Errorf("读取响应失败: %w", err)
+		}
+
+		if resp.StatusCode != 200 {
+			return nil, fmt.Errorf("请求失败，状态码: %d, 响应: %s", resp.StatusCode, string(body))
+		}
+
+		// 解析JSONP响应
+		stocks, hasMore, err := c.parseSSEAPIResponse(string(body))
+		if err != nil {
+			return nil, fmt.Errorf("解析响应失败: %w", err)
+		}
+
+		allStocks = append(allStocks, stocks...)
+
+		if !hasMore || len(stocks) == 0 {
+			break
+		}
+
+		pageNo++
+
+		// 添加延迟避免请求过于频繁
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	return allStocks, nil
+}
+
+// parseSSEAPIResponse 解析上交所API响应
+func (c *ExchangeClient) parseSSEAPIResponse(response string) ([]StockListItem, bool, error) {
+	// 移除JSONP包装
+	jsonpPattern := regexp.MustCompile(`^jsonpCallback\d+\((.*)\)$`)
+	matches := jsonpPattern.FindStringSubmatch(response)
+	if len(matches) < 2 {
+		return nil, false, fmt.Errorf("无效的JSONP响应格式")
+	}
+
+	jsonData := matches[1]
+
+	// 解析JSON
+	var apiResponse struct {
+		PageHelp struct {
+			Data []struct {
+				COMPANY_CODE    string `json:"COMPANY_CODE"`    // 股票代码
+				COMPANY_ABBR    string `json:"COMPANY_ABBR"`    // 股票简称
+				PRODUCTID       string `json:"PRODUCTID"`       // 产品ID
+				SECURITY_CODE_A string `json:"SECURITY_CODE_A"` // A股代码
+			} `json:"data"`
+			Total    int `json:"total"`
+			PageSize int `json:"pageSize"`
+			PageNo   int `json:"pageNo"`
+		} `json:"pageHelp"`
+		Result []struct {
+			COMPANY_CODE    string `json:"COMPANY_CODE"`
+			COMPANY_ABBR    string `json:"COMPANY_ABBR"`
+			PRODUCTID       string `json:"PRODUCTID"`
+			SECURITY_CODE_A string `json:"SECURITY_CODE_A"`
+		} `json:"result"`
+	}
+
+	if err := json.Unmarshal([]byte(jsonData), &apiResponse); err != nil {
+		return nil, false, fmt.Errorf("JSON解析失败: %w", err)
+	}
+
+	var stocks []StockListItem
+
+	// 优先使用result字段的数据
+	dataSource := apiResponse.Result
+	if len(dataSource) == 0 {
+		dataSource = apiResponse.PageHelp.Data
+	}
+
+	for _, item := range dataSource {
+		// 使用A股代码或公司代码
+		code := item.SECURITY_CODE_A
+		if code == "" {
+			code = item.COMPANY_CODE
+		}
+
+		if code != "" && item.COMPANY_ABBR != "" {
+			// 验证是否是有效的上交所股票代码
+			if c.isValidSSECode(code) {
+				stocks = append(stocks, StockListItem{
+					Code: code + ".SH",
+					Name: item.COMPANY_ABBR,
+				})
+			}
+		}
+	}
+
+	// 判断是否还有更多数据
+	hasMore := false
+	if apiResponse.PageHelp.Total > 0 {
+		totalPages := (apiResponse.PageHelp.Total + apiResponse.PageHelp.PageSize - 1) / apiResponse.PageHelp.PageSize
+		hasMore = apiResponse.PageHelp.PageNo < totalPages
+	}
+
+	return stocks, hasMore, nil
 }
 
 // parseSSEStockList 解析上交所股票列表HTML
@@ -119,58 +274,6 @@ func (c *ExchangeClient) parseSSEStockList(html string) []StockListItem {
 	return stocks
 }
 
-// parseSZSEStockList 解析深交所股票列表HTML
-func (c *ExchangeClient) parseSZSEStockList(html string) []StockListItem {
-	var stocks []StockListItem
-
-	// 深交所的股票代码通常是6位数字，以00、30开头
-	jsDataRegex := regexp.MustCompile(`(?i)stock.*?code.*?[:=]\s*["']?(\d{6})["']?.*?name.*?[:=]\s*["']([^"']+)["']?`)
-	matches := jsDataRegex.FindAllStringSubmatch(html, -1)
-
-	for _, match := range matches {
-		if len(match) >= 3 {
-			code := strings.TrimSpace(match[1])
-			name := strings.TrimSpace(match[2])
-
-			// 验证是否是有效的深交所股票代码
-			if c.isValidSZSECode(code) {
-				stocks = append(stocks, StockListItem{
-					Code: code + ".SZ",
-					Name: name,
-				})
-			}
-		}
-	}
-
-	// 如果没有找到数据，尝试其他正则表达式模式
-	if len(stocks) == 0 {
-		tableRowRegex := regexp.MustCompile(`<tr[^>]*>.*?(\d{6}).*?<[^>]*>([^<]+)</[^>]*>.*?</tr>`)
-		matches = tableRowRegex.FindAllStringSubmatch(html, -1)
-
-		for _, match := range matches {
-			if len(match) >= 3 {
-				code := strings.TrimSpace(match[1])
-				name := strings.TrimSpace(match[2])
-
-				if c.isValidSZSECode(code) {
-					stocks = append(stocks, StockListItem{
-						Code: code + ".SZ",
-						Name: name,
-					})
-				}
-			}
-		}
-	}
-
-	// 如果仍然没有数据，返回一些示例数据
-	if len(stocks) == 0 {
-		log.Println("警告: 无法从HTML中解析股票数据，返回示例数据")
-		stocks = c.getSZSEStockList()
-	}
-
-	return stocks
-}
-
 // isValidSSECode 验证是否是有效的上交所股票代码
 func (c *ExchangeClient) isValidSSECode(code string) bool {
 	if len(code) != 6 {
@@ -181,19 +284,6 @@ func (c *ExchangeClient) isValidSSECode(code string) bool {
 	// 科创板: 688xxx
 	// B股: 900xxx
 	return strings.HasPrefix(code, "60") || strings.HasPrefix(code, "68") || strings.HasPrefix(code, "90")
-}
-
-// isValidSZSECode 验证是否是有效的深交所股票代码
-func (c *ExchangeClient) isValidSZSECode(code string) bool {
-	if len(code) != 6 {
-		return false
-	}
-
-	// 深交所主板: 000xxx, 001xxx
-	// 中小板: 002xxx
-	// 创业板: 300xxx
-	// B股: 200xxx
-	return strings.HasPrefix(code, "00") || strings.HasPrefix(code, "30") || strings.HasPrefix(code, "20")
 }
 
 // getSSEStockList 获取上交所股票列表（包含更多真实股票）
@@ -254,56 +344,6 @@ func (c *ExchangeClient) getSSEStockList() []StockListItem {
 	}
 }
 
-// getSZSEStockList 获取深交所股票列表（包含更多真实股票）
-func (c *ExchangeClient) getSZSEStockList() []StockListItem {
-	return []StockListItem{
-		// 深交所主板 - 银行
-		{Code: "000001.SZ", Name: "平安银行"},
-		{Code: "000002.SZ", Name: "万科A"},
-		{Code: "000858.SZ", Name: "五粮液"},
-		{Code: "000876.SZ", Name: "新希望"},
-		{Code: "000895.SZ", Name: "双汇发展"},
-
-		// 中小板
-		{Code: "002415.SZ", Name: "海康威视"},
-		{Code: "002594.SZ", Name: "比亚迪"},
-		{Code: "002714.SZ", Name: "牧原股份"},
-		{Code: "002304.SZ", Name: "洋河股份"},
-		{Code: "002142.SZ", Name: "宁波银行"},
-		{Code: "002352.SZ", Name: "顺丰控股"},
-		{Code: "002460.SZ", Name: "赣锋锂业"},
-		{Code: "002475.SZ", Name: "立讯精密"},
-		{Code: "002230.SZ", Name: "科大讯飞"},
-		{Code: "002241.SZ", Name: "歌尔股份"},
-
-		// 创业板
-		{Code: "300059.SZ", Name: "东方财富"},
-		{Code: "300750.SZ", Name: "宁德时代"},
-		{Code: "300015.SZ", Name: "爱尔眼科"},
-		{Code: "300760.SZ", Name: "迈瑞医疗"},
-		{Code: "300274.SZ", Name: "阳光电源"},
-		{Code: "300454.SZ", Name: "深信服"},
-		{Code: "300433.SZ", Name: "蓝思科技"},
-		{Code: "300142.SZ", Name: "沃森生物"},
-		{Code: "300124.SZ", Name: "汇川技术"},
-		{Code: "300003.SZ", Name: "乐普医疗"},
-		{Code: "300122.SZ", Name: "智飞生物"},
-		{Code: "300408.SZ", Name: "三环集团"},
-		{Code: "300661.SZ", Name: "圣邦股份"},
-		{Code: "300558.SZ", Name: "贝达药业"},
-
-		// 深交所主板 - 其他
-		{Code: "000063.SZ", Name: "中兴通讯"},
-		{Code: "000100.SZ", Name: "TCL科技"},
-		{Code: "000166.SZ", Name: "申万宏源"},
-		{Code: "000725.SZ", Name: "京东方A"},
-		{Code: "000768.SZ", Name: "中航西飞"},
-		{Code: "000938.SZ", Name: "紫光股份"},
-		{Code: "000977.SZ", Name: "浪潮信息"},
-		{Code: "000783.SZ", Name: "长江证券"},
-	}
-}
-
 // GetAllStockList 获取所有交易所的股票列表
 func (c *ExchangeClient) GetAllStockList() ([]StockListItem, error) {
 	var allStocks []StockListItem
@@ -314,14 +354,6 @@ func (c *ExchangeClient) GetAllStockList() ([]StockListItem, error) {
 		log.Printf("获取上交所股票列表失败: %v", err)
 	} else {
 		allStocks = append(allStocks, sseStocks...)
-	}
-
-	// 获取深交所股票
-	szseStocks, err := c.GetSZSEStockList()
-	if err != nil {
-		log.Printf("获取深交所股票列表失败: %v", err)
-	} else {
-		allStocks = append(allStocks, szseStocks...)
 	}
 
 	log.Printf("总共获取到 %d 只股票", len(allStocks))

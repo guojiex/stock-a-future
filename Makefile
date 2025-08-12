@@ -17,7 +17,7 @@ STOCKLIST_PATH=./bin/$(STOCKLIST_BINARY)
 STOCKLIST_MAIN_PATH=./cmd/stocklist
 
 # 默认目标
-.PHONY: all build clean test deps run help stocklist fetch-stocks fetch-sse fetch-szse
+.PHONY: all build clean test deps run help stocklist fetch-stocks fetch-sse dev fmt vet tools lint env
 
 all: clean deps build
 
@@ -108,11 +108,7 @@ fetch-sse: stocklist
 	@mkdir -p data
 	$(STOCKLIST_PATH) -source=sse -output=data/sse_stocks.json
 
-# 获取深交所股票列表
-fetch-szse: stocklist
-	@echo "从深圳证券交易所获取股票列表..."
-	@mkdir -p data
-	$(STOCKLIST_PATH) -source=szse -output=data/szse_stocks.json
+
 
 # 显示帮助信息
 help:
@@ -131,5 +127,5 @@ help:
 	@echo "  make stocklist   - 构建股票列表工具"
 	@echo "  make fetch-stocks - 获取所有股票列表"
 	@echo "  make fetch-sse   - 获取上交所股票列表"
-	@echo "  make fetch-szse  - 获取深交所股票列表"
+
 	@echo "  make help        - 显示帮助信息"

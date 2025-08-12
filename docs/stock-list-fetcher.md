@@ -2,12 +2,12 @@
 
 ## 概述
 
-股票列表获取工具允许你直接从上海证券交易所和深圳证券交易所获取股票代码和名称列表，无需依赖第三方API（如Tushare）的高权限。
+股票列表获取工具允许你直接从上海证券交易所获取股票代码和名称列表，无需依赖第三方API（如Tushare）的高权限。
 
 ## 功能特性
 
 - ✅ 支持获取上海证券交易所（SSE）股票列表
-- ✅ 支持获取深圳证券交易所（SZSE）股票列表
+
 - ✅ 支持获取所有交易所的完整股票列表
 - ✅ 自动保存股票数据到JSON文件
 - ✅ 包含真实的股票代码和名称
@@ -15,31 +15,68 @@
 
 ## 使用方法
 
+### 重要说明
+所有 `make` 命令都需要在项目根目录执行，或者使用 `-C` 参数指定项目根目录。
+
+### 快速开始示例
+
+假设您的项目路径是 `/path/to/stock-a-future`，您可以从任意目录执行：
+
+```bash
+# 获取上交所股票列表
+make -C /path/to/stock-a-future fetch-sse
+
+# 获取所有股票列表
+make -C /path/to/stock-a-future fetch-stocks
+```
+
+或者先切换到项目根目录：
+```bash
+cd /path/to/stock-a-future
+make fetch-sse
+```
+
 ### 1. 构建工具
 
+在项目根目录执行：
 ```bash
 make stocklist
 ```
 
+从任意目录执行：
+```bash
+make -C /path/to/stock-a-future stocklist
+```
+
 ### 2. 获取所有股票列表
 
+在项目根目录执行：
 ```bash
 make fetch-stocks
 ```
 
-这将获取上海证券交易所和深圳证券交易所的所有股票，并保存到 `data/stock_list.json`。
+从任意目录执行：
+```bash
+make -C /path/to/stock-a-future fetch-stocks
+```
+
+这将获取上海证券交易所的所有股票，并保存到 `data/stock_list.json`。
 
 ### 3. 单独获取各交易所股票
 
 获取上海证券交易所股票：
+
+在项目根目录执行：
 ```bash
 make fetch-sse
 ```
 
-获取深圳证券交易所股票：
+从任意目录执行：
 ```bash
-make fetch-szse
+make -C /path/to/stock-a-future fetch-sse
 ```
+
+
 
 ### 4. 自定义使用
 
@@ -53,15 +90,14 @@ make fetch-szse
 # 只获取上交所股票
 ./bin/stocklist -source=sse -output=sse_only.json
 
-# 只获取深交所股票
-./bin/stocklist -source=szse -output=szse_only.json
+
 ```
 
 ## 命令行参数
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
-| `-source` | `all` | 数据源：`sse`（上交所）、`szse`（深交所）、`all`（全部） |
+| `-source` | `all` | 数据源：`sse`（上交所）、`all`（全部） |
 | `-output` | `data/stock_list.json` | 输出文件路径 |
 | `-help` | - | 显示帮助信息 |
 
@@ -88,7 +124,7 @@ make fetch-szse
 - `ts_code`: 完整股票代码（包含交易所后缀）
 - `symbol`: 股票代码（不含交易所后缀）
 - `name`: 股票名称
-- `market`: 交易所标识（SH=上交所，SZ=深交所）
+- `market`: 交易所标识（SH=上交所）
 - `area`, `industry`, `list_date`: 预留字段（当前为空）
 
 ## 支持的股票类型
@@ -104,24 +140,12 @@ make fetch-szse
 - 食品饮料：贵州茅台、伊利股份等
 - 科技类：药明康德、金山办公等
 
-### 深圳证券交易所（SZ）
-- **主板股票**: 000xxx, 001xxx
-- **中小板股票**: 002xxx
-- **创业板股票**: 300xxx
-- **B股**: 200xxx
 
-包含的知名股票：
-- 银行类：平安银行等
-- 科技类：海康威视、科大讯飞等
-- 新能源：比亚迪、宁德时代等
-- 医疗类：爱尔眼科、迈瑞医疗等
 
 ## 数据获取说明
 
 目前实现包含了主要的A股上市公司，涵盖：
 - 上交所：39只主要股票
-- 深交所：37只主要股票
-- 总计：76只股票
 
 这些股票代表了各个行业的龙头企业和知名公司，适合用于：
 - 股票分析系统测试
@@ -151,20 +175,41 @@ make fetch-szse
 ### 常见问题
 
 1. **构建失败**
+   
+   在项目根目录执行：
    ```bash
    make clean
    make deps
    make stocklist
    ```
+   
+   从任意目录执行：
+   ```bash
+   make -C /path/to/stock-a-future clean
+   make -C /path/to/stock-a-future deps
+   make -C /path/to/stock-a-future stocklist
+   ```
 
 2. **权限问题**
    ```bash
-   chmod +x ./bin/stocklist
+   chmod +x /path/to/stock-a-future/bin/stocklist
    ```
 
 3. **输出目录不存在**
    ```bash
-   mkdir -p data
+   mkdir -p /path/to/stock-a-future/data
+   ```
+
+4. **Make 命令找不到 Makefile**
+   
+   确保您在项目根目录，或使用 `-C` 参数：
+   ```bash
+   # 切换到项目根目录
+   cd /path/to/stock-a-future
+   make fetch-sse
+   
+   # 或者从任意目录使用 -C 参数
+   make -C /path/to/stock-a-future fetch-sse
    ```
 
 ### 日志信息
