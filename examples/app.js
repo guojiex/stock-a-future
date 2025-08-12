@@ -68,6 +68,20 @@ class StockAFutureClient {
     }
 
     /**
+     * 解析YYYYMMDD格式的日期字符串为Date对象
+     */
+    parseTradeDate(tradeDateStr) {
+        if (!tradeDateStr || tradeDateStr.length !== 8) {
+            return new Date(); // 返回当前日期作为fallback
+        }
+        
+        const year = tradeDateStr.substring(0, 4);
+        const month = tradeDateStr.substring(4, 6);
+        const day = tradeDateStr.substring(6, 8);
+        return new Date(`${year}-${month}-${day}`);
+    }
+
+    /**
      * 验证股票代码格式
      */
     validateStockCode(event) {
@@ -392,7 +406,7 @@ class StockAFutureClient {
         
         // 准备数据
         const labels = data.map(item => {
-            const date = new Date(item.trade_date);
+            const date = this.parseTradeDate(item.trade_date);
             return date.toLocaleDateString('zh-CN');
         });
         
