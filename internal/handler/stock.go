@@ -18,6 +18,7 @@ type StockHandler struct {
 	tushareClient     *client.TushareClient
 	calculator        *indicators.Calculator
 	predictionService *service.PredictionService
+	localStockService *service.LocalStockService
 }
 
 // NewStockHandler 创建股票处理器
@@ -26,6 +27,7 @@ func NewStockHandler(tushareClient *client.TushareClient) *StockHandler {
 		tushareClient:     tushareClient,
 		calculator:        indicators.NewCalculator(),
 		predictionService: service.NewPredictionService(),
+		localStockService: service.NewLocalStockService("data"),
 	}
 }
 
@@ -216,15 +218,61 @@ func (h *StockHandler) GetStockBasic(w http.ResponseWriter, r *http.Request) {
 
 	stockCode := pathParts[3] // /api/v1/stocks/{code}/basic
 
-	// 获取股票基本信息
-	stockBasic, err := h.tushareClient.GetStockBasic(stockCode)
+	// 优先从本地数据获取股票基本信息
+	stockBasic, err := h.localStockService.GetStockBasic(stockCode)
 	if err != nil {
-		log.Printf("获取股票基本信息失败: %v", err)
-		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票基本信息失败: %v", err))
-		return
+		log.Printf("从本地获取股票基本信息失败: %v，尝试从API获取", err)
+
+		// 如果本地获取失败，尝试从Tushare API获取
+		stockBasic, err = h.tushareClient.GetStockBasic(stockCode)
+		if err != nil {
+			log.Printf("从API获取股票基本信息也失败: %v", err)
+			h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票基本信息失败: %v", err))
+			return
+		}
 	}
 
 	h.writeSuccessResponse(w, stockBasic)
+}
+
+// GetStockList 获取本地股票列表
+func (h *StockHandler) GetStockList(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// 获取所有本地股票
+	stocks := h.localStockService.GetAllStocks()
+
+	// 构建响应数据
+	response := map[string]interface{}{
+		"total":  len(stocks),
+		"stocks": stocks,
+	}
+
+	h.writeSuccessResponse(w, response)
+}
+
+// RefreshLocalData 刷新本地数据
+func (h *StockHandler) RefreshLocalData(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// 刷新本地数据
+	if err := h.localStockService.RefreshData(); err != nil {
+		log.Printf("刷新本地数据失败: %v", err)
+		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("刷新本地数据失败: %v", err))
+		return
+	}
+
+	// 获取刷新后的股票数量
+	count := h.localStockService.GetStockCount()
+
+	response := map[string]interface{}{
+		"message": "本地数据刷新成功",
+		"count":   count,
+	}
+
+	h.writeSuccessResponse(w, response)
 }
 
 // GetHealthStatus 健康检查

@@ -41,6 +41,8 @@ func main() {
 	log.Printf("  股票日线: GET http://%s/api/v1/stocks/{code}/daily?start_date=20240101&end_date=20240131", addr)
 	log.Printf("  技术指标: GET http://%s/api/v1/stocks/{code}/indicators", addr)
 	log.Printf("  买卖预测: GET http://%s/api/v1/stocks/{code}/predictions", addr)
+	log.Printf("  本地股票列表: GET http://%s/api/v1/stocks", addr)
+	log.Printf("  刷新本地数据: POST http://%s/api/v1/stocks/refresh", addr)
 	log.Printf("示例: curl http://%s/api/v1/stocks/000001.SZ/daily", addr)
 
 	if err := http.ListenAndServe(addr, handler); err != nil {
@@ -59,6 +61,10 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler) {
 	mux.HandleFunc("GET /api/v1/stocks/{code}/indicators", stockHandler.GetIndicators)
 	mux.HandleFunc("GET /api/v1/stocks/{code}/predictions", stockHandler.GetPredictions)
 
+	// 本地股票数据API
+	mux.HandleFunc("GET /api/v1/stocks", stockHandler.GetStockList)
+	mux.HandleFunc("POST /api/v1/stocks/refresh", stockHandler.RefreshLocalData)
+
 	// 根路径
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -72,7 +78,9 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler) {
 				"basic": "GET /api/v1/stocks/{code}/basic",
 				"daily": "GET /api/v1/stocks/{code}/daily",
 				"indicators": "GET /api/v1/stocks/{code}/indicators", 
-				"predictions": "GET /api/v1/stocks/{code}/predictions"
+				"predictions": "GET /api/v1/stocks/{code}/predictions",
+				"stocks": "GET /api/v1/stocks",
+				"refresh": "POST /api/v1/stocks/refresh"
 			},
 			"example": "curl http://localhost:8080/api/v1/stocks/000001.SZ/daily"
 		}`)); err != nil {
