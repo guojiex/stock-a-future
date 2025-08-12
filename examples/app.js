@@ -684,40 +684,67 @@ class StockAFutureClient {
      * 创建数据摘要HTML
      */
     createDataSummary(latest, previous) {
-        const change = latest.close - previous.close;
-        const changePercent = ((change / previous.close) * 100).toFixed(2);
+        const currentClose = parseFloat(latest.close);
+        const previousClose = parseFloat(latest.pre_close || previous.close);
+        const change = currentClose - previousClose;
+        const changePercent = ((change / previousClose) * 100).toFixed(2);
         const changeClass = change >= 0 ? 'positive' : 'negative';
         const changeSymbol = change >= 0 ? '+' : '';
+        
+        // 计算振幅
+        const amplitude = ((parseFloat(latest.high) - parseFloat(latest.low)) / previousClose * 100).toFixed(2);
         
         return `
             <div class="summary-item">
                 <div class="label">最新收盘价</div>
-                <div class="value">¥${latest.close.toFixed(2)}</div>
+                <div class="value">¥${currentClose.toFixed(2)}</div>
                 <div class="change ${changeClass}">
                     ${changeSymbol}${change.toFixed(2)} (${changeSymbol}${changePercent}%)
                 </div>
             </div>
             <div class="summary-item">
                 <div class="label">成交量</div>
-                <div class="value">${this.formatVolume(latest.vol)}</div>
+                <div class="value">${this.formatVolume(parseFloat(latest.vol))}</div>
             </div>
             <div class="summary-item">
                 <div class="label">最高价</div>
-                <div class="value">¥${latest.high.toFixed(2)}</div>
+                <div class="value">¥${parseFloat(latest.high).toFixed(2)}</div>
             </div>
             <div class="summary-item">
                 <div class="label">最低价</div>
-                <div class="value">¥${latest.low.toFixed(2)}</div>
+                <div class="value">¥${parseFloat(latest.low).toFixed(2)}</div>
             </div>
             <div class="summary-item">
                 <div class="label">开盘价</div>
-                <div class="value">¥${latest.open.toFixed(2)}</div>
+                <div class="value">¥${parseFloat(latest.open).toFixed(2)}</div>
             </div>
             <div class="summary-item">
-                <div class="label">换手率</div>
-                <div class="value">${latest.turnover_rate ? latest.turnover_rate.toFixed(2) + '%' : 'N/A'}</div>
+                <div class="label">成交额</div>
+                <div class="value">${this.formatAmount(parseFloat(latest.amount))}</div>
+            </div>
+            <div class="summary-item">
+                <div class="label">振幅</div>
+                <div class="value">${amplitude}%</div>
+            </div>
+            <div class="summary-item">
+                <div class="label">昨收价</div>
+                <div class="value">¥${previousClose.toFixed(2)}</div>
             </div>
         `;
+    }
+    
+    /**
+     * 格式化成交额
+     */
+    formatAmount(amount) {
+        // 成交额单位是千元，需要转换
+        const amountInYuan = amount * 1000;
+        if (amountInYuan >= 100000000) {
+            return (amountInYuan / 100000000).toFixed(2) + '亿元';
+        } else if (amountInYuan >= 10000) {
+            return (amountInYuan / 10000).toFixed(2) + '万元';
+        }
+        return amountInYuan.toFixed(0) + '元';
     }
 
     /**
@@ -733,84 +760,273 @@ class StockAFutureClient {
     }
 
     /**
-     * 创建价格图表
+     * 创建K线图表（使用ECharts）
      */
     createPriceChart(data, stockCode, stockBasic) {
-        const canvas = document.getElementById('priceChart');
-        const ctx = canvas.getContext('2d');
+        const chartContainer = document.getElementById('priceChart');
         
         // 销毁现有图表
         if (this.currentChart) {
-            this.currentChart.destroy();
+            this.currentChart.dispose();
         }
         
-        // 准备数据
-        const labels = data.map(item => {
-            const date = this.parseTradeDate(item.trade_date);
-            return date.toLocaleDateString('zh-CN');
+        // 初始化ECharts实例
+        this.currentChart = echarts.init(chartContainer);
+        
+        // 准备K线数据 [开盘价, 收盘价, 最低价, 最高价]
+        const klineData = data.map(item => [
+            parseFloat(item.open),
+            parseFloat(item.close),
+            parseFloat(item.low),
+            parseFloat(item.high)
+        ]);
+        
+        // 准备成交量数据
+        const volumeData = data.map(item => parseFloat(item.vol));
+        
+        // 准备日期标签
+        const dates = data.map(item => {
+            const dateStr = item.trade_date;
+            return `${dateStr.substring(0,4)}-${dateStr.substring(4,6)}-${dateStr.substring(6,8)}`;
         });
         
-        const prices = data.map(item => item.close);
-        const volumes = data.map(item => item.vol);
+        // 计算移动平均线
+        const ma5 = this.calculateMA(data.map(item => parseFloat(item.close)), 5);
+        const ma10 = this.calculateMA(data.map(item => parseFloat(item.close)), 10);
+        const ma20 = this.calculateMA(data.map(item => parseFloat(item.close)), 20);
         
         // 构建图表标题
-        let chartTitle = `${stockCode} 价格走势`;
+        let chartTitle = `${stockCode} K线图`;
         if (stockBasic && stockBasic.name) {
-            chartTitle = `${stockBasic.name}(${stockCode}) 价格走势`;
+            chartTitle = `${stockBasic.name}(${stockCode}) K线图`;
         }
         
-        // 创建新图表
-        this.currentChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: '收盘价',
-                    data: prices,
-                    borderColor: '#2563eb',
-                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    title: {
-                        display: true,
-                        text: chartTitle,
-                        font: {
-                            size: 16,
-                            weight: 'bold'
-                        }
-                    },
-                    legend: {
-                        position: 'top'
-                    }
-                },
-                scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: '日期'
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: '价格 (¥)'
-                        },
-                        beginAtZero: false
-                    }
-                },
-                interaction: {
-                    intersect: false,
-                    mode: 'index'
+        // 配置图表选项
+        const option = {
+            title: {
+                text: chartTitle,
+                left: 'center',
+                textStyle: {
+                    fontSize: 16,
+                    fontWeight: 'bold'
                 }
+            },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'cross'
+                },
+                formatter: function(params) {
+                    let result = params[0].name + '<br/>';
+                    
+                    // K线数据
+                    if (params[0].componentSubType === 'candlestick') {
+                        const data = params[0].data;
+                        result += `开盘价: ¥${data[1].toFixed(2)}<br/>`;
+                        result += `收盘价: ¥${data[2].toFixed(2)}<br/>`;
+                        result += `最低价: ¥${data[3].toFixed(2)}<br/>`;
+                        result += `最高价: ¥${data[4].toFixed(2)}<br/>`;
+                        
+                        // 涨跌幅计算
+                        const change = data[2] - data[1];
+                        const changePercent = ((change / data[1]) * 100).toFixed(2);
+                        const changeText = change >= 0 ? `+${change.toFixed(2)}` : change.toFixed(2);
+                        const percentText = change >= 0 ? `+${changePercent}%` : `${changePercent}%`;
+                        result += `涨跌额: ${changeText}<br/>`;
+                        result += `涨跌幅: ${percentText}<br/>`;
+                    }
+                    
+                    // 成交量
+                    const volumeParam = params.find(p => p.seriesName === '成交量');
+                    if (volumeParam) {
+                        result += `成交量: ${this.formatVolume(volumeParam.data)}<br/>`;
+                    }
+                    
+                    // 移动平均线
+                    params.forEach(param => {
+                        if (param.seriesName.includes('MA')) {
+                            result += `${param.seriesName}: ¥${param.data.toFixed(2)}<br/>`;
+                        }
+                    });
+                    
+                    return result;
+                }.bind(this)
+            },
+            legend: {
+                data: ['K线', 'MA5', 'MA10', 'MA20', '成交量'],
+                top: 30
+            },
+            grid: [
+                {
+                    left: '5%',
+                    right: '5%',
+                    top: '15%',
+                    height: '60%'
+                },
+                {
+                    left: '5%',
+                    right: '5%',
+                    top: '80%',
+                    height: '15%'
+                }
+            ],
+            xAxis: [
+                {
+                    type: 'category',
+                    data: dates,
+                    scale: true,
+                    boundaryGap: false,
+                    axisLine: { onZero: false },
+                    splitLine: { show: false },
+                    splitNumber: 20,
+                    min: 'dataMin',
+                    max: 'dataMax'
+                },
+                {
+                    type: 'category',
+                    gridIndex: 1,
+                    data: dates,
+                    scale: true,
+                    boundaryGap: false,
+                    axisLine: { onZero: false },
+                    axisTick: { show: false },
+                    splitLine: { show: false },
+                    axisLabel: { show: false },
+                    splitNumber: 20,
+                    min: 'dataMin',
+                    max: 'dataMax'
+                }
+            ],
+            yAxis: [
+                {
+                    scale: true,
+                    splitArea: {
+                        show: true
+                    },
+                    axisLabel: {
+                        formatter: '¥{value}'
+                    }
+                },
+                {
+                    scale: true,
+                    gridIndex: 1,
+                    splitNumber: 2,
+                    axisLabel: { show: false },
+                    axisLine: { show: false },
+                    axisTick: { show: false },
+                    splitLine: { show: false }
+                }
+            ],
+            dataZoom: [
+                {
+                    type: 'inside',
+                    xAxisIndex: [0, 1],
+                    start: 70,
+                    end: 100
+                },
+                {
+                    show: true,
+                    xAxisIndex: [0, 1],
+                    type: 'slider',
+                    top: '90%',
+                    start: 70,
+                    end: 100
+                }
+            ],
+            series: [
+                {
+                    name: 'K线',
+                    type: 'candlestick',
+                    data: klineData,
+                    itemStyle: {
+                        color: '#ef4444',        // 阳线颜色（红色）
+                        color0: '#10b981',       // 阴线颜色（绿色）
+                        borderColor: '#ef4444',   // 阳线边框
+                        borderColor0: '#10b981'   // 阴线边框
+                    }
+                },
+                {
+                    name: 'MA5',
+                    type: 'line',
+                    data: ma5,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.8,
+                        width: 1,
+                        color: '#2563eb'
+                    },
+                    showSymbol: false
+                },
+                {
+                    name: 'MA10',
+                    type: 'line',
+                    data: ma10,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.8,
+                        width: 1,
+                        color: '#f59e0b'
+                    },
+                    showSymbol: false
+                },
+                {
+                    name: 'MA20',
+                    type: 'line',
+                    data: ma20,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.8,
+                        width: 1,
+                        color: '#8b5cf6'
+                    },
+                    showSymbol: false
+                },
+                {
+                    name: '成交量',
+                    type: 'bar',
+                    xAxisIndex: 1,
+                    yAxisIndex: 1,
+                    data: volumeData.map((vol, index) => {
+                        // 根据K线涨跌设置成交量柱子颜色
+                        const kline = klineData[index];
+                        const color = kline[1] >= kline[0] ? '#ef4444' : '#10b981';
+                        return {
+                            value: vol,
+                            itemStyle: { color: color, opacity: 0.6 }
+                        };
+                    })
+                }
+            ]
+        };
+        
+        // 设置图表配置并渲染
+        this.currentChart.setOption(option);
+        
+        // 响应式调整
+        window.addEventListener('resize', () => {
+            if (this.currentChart) {
+                this.currentChart.resize();
             }
         });
+    }
+    
+    /**
+     * 计算移动平均线
+     */
+    calculateMA(data, period) {
+        const result = [];
+        for (let i = 0; i < data.length; i++) {
+            if (i < period - 1) {
+                result.push(null);
+            } else {
+                let sum = 0;
+                for (let j = i - period + 1; j <= i; j++) {
+                    sum += data[j];
+                }
+                result.push(sum / period);
+            }
+        }
+        return result;
     }
 
     /**
