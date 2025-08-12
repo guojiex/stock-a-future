@@ -37,6 +37,7 @@ func main() {
 	log.Printf("服务器正在监听 %s", addr)
 	log.Printf("API文档:")
 	log.Printf("  健康检查: GET http://%s/api/v1/health", addr)
+	log.Printf("  股票基本信息: GET http://%s/api/v1/stocks/{code}/basic", addr)
 	log.Printf("  股票日线: GET http://%s/api/v1/stocks/{code}/daily?start_date=20240101&end_date=20240131", addr)
 	log.Printf("  技术指标: GET http://%s/api/v1/stocks/{code}/indicators", addr)
 	log.Printf("  买卖预测: GET http://%s/api/v1/stocks/{code}/predictions", addr)
@@ -53,6 +54,7 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler) {
 	mux.HandleFunc("GET /api/v1/health", stockHandler.GetHealthStatus)
 
 	// 股票相关API
+	mux.HandleFunc("GET /api/v1/stocks/{code}/basic", stockHandler.GetStockBasic)
 	mux.HandleFunc("GET /api/v1/stocks/{code}/daily", stockHandler.GetDailyData)
 	mux.HandleFunc("GET /api/v1/stocks/{code}/indicators", stockHandler.GetIndicators)
 	mux.HandleFunc("GET /api/v1/stocks/{code}/predictions", stockHandler.GetPredictions)
@@ -67,6 +69,7 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler) {
 			"description": "A股股票买卖点预测API服务",
 			"endpoints": {
 				"health": "GET /api/v1/health",
+				"basic": "GET /api/v1/stocks/{code}/basic",
 				"daily": "GET /api/v1/stocks/{code}/daily",
 				"indicators": "GET /api/v1/stocks/{code}/indicators", 
 				"predictions": "GET /api/v1/stocks/{code}/predictions"

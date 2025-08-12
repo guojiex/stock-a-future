@@ -12,9 +12,12 @@ GOMOD=$(GOCMD) mod
 BINARY_NAME=stock-a-future
 BINARY_PATH=./bin/$(BINARY_NAME)
 MAIN_PATH=./cmd/server
+STOCKLIST_BINARY=stocklist
+STOCKLIST_PATH=./bin/$(STOCKLIST_BINARY)
+STOCKLIST_MAIN_PATH=./cmd/stocklist
 
 # 默认目标
-.PHONY: all build clean test deps run help
+.PHONY: all build clean test deps run help stocklist fetch-stocks fetch-sse fetch-szse
 
 all: clean deps build
 
@@ -24,6 +27,13 @@ build:
 	@mkdir -p bin
 	$(GOBUILD) -o $(BINARY_PATH) $(MAIN_PATH)
 	@echo "构建完成: $(BINARY_PATH)"
+
+# 构建股票列表工具
+stocklist:
+	@echo "构建股票列表工具..."
+	@mkdir -p bin
+	$(GOBUILD) -o $(STOCKLIST_PATH) $(STOCKLIST_MAIN_PATH)
+	@echo "构建完成: $(STOCKLIST_PATH)"
 
 # 清理构建文件
 clean:
@@ -85,18 +95,41 @@ env:
 		echo ".env文件已存在"; \
 	fi
 
+# 获取股票列表
+fetch-stocks: stocklist
+	@echo "从交易所官网获取股票列表..."
+	@mkdir -p data
+	$(STOCKLIST_PATH) -source=all -output=data/stock_list.json
+	@echo "股票列表获取完成"
+
+# 获取上交所股票列表
+fetch-sse: stocklist
+	@echo "从上海证券交易所获取股票列表..."
+	@mkdir -p data
+	$(STOCKLIST_PATH) -source=sse -output=data/sse_stocks.json
+
+# 获取深交所股票列表
+fetch-szse: stocklist
+	@echo "从深圳证券交易所获取股票列表..."
+	@mkdir -p data
+	$(STOCKLIST_PATH) -source=szse -output=data/szse_stocks.json
+
 # 显示帮助信息
 help:
 	@echo "Stock-A-Future 构建命令:"
-	@echo "  make build    - 构建应用程序"
-	@echo "  make clean    - 清理构建文件"  
-	@echo "  make test     - 运行测试"
-	@echo "  make deps     - 下载依赖"
-	@echo "  make run      - 构建并运行"
-	@echo "  make dev      - 开发模式运行"
-	@echo "  make fmt      - 格式化代码"
-	@echo "  make vet      - 代码检查"
-	@echo "  make lint     - 代码质量检查"
-	@echo "  make tools    - 安装开发工具"
-	@echo "  make env      - 创建.env配置文件"
-	@echo "  make help     - 显示帮助信息"
+	@echo "  make build       - 构建应用程序"
+	@echo "  make clean       - 清理构建文件"  
+	@echo "  make test        - 运行测试"
+	@echo "  make deps        - 下载依赖"
+	@echo "  make run         - 构建并运行"
+	@echo "  make dev         - 开发模式运行"
+	@echo "  make fmt         - 格式化代码"
+	@echo "  make vet         - 代码检查"
+	@echo "  make lint        - 代码质量检查"
+	@echo "  make tools       - 安装开发工具"
+	@echo "  make env         - 创建.env配置文件"
+	@echo "  make stocklist   - 构建股票列表工具"
+	@echo "  make fetch-stocks - 获取所有股票列表"
+	@echo "  make fetch-sse   - 获取上交所股票列表"
+	@echo "  make fetch-szse  - 获取深交所股票列表"
+	@echo "  make help        - 显示帮助信息"

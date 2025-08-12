@@ -202,6 +202,31 @@ func (h *StockHandler) GetPredictions(w http.ResponseWriter, r *http.Request) {
 	h.writeSuccessResponse(w, prediction)
 }
 
+// GetStockBasic 获取股票基本信息
+func (h *StockHandler) GetStockBasic(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// 解析路径参数
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 4 {
+		h.writeErrorResponse(w, http.StatusBadRequest, "无效的股票代码")
+		return
+	}
+
+	stockCode := pathParts[3] // /api/v1/stocks/{code}/basic
+
+	// 获取股票基本信息
+	stockBasic, err := h.tushareClient.GetStockBasic(stockCode)
+	if err != nil {
+		log.Printf("获取股票基本信息失败: %v", err)
+		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票基本信息失败: %v", err))
+		return
+	}
+
+	h.writeSuccessResponse(w, stockBasic)
+}
+
 // GetHealthStatus 健康检查
 func (h *StockHandler) GetHealthStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")

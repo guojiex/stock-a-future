@@ -224,6 +224,94 @@ func (c *TushareClient) parseDecimal(item []interface{}, fieldMap map[string]int
 	return decimal.Zero
 }
 
+// GetStockBasic 获取股票基本信息
+func (c *TushareClient) GetStockBasic(tsCode string) (*models.StockBasic, error) {
+	params := make(map[string]interface{})
+	if tsCode != "" {
+		params["ts_code"] = tsCode
+	}
+
+	request := TushareRequest{
+		APIName: "stock_basic",
+		Token:   c.token,
+		Params:  params,
+		Fields:  "ts_code,symbol,name,area,industry,market,list_date",
+	}
+
+	response, err := c.makeRequest(request)
+	if err != nil {
+		return nil, fmt.Errorf("请求Tushare API失败: %w", err)
+	}
+
+	if response.Code != 0 {
+		return nil, fmt.Errorf("tushare API错误: %s (代码: %d)", response.Msg, response.Code)
+	}
+
+	return c.parseStockBasic(response.Data, tsCode)
+}
+
+// parseStockBasic 解析股票基本信息
+func (c *TushareClient) parseStockBasic(data *TushareData, tsCode string) (*models.StockBasic, error) {
+	if data == nil || len(data.Items) == 0 {
+		return nil, fmt.Errorf("未找到股票基本信息: %s", tsCode)
+	}
+
+	// 构建字段索引映射
+	fieldMap := make(map[string]int)
+	for i, field := range data.Fields {
+		fieldMap[field] = i
+	}
+
+	// 取第一条记录（通常只有一条）
+	item := data.Items[0]
+	stockBasic := &models.StockBasic{}
+
+	// 解析各个字段
+	if idx, ok := fieldMap["ts_code"]; ok && idx < len(item) {
+		if val, ok := item[idx].(string); ok {
+			stockBasic.TSCode = val
+		}
+	}
+
+	if idx, ok := fieldMap["symbol"]; ok && idx < len(item) {
+		if val, ok := item[idx].(string); ok {
+			stockBasic.Symbol = val
+		}
+	}
+
+	if idx, ok := fieldMap["name"]; ok && idx < len(item) {
+		if val, ok := item[idx].(string); ok {
+			stockBasic.Name = val
+		}
+	}
+
+	if idx, ok := fieldMap["area"]; ok && idx < len(item) {
+		if val, ok := item[idx].(string); ok {
+			stockBasic.Area = val
+		}
+	}
+
+	if idx, ok := fieldMap["industry"]; ok && idx < len(item) {
+		if val, ok := item[idx].(string); ok {
+			stockBasic.Industry = val
+		}
+	}
+
+	if idx, ok := fieldMap["market"]; ok && idx < len(item) {
+		if val, ok := item[idx].(string); ok {
+			stockBasic.Market = val
+		}
+	}
+
+	if idx, ok := fieldMap["list_date"]; ok && idx < len(item) {
+		if val, ok := item[idx].(string); ok {
+			stockBasic.ListDate = val
+		}
+	}
+
+	return stockBasic, nil
+}
+
 // TestConnection 测试Tushare连接
 func (c *TushareClient) TestConnection() error {
 	// 使用简单的API调用测试连接

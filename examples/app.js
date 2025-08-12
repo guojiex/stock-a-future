@@ -457,6 +457,89 @@ class StockAFutureClient {
     }
 
     /**
+     * 获取股票基本信息
+     */
+    async getStockBasic(stockCode) {
+        try {
+            const endpoint = `/api/v1/stocks/${stockCode}/basic`;
+            const response = await this.makeRequest(endpoint);
+            
+            if (response.success && response.data) {
+                return response.data;
+            } else {
+                throw new Error(response.error || '获取股票基本信息失败');
+            }
+        } catch (error) {
+            console.warn(`获取股票基本信息失败: ${error.message}`);
+            // 返回默认信息，使用常见股票的本地映射
+            const stockName = this.getStockNameFromLocal(stockCode);
+            return {
+                ts_code: stockCode,
+                name: stockName,
+                symbol: stockCode.split('.')[0]
+            };
+        }
+    }
+
+    /**
+     * 从本地映射获取股票名称（备选方案）
+     */
+    getStockNameFromLocal(stockCode) {
+        // 常见股票代码到名称的映射（更全面的列表）
+        const stockMap = {
+            // 深圳主板
+            '000001.SZ': '平安银行',
+            '000002.SZ': '万科A',
+            '000858.SZ': '五粮液',
+            '000876.SZ': '新希望',
+            '000895.SZ': '双汇发展',
+            '000938.SZ': '紫光股份',
+            
+            // 深圳中小板
+            '002415.SZ': '海康威视',
+            '002594.SZ': '比亚迪',
+            '002714.SZ': '牧原股份',
+            '002304.SZ': '洋河股份',
+            
+            // 深圳创业板
+            '300059.SZ': '东方财富',
+            '300750.SZ': '宁德时代',
+            '300015.SZ': '爱尔眼科',
+            '300142.SZ': '沃森生物',
+            
+            // 上海主板
+            '600000.SH': '浦发银行',
+            '600036.SH': '招商银行',
+            '600519.SH': '贵州茅台',
+            '600887.SH': '伊利股份',
+            '600276.SH': '恒瑞医药',
+            '600031.SH': '三一重工',
+            '600703.SH': '三安光电',
+            '601318.SH': '中国平安',
+            '601166.SH': '兴业银行',
+            '601012.SH': '隆基绿能',
+            '601888.SH': '中国中免',
+            '600009.SH': '上海机场',
+            '600104.SH': '上汽集团',
+            '600196.SH': '复星医药',
+            '600309.SH': '万华化学',
+            '600436.SH': '片仔癀',
+            '600690.SH': '海尔智家',
+            '600745.SH': '闻泰科技',
+            '600809.SH': '山西汾酒',
+            '600893.SH': '航发动力',
+            
+            // 科创板
+            '688111.SH': '金山办公',
+            '688981.SH': '中芯国际',
+            '688036.SH': '传音控股',
+            '688599.SH': '天合光能'
+        };
+        
+        return stockMap[stockCode] || `股票${stockCode.split('.')[0]}`; // 如果找不到映射，则返回格式化的代码
+    }
+
+    /**
      * 获取日期范围
      */
     getDateRange() {
@@ -488,13 +571,16 @@ class StockAFutureClient {
             const stockCode = this.getStockCode();
             const { startDate, endDate } = this.getDateRange();
             
-            const endpoint = `/api/v1/stocks/${stockCode}/daily?start_date=${startDate}&end_date=${endDate}`;
-            const response = await this.makeRequest(endpoint);
+            // 并行获取股票基本信息和日线数据
+            const [stockBasic, dailyResponse] = await Promise.all([
+                this.getStockBasic(stockCode),
+                this.makeRequest(`/api/v1/stocks/${stockCode}/daily?start_date=${startDate}&end_date=${endDate}`)
+            ]);
             
-            if (response.success && response.data) {
-                this.displayDailyData(response.data, stockCode);
+            if (dailyResponse.success && dailyResponse.data) {
+                this.displayDailyData(dailyResponse.data, stockCode, stockBasic);
             } else {
-                throw new Error(response.error || '获取数据失败');
+                throw new Error(dailyResponse.error || '获取数据失败');
             }
             
         } catch (error) {
@@ -513,13 +599,17 @@ class StockAFutureClient {
             this.hideAllResultCards();
             
             const stockCode = this.getStockCode();
-            const endpoint = `/api/v1/stocks/${stockCode}/indicators`;
-            const response = await this.makeRequest(endpoint);
             
-            if (response.success && response.data) {
-                this.displayIndicators(response.data, stockCode);
+            // 并行获取股票基本信息和技术指标
+            const [stockBasic, indicatorsResponse] = await Promise.all([
+                this.getStockBasic(stockCode),
+                this.makeRequest(`/api/v1/stocks/${stockCode}/indicators`)
+            ]);
+            
+            if (indicatorsResponse.success && indicatorsResponse.data) {
+                this.displayIndicators(indicatorsResponse.data, stockCode, stockBasic);
             } else {
-                throw new Error(response.error || '获取技术指标失败');
+                throw new Error(indicatorsResponse.error || '获取技术指标失败');
             }
             
         } catch (error) {
@@ -538,13 +628,17 @@ class StockAFutureClient {
             this.hideAllResultCards();
             
             const stockCode = this.getStockCode();
-            const endpoint = `/api/v1/stocks/${stockCode}/predictions`;
-            const response = await this.makeRequest(endpoint);
             
-            if (response.success && response.data) {
-                this.displayPredictions(response.data, stockCode);
+            // 并行获取股票基本信息和预测数据
+            const [stockBasic, predictionsResponse] = await Promise.all([
+                this.getStockBasic(stockCode),
+                this.makeRequest(`/api/v1/stocks/${stockCode}/predictions`)
+            ]);
+            
+            if (predictionsResponse.success && predictionsResponse.data) {
+                this.displayPredictions(predictionsResponse.data, stockCode, stockBasic);
             } else {
-                throw new Error(response.error || '获取预测数据失败');
+                throw new Error(predictionsResponse.error || '获取预测数据失败');
             }
             
         } catch (error) {
@@ -557,16 +651,22 @@ class StockAFutureClient {
     /**
      * 显示日线数据
      */
-    displayDailyData(data, stockCode) {
+    displayDailyData(data, stockCode, stockBasic) {
         const card = document.getElementById('dailyDataCard');
         const summary = document.getElementById('dailyDataSummary');
+        
+        // 更新卡片标题
+        const cardTitle = card.querySelector('h3');
+        if (cardTitle && stockBasic && stockBasic.name) {
+            cardTitle.textContent = `📈 ${stockBasic.name}(${stockCode}) - 日线数据`;
+        }
         
         // 显示卡片
         card.style.display = 'block';
         card.classList.add('fade-in');
         
         // 创建价格图表
-        this.createPriceChart(data, stockCode);
+        this.createPriceChart(data, stockCode, stockBasic);
         
         // 显示数据摘要
         if (data.length > 0) {
@@ -635,7 +735,7 @@ class StockAFutureClient {
     /**
      * 创建价格图表
      */
-    createPriceChart(data, stockCode) {
+    createPriceChart(data, stockCode, stockBasic) {
         const canvas = document.getElementById('priceChart');
         const ctx = canvas.getContext('2d');
         
@@ -652,6 +752,12 @@ class StockAFutureClient {
         
         const prices = data.map(item => item.close);
         const volumes = data.map(item => item.vol);
+        
+        // 构建图表标题
+        let chartTitle = `${stockCode} 价格走势`;
+        if (stockBasic && stockBasic.name) {
+            chartTitle = `${stockBasic.name}(${stockCode}) 价格走势`;
+        }
         
         // 创建新图表
         this.currentChart = new Chart(ctx, {
@@ -674,7 +780,7 @@ class StockAFutureClient {
                 plugins: {
                     title: {
                         display: true,
-                        text: `${stockCode} 价格走势`,
+                        text: chartTitle,
                         font: {
                             size: 16,
                             weight: 'bold'
@@ -710,9 +816,15 @@ class StockAFutureClient {
     /**
      * 显示技术指标
      */
-    displayIndicators(data, stockCode) {
+    displayIndicators(data, stockCode, stockBasic) {
         const card = document.getElementById('indicatorsCard');
         const grid = document.getElementById('indicatorsGrid');
+        
+        // 更新卡片标题
+        const cardTitle = card.querySelector('h3');
+        if (cardTitle && stockBasic && stockBasic.name) {
+            cardTitle.textContent = `📊 ${stockBasic.name}(${stockCode}) - 技术指标`;
+        }
         
         // 显示卡片
         card.style.display = 'block';
@@ -810,9 +922,15 @@ class StockAFutureClient {
     /**
      * 显示预测结果
      */
-    displayPredictions(data, stockCode) {
+    displayPredictions(data, stockCode, stockBasic) {
         const card = document.getElementById('predictionsCard');
         const container = document.getElementById('predictionsContainer');
+        
+        // 更新卡片标题
+        const cardTitle = card.querySelector('h3');
+        if (cardTitle && stockBasic && stockBasic.name) {
+            cardTitle.textContent = `🎯 ${stockBasic.name}(${stockCode}) - 买卖点预测`;
+        }
         
         // 显示卡片
         card.style.display = 'block';

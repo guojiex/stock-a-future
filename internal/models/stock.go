@@ -43,6 +43,17 @@ func NewJSONDecimal(d decimal.Decimal) JSONDecimal {
 	return JSONDecimal{d}
 }
 
+// StockBasic 股票基本信息
+type StockBasic struct {
+	TSCode   string `json:"ts_code"`   // 股票代码
+	Symbol   string `json:"symbol"`    // 股票简称
+	Name     string `json:"name"`      // 股票名称
+	Area     string `json:"area"`      // 所在地域
+	Industry string `json:"industry"`  // 所属行业
+	Market   string `json:"market"`    // 市场类型
+	ListDate string `json:"list_date"` // 上市日期
+}
+
 // StockDaily 股票日线数据
 type StockDaily struct {
 	TSCode    string      `json:"ts_code"`    // 股票代码
