@@ -1,5 +1,7 @@
 # Stock-A-Future - A股股票买卖点预测API
 
+![Stock-A-Future API 网页示例](examples/Stock-A-Future-API-网页示例-08-12-2025_02_30_PM.png)
+
 基于Go语言开发的A股股票买卖点预测系统，使用Tushare作为数据源，提供技术指标计算和买卖点预测功能。
 
 ## 功能特性
