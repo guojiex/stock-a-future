@@ -33,3 +33,4 @@ go.work.sum
 /.idea/modules.xml
 /.idea/stock-a-future.iml
 /.idea/vcs.xml
+/bin/

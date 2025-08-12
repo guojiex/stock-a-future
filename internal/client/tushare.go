@@ -185,15 +185,15 @@ func (c *TushareClient) parseDailyData(data *TushareData) ([]models.StockDaily, 
 		}
 
 		// 解析数值字段
-		daily.Open = c.parseDecimal(item, fieldMap, "open")
-		daily.High = c.parseDecimal(item, fieldMap, "high")
-		daily.Low = c.parseDecimal(item, fieldMap, "low")
-		daily.Close = c.parseDecimal(item, fieldMap, "close")
-		daily.PreClose = c.parseDecimal(item, fieldMap, "pre_close")
-		daily.Change = c.parseDecimal(item, fieldMap, "change")
-		daily.PctChg = c.parseDecimal(item, fieldMap, "pct_chg")
-		daily.Vol = c.parseDecimal(item, fieldMap, "vol")
-		daily.Amount = c.parseDecimal(item, fieldMap, "amount")
+		daily.Open = models.NewJSONDecimal(c.parseDecimal(item, fieldMap, "open"))
+		daily.High = models.NewJSONDecimal(c.parseDecimal(item, fieldMap, "high"))
+		daily.Low = models.NewJSONDecimal(c.parseDecimal(item, fieldMap, "low"))
+		daily.Close = models.NewJSONDecimal(c.parseDecimal(item, fieldMap, "close"))
+		daily.PreClose = models.NewJSONDecimal(c.parseDecimal(item, fieldMap, "pre_close"))
+		daily.Change = models.NewJSONDecimal(c.parseDecimal(item, fieldMap, "change"))
+		daily.PctChg = models.NewJSONDecimal(c.parseDecimal(item, fieldMap, "pct_chg"))
+		daily.Vol = models.NewJSONDecimal(c.parseDecimal(item, fieldMap, "vol"))
+		daily.Amount = models.NewJSONDecimal(c.parseDecimal(item, fieldMap, "amount"))
 
 		dailyData = append(dailyData, daily)
 	}

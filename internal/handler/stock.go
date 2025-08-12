@@ -142,12 +142,12 @@ func (h *StockHandler) GetIndicators(w http.ResponseWriter, r *http.Request) {
 
 	if len(ma5) > 0 && len(ma10) > 0 && len(ma20) > 0 {
 		indicators.MA = &models.MovingAverageIndicator{
-			MA5:  ma5[len(ma5)-1],
-			MA10: ma10[len(ma10)-1],
-			MA20: ma20[len(ma20)-1],
+			MA5:  models.NewJSONDecimal(ma5[len(ma5)-1]),
+			MA10: models.NewJSONDecimal(ma10[len(ma10)-1]),
+			MA20: models.NewJSONDecimal(ma20[len(ma20)-1]),
 		}
 		if len(ma60) > 0 {
-			indicators.MA.MA60 = ma60[len(ma60)-1]
+			indicators.MA.MA60 = models.NewJSONDecimal(ma60[len(ma60)-1])
 		}
 	}
 

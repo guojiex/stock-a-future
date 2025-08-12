@@ -87,15 +87,15 @@ func (s *PredictionService) calculateAllIndicators(data []models.StockDaily) *mo
 
 	if len(ma5) > 0 && len(ma10) > 0 && len(ma20) > 0 {
 		indicators.MA = &models.MovingAverageIndicator{
-			MA5:  ma5[len(ma5)-1],
-			MA10: ma10[len(ma10)-1],
-			MA20: ma20[len(ma20)-1],
+			MA5:  models.NewJSONDecimal(ma5[len(ma5)-1]),
+			MA10: models.NewJSONDecimal(ma10[len(ma10)-1]),
+			MA20: models.NewJSONDecimal(ma20[len(ma20)-1]),
 		}
 		if len(ma60) > 0 {
-			indicators.MA.MA60 = ma60[len(ma60)-1]
+			indicators.MA.MA60 = models.NewJSONDecimal(ma60[len(ma60)-1])
 		}
 		if len(ma120) > 0 {
-			indicators.MA.MA120 = ma120[len(ma120)-1]
+			indicators.MA.MA120 = models.NewJSONDecimal(ma120[len(ma120)-1])
 		}
 	}
 
@@ -111,7 +111,7 @@ func (s *PredictionService) calculateAllIndicators(data []models.StockDaily) *mo
 // generatePredictions 基于技术指标生成预测
 func (s *PredictionService) generatePredictions(data []models.StockDaily, indicators *models.TechnicalIndicators) []models.TradingPointPrediction {
 	var predictions []models.TradingPointPrediction
-	currentPrice := data[len(data)-1].Close
+	currentPrice := data[len(data)-1].Close.Decimal
 
 	// 基于MACD的预测
 	if indicators.MACD != nil {
@@ -175,16 +175,16 @@ func (s *PredictionService) predictFromMACD(macd *models.MACDIndicator, currentP
 	}
 
 	// 根据MACD强度调整概率
-	macdStrength := macd.MACD.Abs()
+	macdStrength := macd.Histogram.Decimal.Abs()
 	if macdStrength.GreaterThan(decimal.NewFromFloat(0.1)) {
 		probability = probability.Add(decimal.NewFromFloat(0.1))
 	}
 
 	return &models.TradingPointPrediction{
 		Type:        predictType,
-		Price:       currentPrice,
+		Price:       models.NewJSONDecimal(currentPrice),
 		Date:        time.Now().AddDate(0, 0, 1).Format("20060102"), // 预测明天
-		Probability: probability,
+		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
 		Indicators:  []string{"MACD"},
 	}
@@ -204,20 +204,20 @@ func (s *PredictionService) predictFromRSI(rsi *models.RSIIndicator, currentPric
 	case "BUY":
 		predictType = "BUY"
 		probability = decimal.NewFromFloat(0.70) // RSI超卖信号相对可靠
-		reason = fmt.Sprintf("RSI超卖信号，当前RSI值：%.2f", rsi.RSI12.InexactFloat64())
+		reason = fmt.Sprintf("RSI超卖信号，当前RSI值：%.2f", rsi.RSI14.Decimal.InexactFloat64())
 	case "SELL":
 		predictType = "SELL"
 		probability = decimal.NewFromFloat(0.65)
-		reason = fmt.Sprintf("RSI超买信号，当前RSI值：%.2f", rsi.RSI12.InexactFloat64())
+		reason = fmt.Sprintf("RSI超买信号，当前RSI值：%.2f", rsi.RSI14.Decimal.InexactFloat64())
 	default:
 		return nil
 	}
 
 	return &models.TradingPointPrediction{
 		Type:        predictType,
-		Price:       currentPrice,
+		Price:       models.NewJSONDecimal(currentPrice),
 		Date:        time.Now().AddDate(0, 0, 1).Format("20060102"),
-		Probability: probability,
+		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
 		Indicators:  []string{"RSI"},
 	}
@@ -248,9 +248,9 @@ func (s *PredictionService) predictFromBollingerBands(boll *models.BollingerBand
 
 	return &models.TradingPointPrediction{
 		Type:        predictType,
-		Price:       currentPrice,
+		Price:       models.NewJSONDecimal(currentPrice),
 		Date:        time.Now().AddDate(0, 0, 2).Format("20060102"), // 布林带信号预测后天
-		Probability: probability,
+		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
 		Indicators:  []string{"BOLL"},
 	}
@@ -270,20 +270,20 @@ func (s *PredictionService) predictFromKDJ(kdj *models.KDJIndicator, currentPric
 	case "BUY":
 		predictType = "BUY"
 		probability = decimal.NewFromFloat(0.58)
-		reason = fmt.Sprintf("KDJ超卖信号，K值：%.2f，D值：%.2f", kdj.K.InexactFloat64(), kdj.D.InexactFloat64())
+		reason = fmt.Sprintf("KDJ超卖信号，K值：%.2f，D值：%.2f", kdj.K.Decimal.InexactFloat64(), kdj.D.Decimal.InexactFloat64())
 	case "SELL":
 		predictType = "SELL"
 		probability = decimal.NewFromFloat(0.55)
-		reason = fmt.Sprintf("KDJ超买信号，K值：%.2f，D值：%.2f", kdj.K.InexactFloat64(), kdj.D.InexactFloat64())
+		reason = fmt.Sprintf("KDJ超买信号，K值：%.2f，D值：%.2f", kdj.K.Decimal.InexactFloat64(), kdj.D.Decimal.InexactFloat64())
 	default:
 		return nil
 	}
 
 	return &models.TradingPointPrediction{
 		Type:        predictType,
-		Price:       currentPrice,
+		Price:       models.NewJSONDecimal(currentPrice),
 		Date:        time.Now().AddDate(0, 0, 1).Format("20060102"),
-		Probability: probability,
+		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
 		Indicators:  []string{"KDJ"},
 	}
@@ -297,8 +297,8 @@ func (s *PredictionService) predictFromMA(ma *models.MovingAverageIndicator, cur
 	var reason string
 
 	// 多头排列：MA5 > MA10 > MA20
-	if ma.MA5.GreaterThan(ma.MA10) && ma.MA10.GreaterThan(ma.MA20) {
-		if currentPrice.GreaterThan(ma.MA5) {
+	if ma.MA5.Decimal.GreaterThan(ma.MA10.Decimal) && ma.MA10.Decimal.GreaterThan(ma.MA20.Decimal) {
+		if currentPrice.GreaterThan(ma.MA5.Decimal) {
 			predictType = "BUY"
 			probability = decimal.NewFromFloat(0.62)
 			reason = "均线多头排列，价格在5日均线之上"
@@ -306,8 +306,8 @@ func (s *PredictionService) predictFromMA(ma *models.MovingAverageIndicator, cur
 	}
 
 	// 空头排列：MA5 < MA10 < MA20
-	if ma.MA5.LessThan(ma.MA10) && ma.MA10.LessThan(ma.MA20) {
-		if currentPrice.LessThan(ma.MA5) {
+	if ma.MA5.Decimal.LessThan(ma.MA10.Decimal) && ma.MA10.Decimal.LessThan(ma.MA20.Decimal) {
+		if currentPrice.LessThan(ma.MA5.Decimal) {
 			predictType = "SELL"
 			probability = decimal.NewFromFloat(0.58)
 			reason = "均线空头排列，价格在5日均线之下"
@@ -320,18 +320,18 @@ func (s *PredictionService) predictFromMA(ma *models.MovingAverageIndicator, cur
 
 	return &models.TradingPointPrediction{
 		Type:        predictType,
-		Price:       currentPrice,
+		Price:       models.NewJSONDecimal(currentPrice),
 		Date:        time.Now().AddDate(0, 0, 3).Format("20060102"), // 均线信号预测3天后
-		Probability: probability,
+		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
 		Indicators:  []string{"MA"},
 	}
 }
 
 // calculateOverallConfidence 计算整体置信度
-func (s *PredictionService) calculateOverallConfidence(predictions []models.TradingPointPrediction) decimal.Decimal {
+func (s *PredictionService) calculateOverallConfidence(predictions []models.TradingPointPrediction) models.JSONDecimal {
 	if len(predictions) == 0 {
-		return decimal.Zero
+		return models.NewJSONDecimal(decimal.Zero)
 	}
 
 	// 统计买卖信号
@@ -340,7 +340,7 @@ func (s *PredictionService) calculateOverallConfidence(predictions []models.Trad
 	totalProbability := decimal.Zero
 
 	for _, pred := range predictions {
-		totalProbability = totalProbability.Add(pred.Probability)
+		totalProbability = totalProbability.Add(pred.Probability.Decimal)
 		switch pred.Type {
 		case "BUY":
 			buyCount++
@@ -367,5 +367,5 @@ func (s *PredictionService) calculateOverallConfidence(predictions []models.Trad
 		confidence = decimal.NewFromInt(1)
 	}
 
-	return confidence
+	return models.NewJSONDecimal(confidence)
 }

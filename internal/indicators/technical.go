@@ -25,7 +25,7 @@ func (c *Calculator) CalculateMA(data []models.StockDaily, period int) []decimal
 	for i := period - 1; i < len(data); i++ {
 		sum := decimal.Zero
 		for j := i - period + 1; j <= i; j++ {
-			sum = sum.Add(data[j].Close)
+			sum = sum.Add(data[j].Close.Decimal)
 		}
 		ma := sum.Div(decimal.NewFromInt(int64(period)))
 		mas = append(mas, ma)
@@ -73,10 +73,10 @@ func (c *Calculator) CalculateMACD(data []models.StockDaily) []models.MACDIndica
 		}
 
 		macdResults = append(macdResults, models.MACDIndicator{
-			DIF:    difValues[i],
-			DEA:    deaValues[i],
-			MACD:   macd,
-			Signal: signal,
+			DIF:       models.NewJSONDecimal(difValues[i]),
+			DEA:       models.NewJSONDecimal(deaValues[i]),
+			Histogram: models.NewJSONDecimal(macd),
+			Signal:    signal,
 		})
 	}
 
@@ -93,7 +93,7 @@ func (c *Calculator) CalculateRSI(data []models.StockDaily, period int) []models
 
 	// 计算涨跌幅
 	for i := 1; i < len(data); i++ {
-		change := data[i].Close.Sub(data[i-1].Close)
+		change := data[i].Close.Decimal.Sub(data[i-1].Close.Decimal)
 		if change.GreaterThan(decimal.Zero) {
 			gains = append(gains, change)
 			losses = append(losses, decimal.Zero)
@@ -127,9 +127,7 @@ func (c *Calculator) CalculateRSI(data []models.StockDaily, period int) []models
 
 		// 这里简化处理，只计算一个周期的RSI
 		rsiResults = append(rsiResults, models.RSIIndicator{
-			RSI6:   rsi, // 简化为单一RSI值
-			RSI12:  rsi,
-			RSI24:  rsi,
+			RSI14:  models.NewJSONDecimal(rsi),
 			Signal: signal,
 		})
 	}
@@ -155,7 +153,7 @@ func (c *Calculator) CalculateBollingerBands(data []models.StockDaily, period in
 		// 计算标准差
 		sum := decimal.Zero
 		for j := i - period + 1; j <= i; j++ {
-			diff := data[j].Close.Sub(mas[maIndex])
+			diff := data[j].Close.Decimal.Sub(mas[maIndex])
 			sum = sum.Add(diff.Mul(diff))
 		}
 		variance := sum.Div(decimal.NewFromInt(int64(period)))
@@ -167,7 +165,7 @@ func (c *Calculator) CalculateBollingerBands(data []models.StockDaily, period in
 		lower := middle.Sub(offset)
 
 		signal := "HOLD"
-		currentPrice := data[i].Close
+		currentPrice := data[i].Close.Decimal
 		if currentPrice.GreaterThan(upper) {
 			signal = "SELL" // 价格突破上轨，可能回调
 		} else if currentPrice.LessThan(lower) {
@@ -175,9 +173,9 @@ func (c *Calculator) CalculateBollingerBands(data []models.StockDaily, period in
 		}
 
 		bollResults = append(bollResults, models.BollingerBandsIndicator{
-			Upper:  upper,
-			Middle: middle,
-			Lower:  lower,
+			Upper:  models.NewJSONDecimal(upper),
+			Middle: models.NewJSONDecimal(middle),
+			Lower:  models.NewJSONDecimal(lower),
 			Signal: signal,
 		})
 	}
@@ -196,15 +194,15 @@ func (c *Calculator) CalculateKDJ(data []models.StockDaily, period int) []models
 
 	for i := period - 1; i < len(data); i++ {
 		// 计算最高价和最低价
-		high := data[i-period+1].High
-		low := data[i-period+1].Low
+		high := data[i-period+1].High.Decimal
+		low := data[i-period+1].Low.Decimal
 
 		for j := i - period + 2; j <= i; j++ {
-			if data[j].High.GreaterThan(high) {
-				high = data[j].High
+			if data[j].High.Decimal.GreaterThan(high) {
+				high = data[j].High.Decimal
 			}
-			if data[j].Low.LessThan(low) {
-				low = data[j].Low
+			if data[j].Low.Decimal.LessThan(low) {
+				low = data[j].Low.Decimal
 			}
 		}
 
@@ -213,7 +211,7 @@ func (c *Calculator) CalculateKDJ(data []models.StockDaily, period int) []models
 		if high.Equal(low) {
 			rsv = decimal.NewFromInt(50) // 避免除零
 		} else {
-			rsv = data[i].Close.Sub(low).Div(high.Sub(low)).Mul(decimal.NewFromInt(100))
+			rsv = data[i].Close.Decimal.Sub(low).Div(high.Sub(low)).Mul(decimal.NewFromInt(100))
 		}
 
 		// 计算K值
@@ -245,9 +243,9 @@ func (c *Calculator) CalculateKDJ(data []models.StockDaily, period int) []models
 		}
 
 		kdjResults = append(kdjResults, models.KDJIndicator{
-			K:      k,
-			D:      d,
-			J:      j,
+			K:      models.NewJSONDecimal(k),
+			D:      models.NewJSONDecimal(d),
+			J:      models.NewJSONDecimal(j),
 			Signal: signal,
 		})
 	}
@@ -267,14 +265,14 @@ func (c *Calculator) calculateEMA(data []models.StockDaily, period int) []decima
 	// 第一个EMA值使用简单移动平均
 	sum := decimal.Zero
 	for i := 0; i < period; i++ {
-		sum = sum.Add(data[i].Close)
+		sum = sum.Add(data[i].Close.Decimal)
 	}
 	firstEMA := sum.Div(decimal.NewFromInt(int64(period)))
 	emas = append(emas, firstEMA)
 
 	// 后续EMA值
 	for i := period; i < len(data); i++ {
-		ema := data[i].Close.Mul(alpha).Add(emas[len(emas)-1].Mul(decimal.NewFromInt(1).Sub(alpha)))
+		ema := data[i].Close.Decimal.Mul(alpha).Add(emas[len(emas)-1].Mul(decimal.NewFromInt(1).Sub(alpha)))
 		emas = append(emas, ema)
 	}
 
