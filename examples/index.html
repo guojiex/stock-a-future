@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock-A-Future API 网页示例</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <header class="header">
+            <h1>🚀 Stock-A-Future API</h1>
+            <p>A股股票买卖点预测系统</p>
+            <div class="status-indicator">
+                <div id="connectionStatus" class="status-dot offline"></div>
+                <span id="statusText">连接中...</span>
+            </div>
+        </header>
+
+        <!-- 主要内容区域 -->
+        <main class="main-content">
+            <!-- 股票查询区域 -->
+            <section class="search-section">
+                <div class="card">
+                    <h2>📊 股票查询</h2>
+                    <div class="search-form">
+                        <div class="input-group">
+                            <label for="stockCode">股票代码</label>
+                            <input type="text" id="stockCode" placeholder="例如: 000001.SZ" value="000001.SZ">
+                            <small>支持格式: 000001.SZ (深圳), 600000.SH (上海)</small>
+                        </div>
+                        
+                        <div class="date-inputs">
+                            <div class="input-group">
+                                <label for="startDate">开始日期</label>
+                                <input type="date" id="startDate">
+                            </div>
+                            <div class="input-group">
+                                <label for="endDate">结束日期</label>
+                                <input type="date" id="endDate">
+                            </div>
+                        </div>
+
+                        <div class="button-group">
+                            <button id="queryDaily" class="btn btn-primary">📈 获取日线数据</button>
+                            <button id="queryIndicators" class="btn btn-secondary">📊 技术指标</button>
+                            <button id="queryPredictions" class="btn btn-accent">🎯 买卖预测</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 结果显示区域 -->
+            <section class="results-section">
+                <!-- 日线数据 -->
+                <div class="card" id="dailyDataCard" style="display: none;">
+                    <h3>📈 日线数据</h3>
+                    <div class="chart-container">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                    <div class="data-summary" id="dailyDataSummary"></div>
+                </div>
+
+                <!-- 技术指标 -->
+                <div class="card" id="indicatorsCard" style="display: none;">
+                    <h3>📊 技术指标</h3>
+                    <div class="indicators-grid" id="indicatorsGrid"></div>
+                </div>
+
+                <!-- 买卖预测 -->
+                <div class="card" id="predictionsCard" style="display: none;">
+                    <h3>🎯 买卖点预测</h3>
+                    <div class="predictions-container" id="predictionsContainer"></div>
+                </div>
+
+                <!-- 错误提示 -->
+                <div class="card error-card" id="errorCard" style="display: none;">
+                    <h3>❌ 错误信息</h3>
+                    <div class="error-message" id="errorMessage"></div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 底部信息 -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="api-info">
+                    <h4>API 端点</h4>
+                    <ul>
+                        <li><code>GET /api/v1/health</code> - 健康检查</li>
+                        <li><code>GET /api/v1/stocks/{code}/daily</code> - 日线数据</li>
+                        <li><code>GET /api/v1/stocks/{code}/indicators</code> - 技术指标</li>
+                        <li><code>GET /api/v1/stocks/{code}/predictions</code> - 买卖预测</li>
+                    </ul>
+                </div>
+                <div class="disclaimer">
+                    <h4>⚠️ 免责声明</h4>
+                    <p>本系统提供的预测结果仅供参考，不构成投资建议。投资有风险，入市需谨慎。</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 加载遮罩 -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>数据加载中...</p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
