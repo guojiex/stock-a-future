@@ -32,6 +32,14 @@
 - CORS支持，便于前端集成
 - 详细的错误处理和日志记录
 
+### 🌐 Web界面
+- **专业K线图**: 使用ECharts显示完整的OHLC数据
+- **技术指标叠加**: MA5/MA10/MA20移动平均线
+- **成交量副图**: 底部显示成交量柱状图，颜色与K线联动
+- **智能搜索**: 支持股票名称和代码实时搜索
+- **响应式设计**: 自适应桌面端和移动端
+- **交互体验**: 缩放、平移、十字光标等专业功能
+
 ## 快速开始
 
 ### 环境要求
@@ -79,12 +87,18 @@
    make run
    ```
 
-服务将在 `http://localhost:8080` 启动。
+服务将在 `http://localhost:8081` 启动。
+
+6. **使用Web界面**
+   - 打开浏览器访问 `examples/index.html`
+   - 配置服务器地址为 `http://localhost:8081`
+   - 使用智能搜索框输入股票名称或代码（如：平安银行、000001）
+   - 选择股票后查看专业K线图和技术指标
 
 ## API文档
 
 ### 基础信息
-- **Base URL**: `http://localhost:8080`
+- **Base URL**: `http://localhost:8081`
 - **Content-Type**: `application/json`
 
 ### 接口列表
@@ -175,7 +189,85 @@ GET /api/v1/stocks/{code}/indicators
 }
 ```
 
-#### 4. 获取买卖点预测
+#### 4. 获取股票基本信息
+```http
+GET /api/v1/stocks/{code}/basic
+```
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "data": {
+    "ts_code": "000001.SZ",
+    "symbol": "000001",
+    "name": "平安银行",
+    "area": "深圳",
+    "industry": "银行",
+    "market": "SZ",
+    "list_date": "19910403"
+  }
+}
+```
+
+#### 5. 搜索股票
+```http
+GET /api/v1/stocks/search?q={keyword}&limit={limit}
+```
+
+**参数说明**:
+- `q`: 搜索关键词 (股票名称或代码)
+- `limit`: 返回结果数量限制 (可选，默认10，最大50)
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "data": {
+    "keyword": "平安",
+    "total": 3,
+    "stocks": [
+      {
+        "ts_code": "000001.SZ",
+        "symbol": "000001",
+        "name": "平安银行",
+        "market": "SZ"
+      },
+      {
+        "ts_code": "601318.SH",
+        "symbol": "601318",
+        "name": "中国平安",
+        "market": "SH"
+      }
+    ]
+  }
+}
+```
+
+#### 6. 获取股票列表
+```http
+GET /api/v1/stocks
+```
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "data": {
+    "total": 8950,
+    "stocks": [
+      {
+        "ts_code": "000001.SZ",
+        "symbol": "000001",
+        "name": "平安银行",
+        "market": "SZ"
+      }
+    ]
+  }
+}
+```
+
+#### 7. 获取买卖点预测
 ```http
 GET /api/v1/stocks/{code}/predictions
 ```
@@ -249,6 +341,8 @@ stock-a-future/
 ## 开发指南
 
 ### 本地开发
+
+#### 开发工具和代码质量
 ```bash
 # 安装开发工具
 make tools
@@ -266,12 +360,57 @@ make test
 make lint
 ```
 
+#### 服务器管理
+```bash
+# 检查服务器状态
+make status
+
+# 开发模式启动
+make dev
+
+# 停止服务器
+make stop
+
+# 强制停止服务器
+make kill
+
+# 重启服务器
+make restart
+```
+
+#### 构建和部署
+```bash
+# 下载依赖
+make deps
+
+# 构建应用程序
+make build
+
+# 构建并运行
+make run
+
+# 清理构建文件
+make clean
+```
+
+#### 数据管理
+```bash
+# 获取上交所股票列表
+make fetch-sse
+
+# 获取所有股票列表
+make fetch-stocks
+
+# 构建股票列表工具
+make stocklist
+```
+
 ### 环境配置
 创建`.env`文件：
 ```bash
 TUSHARE_TOKEN=your_tushare_token_here
 TUSHARE_BASE_URL=http://api.tushare.pro
-SERVER_PORT=8080
+SERVER_PORT=8081
 SERVER_HOST=localhost
 LOG_LEVEL=info
 ```
@@ -285,21 +424,70 @@ make build
 ./bin/stock-a-future
 ```
 
+## 功能展示
+
+### 🖥️ Web界面特性
+
+#### K线图升级
+- **从简单折线图到专业K线图**: 显示完整的开盘、最高、最低、收盘价
+- **红绿涨跌色彩**: 红色阳线表示上涨，绿色阴线表示下跌
+- **成交量联动**: 底部成交量柱状图，颜色与K线保持一致
+- **技术指标叠加**: 自动计算并显示MA5、MA10、MA20移动平均线
+
+#### 智能搜索功能
+- **实时搜索**: 输入股票名称或代码，300ms防抖搜索
+- **模糊匹配**: 支持部分匹配，如输入"平安"可找到"平安银行"、"中国平安"
+- **键盘导航**: 支持上下箭头键选择，回车确认
+- **自动填充**: 选择搜索结果后自动填入股票代码框
+
+#### 交互体验
+- **图表缩放**: 鼠标滚轮缩放，拖拽平移
+- **数据提示**: 鼠标悬停显示详细的OHLC数据、成交量、涨跌幅
+- **响应式设计**: 自适应不同屏幕尺寸
+- **数据摘要**: 显示8个关键指标（收盘价、成交量、振幅等）
+
+### 🔧 服务器管理
+
+新增的Make命令让服务器管理更加便捷：
+
+```bash
+# 检查服务器状态（显示进程和端口占用）
+make status
+
+# 优雅停止服务器
+make stop
+
+# 强制停止（包括端口清理）
+make kill
+
+# 一键重启
+make restart
+```
+
 ## 使用示例
 
 ### cURL示例
 ```bash
 # 健康检查
-curl http://localhost:8080/api/v1/health
+curl http://localhost:8081/api/v1/health
 
 # 获取平安银行日线数据
-curl "http://localhost:8080/api/v1/stocks/000001.SZ/daily?start_date=20240101&end_date=20240131"
+curl "http://localhost:8081/api/v1/stocks/000001.SZ/daily?start_date=20240101&end_date=20240131"
+
+# 获取股票基本信息
+curl http://localhost:8081/api/v1/stocks/000001.SZ/basic
+
+# 搜索股票
+curl "http://localhost:8081/api/v1/stocks/search?q=平安&limit=5"
+
+# 获取股票列表
+curl http://localhost:8081/api/v1/stocks
 
 # 获取技术指标
-curl http://localhost:8080/api/v1/stocks/000001.SZ/indicators
+curl http://localhost:8081/api/v1/stocks/000001.SZ/indicators
 
 # 获取买卖点预测
-curl http://localhost:8080/api/v1/stocks/000001.SZ/predictions
+curl http://localhost:8081/api/v1/stocks/000001.SZ/predictions
 ```
 
 ### Python示例
@@ -307,21 +495,80 @@ curl http://localhost:8080/api/v1/stocks/000001.SZ/predictions
 import requests
 
 # 基础配置
-base_url = "http://localhost:8080"
+base_url = "http://localhost:8081"
 stock_code = "000001.SZ"
 
-# 获取预测结果
-response = requests.get(f"{base_url}/api/v1/stocks/{stock_code}/predictions")
-data = response.json()
+# 1. 搜索股票
+def search_stocks(keyword):
+    response = requests.get(f"{base_url}/api/v1/stocks/search", 
+                          params={"q": keyword, "limit": 5})
+    data = response.json()
+    if data["success"]:
+        print(f"搜索 '{keyword}' 的结果:")
+        for stock in data["data"]["stocks"]:
+            print(f"  {stock['name']} ({stock['ts_code']}) - {stock['market']}")
+        return data["data"]["stocks"]
+    return []
 
-if data["success"]:
-    predictions = data["data"]["predictions"]
-    for pred in predictions:
-        print(f"预测类型: {pred['type']}")
-        print(f"预测价格: {pred['price']}")
-        print(f"预测概率: {pred['probability']}")
-        print(f"预测理由: {pred['reason']}")
-        print("---")
+# 2. 获取股票基本信息
+def get_stock_basic(stock_code):
+    response = requests.get(f"{base_url}/api/v1/stocks/{stock_code}/basic")
+    data = response.json()
+    if data["success"]:
+        stock = data["data"]
+        print(f"股票信息: {stock['name']} ({stock['ts_code']})")
+        print(f"所属市场: {stock['market']}, 行业: {stock.get('industry', 'N/A')}")
+        return stock
+    return None
+
+# 3. 获取日线数据
+def get_daily_data(stock_code, start_date="20250101", end_date="20250131"):
+    response = requests.get(f"{base_url}/api/v1/stocks/{stock_code}/daily",
+                          params={"start_date": start_date, "end_date": end_date})
+    data = response.json()
+    if data["success"]:
+        daily_data = data["data"]
+        print(f"获取到 {len(daily_data)} 条日线数据")
+        if daily_data:
+            latest = daily_data[-1]
+            print(f"最新数据 ({latest['trade_date']}): 收盘价 {latest['close']}")
+        return daily_data
+    return []
+
+# 4. 获取预测结果
+def get_predictions(stock_code):
+    response = requests.get(f"{base_url}/api/v1/stocks/{stock_code}/predictions")
+    data = response.json()
+    if data["success"]:
+        predictions = data["data"]["predictions"]
+        confidence = data["data"]["confidence"]
+        print(f"预测置信度: {confidence:.2%}")
+        for pred in predictions:
+            print(f"预测类型: {pred['type']}")
+            print(f"预测价格: {pred['price']}")
+            print(f"预测概率: {pred['probability']:.2%}")
+            print(f"预测理由: {pred['reason']}")
+            print("---")
+        return predictions
+    return []
+
+# 使用示例
+if __name__ == "__main__":
+    # 搜索包含"平安"的股票
+    stocks = search_stocks("平安")
+    
+    if stocks:
+        # 使用第一个搜索结果
+        stock_code = stocks[0]["ts_code"]
+        
+        # 获取基本信息
+        get_stock_basic(stock_code)
+        
+        # 获取日线数据
+        get_daily_data(stock_code)
+        
+        # 获取预测结果
+        get_predictions(stock_code)
 ```
 
 ## 注意事项
@@ -368,10 +615,45 @@ if data["success"]:
    make dev
    
    # 在另一个终端测试健康检查
-   curl http://localhost:8080/api/v1/health
+   curl http://localhost:8081/api/v1/health
    ```
 
 如果健康检查显示Tushare服务状态为"healthy"，说明配置成功。
+
+## 📈 更新日志
+
+### v1.2.0 (2025-01-13)
+
+#### 🆕 新增功能
+- **专业K线图**: 升级前端图表为ECharts，支持完整OHLC显示
+- **智能股票搜索**: 新增股票名称和代码搜索API和前端界面
+- **服务器管理命令**: 新增 `make stop/kill/status/restart` 命令
+- **成交量副图**: K线图下方显示成交量柱状图
+- **技术指标叠加**: 自动显示MA5/MA10/MA20移动平均线
+
+#### 🔧 改进优化
+- **端口更新**: 默认端口从8080改为8081，避免常见冲突
+- **数据摘要增强**: 显示8个关键指标（成交额、振幅等）
+- **交互体验**: 支持图表缩放、平移、键盘导航
+- **响应式设计**: 优化移动端显示效果
+- **错误处理**: 改进API错误处理和用户反馈
+
+#### 🐛 修复问题
+- 修复图表数据格式化问题
+- 优化搜索性能和防抖处理
+- 改进服务器进程管理和端口检测
+
+#### 📚 文档更新
+- 更新所有API示例和端口号
+- 新增服务器管理指南
+- 完善Python使用示例
+- 添加功能展示说明
+
+### v1.1.0 (2024-12)
+- 初始版本发布
+- 基础API功能
+- 技术指标计算
+- 简单前端界面
 
 ## 贡献指南
 
