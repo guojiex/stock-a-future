@@ -30,10 +30,21 @@
                 <div class="card">
                     <h2>📊 股票查询</h2>
                     <div class="search-form">
-                        <div class="input-group">
-                            <label for="stockCode">股票代码</label>
-                            <input type="text" id="stockCode" placeholder="例如: 000001.SZ" value="000001.SZ">
-                            <small>支持格式: 000001.SZ (深圳), 600000.SH (上海)</small>
+                        <div class="stock-search-container">
+                            <div class="input-group">
+                                <label for="stockSearch">股票搜索</label>
+                                <div class="search-input-wrapper">
+                                    <input type="text" id="stockSearch" placeholder="输入股票名称或代码，如: 平安银行、000001" autocomplete="off">
+                                    <div id="searchSuggestions" class="search-suggestions" style="display: none;"></div>
+                                </div>
+                                <small>支持股票名称和代码搜索，选择后自动填入下方代码框</small>
+                            </div>
+                            
+                            <div class="input-group">
+                                <label for="stockCode">股票代码</label>
+                                <input type="text" id="stockCode" placeholder="例如: 000001.SZ" value="000001.SZ">
+                                <small>支持格式: 000001.SZ (深圳), 600000.SH (上海)</small>
+                            </div>
                         </div>
                         
                         <div class="date-inputs">

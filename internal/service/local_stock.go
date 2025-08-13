@@ -436,3 +436,45 @@ func (s *LocalStockService) GetStockCount() int {
 
 	return len(uniqueStocks)
 }
+
+// SearchStocks 根据关键词搜索股票
+func (s *LocalStockService) SearchStocks(keyword string, limit int) []*models.StockBasic {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	if keyword == "" {
+		return []*models.StockBasic{}
+	}
+
+	keyword = strings.ToUpper(strings.TrimSpace(keyword))
+	var results []*models.StockBasic
+	uniqueStocks := make(map[string]*models.StockBasic)
+
+	// 收集所有唯一的股票
+	for _, stock := range s.stockCache {
+		uniqueStocks[stock.TSCode] = stock
+	}
+
+	// 搜索匹配的股票
+	for _, stock := range uniqueStocks {
+		// 搜索股票代码
+		if strings.Contains(strings.ToUpper(stock.TSCode), keyword) ||
+			strings.Contains(strings.ToUpper(stock.Symbol), keyword) {
+			results = append(results, stock)
+			continue
+		}
+
+		// 搜索股票名称
+		if strings.Contains(strings.ToUpper(stock.Name), keyword) {
+			results = append(results, stock)
+			continue
+		}
+	}
+
+	// 限制返回结果数量
+	if limit > 0 && len(results) > limit {
+		results = results[:limit]
+	}
+
+	return results
+}

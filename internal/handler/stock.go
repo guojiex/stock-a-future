@@ -9,6 +9,7 @@ import (
 	"stock-a-future/internal/indicators"
 	"stock-a-future/internal/models"
 	"stock-a-future/internal/service"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -247,6 +248,41 @@ func (h *StockHandler) GetStockList(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"total":  len(stocks),
 		"stocks": stocks,
+	}
+
+	h.writeSuccessResponse(w, response)
+}
+
+// SearchStocks 搜索股票
+func (h *StockHandler) SearchStocks(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// 获取搜索参数
+	query := r.URL.Query()
+	keyword := query.Get("q")
+
+	if keyword == "" {
+		h.writeErrorResponse(w, http.StatusBadRequest, "搜索关键词不能为空")
+		return
+	}
+
+	// 限制返回结果数量，默认10条
+	limit := 10
+	if limitStr := query.Get("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 && parsedLimit <= 50 {
+			limit = parsedLimit
+		}
+	}
+
+	// 执行搜索
+	stocks := h.localStockService.SearchStocks(keyword, limit)
+
+	// 构建响应数据
+	response := map[string]interface{}{
+		"keyword": keyword,
+		"total":   len(stocks),
+		"stocks":  stocks,
 	}
 
 	h.writeSuccessResponse(w, response)

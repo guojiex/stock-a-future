@@ -17,7 +17,7 @@ STOCKLIST_PATH=./bin/$(STOCKLIST_BINARY)
 STOCKLIST_MAIN_PATH=./cmd/stocklist
 
 # 默认目标
-.PHONY: all build clean test deps run help stocklist fetch-stocks fetch-sse dev fmt vet tools lint env
+.PHONY: all build clean test deps run help stocklist fetch-stocks fetch-sse dev fmt vet tools lint env stop kill status restart
 
 all: clean deps build
 
@@ -108,6 +108,35 @@ fetch-sse: stocklist
 	@mkdir -p data
 	$(STOCKLIST_PATH) -source=sse -output=data/sse_stocks.json
 
+# 停止服务器
+stop:
+	@echo "停止Stock-A-Future服务器..."
+	@pkill -f "go run.*cmd/server" || pkill -f "stock-a-future" || echo "没有找到运行中的服务器进程"
+	@echo "服务器已停止"
+
+# 强制杀死服务器进程
+kill:
+	@echo "强制杀死Stock-A-Future服务器进程..."
+	@pkill -9 -f "go run.*cmd/server" || pkill -9 -f "stock-a-future" || echo "没有找到运行中的服务器进程"
+	@echo "服务器进程已强制终止"
+
+# 检查服务器状态
+status:
+	@echo "检查Stock-A-Future服务器状态..."
+	@if pgrep -f "go run.*cmd/server" > /dev/null || pgrep -f "stock-a-future" > /dev/null; then \
+		echo "✅ 服务器正在运行"; \
+		echo "运行中的进程:"; \
+		pgrep -f "go run.*cmd/server" -l || pgrep -f "stock-a-future" -l; \
+		echo "监听端口:"; \
+		lsof -i :8081 2>/dev/null || echo "端口8081未被占用"; \
+	else \
+		echo "❌ 服务器未运行"; \
+	fi
+
+# 重启服务器
+restart: stop dev
+	@echo "服务器已重启"
+
 
 
 # 显示帮助信息
@@ -127,5 +156,11 @@ help:
 	@echo "  make stocklist   - 构建股票列表工具"
 	@echo "  make fetch-stocks - 获取所有股票列表"
 	@echo "  make fetch-sse   - 获取上交所股票列表"
-
+	@echo ""
+	@echo "服务器管理:"
+	@echo "  make stop        - 停止运行中的服务器"
+	@echo "  make kill        - 强制杀死服务器进程"
+	@echo "  make status      - 检查服务器运行状态"
+	@echo "  make restart     - 重启服务器"
+	@echo ""
 	@echo "  make help        - 显示帮助信息"

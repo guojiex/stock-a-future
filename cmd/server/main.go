@@ -63,6 +63,7 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler) {
 
 	// 本地股票数据API
 	mux.HandleFunc("GET /api/v1/stocks", stockHandler.GetStockList)
+	mux.HandleFunc("GET /api/v1/stocks/search", stockHandler.SearchStocks)
 	mux.HandleFunc("POST /api/v1/stocks/refresh", stockHandler.RefreshLocalData)
 
 	// 根路径
