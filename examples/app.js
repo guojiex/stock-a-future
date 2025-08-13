@@ -55,6 +55,7 @@ class StockAFutureClient {
     async init() {
         this.setupEventListeners();
         this.setDefaultDates();
+        this.setDefaultStockCode();
         await this.checkHealth();
     }
 
@@ -258,6 +259,9 @@ class StockAFutureClient {
         
         // 更新搜索框显示
         document.getElementById('stockSearch').value = `${stockName} (${stockCode})`;
+        
+        // 保存到本地缓存
+        this.saveStockToCache(stockCode, stockName);
         
         // 隐藏建议
         this.hideSuggestions();
@@ -472,6 +476,34 @@ class StockAFutureClient {
         
         document.getElementById('endDate').value = this.formatDate(today);
         document.getElementById('startDate').value = this.formatDate(sixtyDaysAgo);
+    }
+
+    /**
+     * 设置默认股票代码（从缓存读取）
+     */
+    setDefaultStockCode() {
+        const cachedStockCode = localStorage.getItem('stockapi_last_stock_code');
+        const cachedStockName = localStorage.getItem('stockapi_last_stock_name');
+        
+        if (cachedStockCode) {
+            // 设置股票代码
+            document.getElementById('stockCode').value = cachedStockCode;
+            
+            // 如果有股票名称，也设置到搜索框
+            if (cachedStockName) {
+                document.getElementById('stockSearch').value = `${cachedStockName} (${cachedStockCode})`;
+            }
+            console.log(`从缓存恢复股票代码: ${cachedStockCode}`);
+        }
+    }
+
+    /**
+     * 保存股票信息到本地缓存
+     */
+    saveStockToCache(stockCode, stockName) {
+        localStorage.setItem('stockapi_last_stock_code', stockCode);
+        localStorage.setItem('stockapi_last_stock_name', stockName);
+        console.log(`股票信息已缓存: ${stockName} (${stockCode})`);
     }
 
     /**
