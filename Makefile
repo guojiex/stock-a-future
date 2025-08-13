@@ -116,22 +116,42 @@ stop:
 
 # 强制杀死服务器进程
 kill:
-	@echo "强制杀死Stock-A-Future服务器进程..."
-	@pkill -9 -f "go run.*cmd/server" || pkill -9 -f "stock-a-future" || echo "没有找到运行中的服务器进程"
+	@echo "强制杀死占用端口的服务器进程..."
+	@# 首先尝试通过进程名杀死
+	@pkill -9 -f "go run.*cmd/server" 2>/dev/null || true
+	@pkill -9 -f "stock-a-future" 2>/dev/null || true
+	@# 然后检查并杀死占用8080和8081端口的进程
+	@for port in 8080 8081; do \
+		pid=$$(lsof -t -i:$$port 2>/dev/null); \
+		if [ -n "$$pid" ]; then \
+			echo "杀死占用端口$$port的进程: $$pid"; \
+			kill -9 $$pid 2>/dev/null || true; \
+		fi; \
+	done
 	@echo "服务器进程已强制终止"
 
 # 检查服务器状态
 status:
 	@echo "检查Stock-A-Future服务器状态..."
-	@if pgrep -f "go run.*cmd/server" > /dev/null || pgrep -f "stock-a-future" > /dev/null; then \
+	@server_running=false; \
+	if pgrep -f "go run.*cmd/server" > /dev/null || pgrep -f "stock-a-future" > /dev/null; then \
 		echo "✅ 服务器正在运行"; \
 		echo "运行中的进程:"; \
-		pgrep -f "go run.*cmd/server" -l || pgrep -f "stock-a-future" -l; \
-		echo "监听端口:"; \
-		lsof -i :8081 2>/dev/null || echo "端口8081未被占用"; \
+		pgrep -f "go run.*cmd/server" -l 2>/dev/null || pgrep -f "stock-a-future" -l 2>/dev/null; \
+		server_running=true; \
 	else \
-		echo "❌ 服务器未运行"; \
-	fi
+		echo "❌ 服务器进程未找到"; \
+	fi; \
+	echo "端口占用情况:"; \
+	for port in 8080 8081; do \
+		pid=$$(lsof -t -i:$$port 2>/dev/null); \
+		if [ -n "$$pid" ]; then \
+			process_name=$$(ps -p $$pid -o comm= 2>/dev/null || echo "unknown"); \
+			echo "  端口$$port: 被进程$$pid ($$process_name) 占用"; \
+		else \
+			echo "  端口$$port: 空闲"; \
+		fi; \
+	done
 
 # 重启服务器
 restart: stop dev
