@@ -176,6 +176,17 @@ body {
 /* 搜索输入包装器 */
 .search-input-wrapper {
     position: relative;
+    width: 100%;
+}
+
+/* 确保搜索输入框和股票代码框宽度一致 */
+.stock-search-container .input-group {
+    width: 100%;
+}
+
+.stock-search-container .input-group input {
+    width: 100%;
+    box-sizing: border-box;
 }
 
 /* 搜索建议下拉框 */
@@ -192,6 +203,8 @@ body {
     max-height: 300px;
     overflow-y: auto;
     z-index: 1000;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 /* 搜索建议项 */
@@ -292,6 +305,8 @@ body {
     font-size: 1rem;
     transition: all 0.3s ease;
     background: var(--bg-primary);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .input-group input:focus {

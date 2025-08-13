@@ -6,6 +6,7 @@
 class StockAFutureClient {
     constructor(baseURL = null) {
         this.baseURL = baseURL || this.detectServerURL();
+        console.log(`StockAFutureClient 初始化，baseURL: ${this.baseURL}`);
         this.currentChart = null;
         this.isLoading = false;
         this.searchTimeout = null;
@@ -23,16 +24,19 @@ class StockAFutureClient {
         const urlParams = new URLSearchParams(window.location.search);
         const serverPort = urlParams.get('port');
         if (serverPort) {
+            console.log(`从URL参数检测到端口: ${serverPort}`);
             return `http://localhost:${serverPort}`;
         }
 
         // 2. 从localStorage中读取上次保存的配置
         const savedURL = localStorage.getItem('stockapi_server_url');
         if (savedURL) {
+            console.log(`从localStorage读取到保存的URL: ${savedURL}`);
             return savedURL;
         }
 
         // 3. 尝试常见端口
+        console.log(`使用默认端口: 8081`);
         return 'http://localhost:8081'; // 默认使用8081而不是8080
     }
 
@@ -464,10 +468,10 @@ class StockAFutureClient {
      */
     setDefaultDates() {
         const today = new Date();
-        const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const sixtyDaysAgo = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000);
         
         document.getElementById('endDate').value = this.formatDate(today);
-        document.getElementById('startDate').value = this.formatDate(thirtyDaysAgo);
+        document.getElementById('startDate').value = this.formatDate(sixtyDaysAgo);
     }
 
     /**
@@ -540,7 +544,8 @@ class StockAFutureClient {
      * 尝试连接其他常见端口
      */
     async tryAlternativePorts() {
-        const commonPorts = ['8081', '8080', '3000', '8000', '9000'];
+        // 只尝试8081端口，因为我们的服务器运行在这个端口
+        const commonPorts = ['8081'];
         
         for (const port of commonPorts) {
             const testURL = `http://localhost:${port}`;
@@ -591,6 +596,8 @@ class StockAFutureClient {
      */
     async makeRequest(endpoint, options = {}) {
         const url = `${this.baseURL}${endpoint}`;
+        console.log(`发起API请求: ${url}`);
+        console.log(`当前baseURL: ${this.baseURL}`);
         
         const defaultOptions = {
             method: 'GET',
@@ -611,6 +618,7 @@ class StockAFutureClient {
             return data;
         } catch (error) {
             console.error('API请求失败:', error);
+            console.error(`请求URL: ${url}`);
             throw error;
         }
     }
@@ -1132,11 +1140,18 @@ class StockAFutureClient {
                 {
                     scale: true,
                     gridIndex: 1,
-                    splitNumber: 2,
-                    axisLabel: { show: false },
-                    axisLine: { show: false },
-                    axisTick: { show: false },
-                    splitLine: { show: false }
+                    splitNumber: 4,
+                    axisLabel: { 
+                        show: true,
+                        formatter: function(value) {
+                            return this.formatVolume(value);
+                        }.bind(this),
+                        fontSize: 10,
+                        color: '#666'
+                    },
+                    axisLine: { show: true, lineStyle: { color: '#ddd' } },
+                    axisTick: { show: true, lineStyle: { color: '#ddd' } },
+                    splitLine: { show: true, lineStyle: { color: '#eee' } }
                 }
             ],
             dataZoom: [
@@ -1216,7 +1231,16 @@ class StockAFutureClient {
                             value: vol,
                             itemStyle: { color: color, opacity: 0.6 }
                         };
-                    })
+                    }),
+                    label: {
+                        show: true,
+                        position: 'top',
+                        formatter: function(params) {
+                            return this.formatVolume(params.value);
+                        }.bind(this),
+                        fontSize: 10,
+                        color: '#666'
+                    }
                 }
             ]
         };
