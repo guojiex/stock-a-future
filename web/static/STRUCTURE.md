@@ -6,7 +6,6 @@
 web/static/
 ├── index.html              # 主页面
 ├── styles.css              # 样式文件
-├── test_modules.html       # 模块测试页面
 ├── README.md               # 项目说明文档
 ├── STRUCTURE.md            # 项目结构文档（本文件）
 └── js/                     # JavaScript模块目录
@@ -39,7 +38,6 @@ Web客户端现在已集成到Go服务器中，通过以下方式提供服务：
 
 - **`index.html`**: 主页面，包含所有HTML结构和模块引用
 - **`styles.css`**: 完整的样式文件，包含所有CSS样式和动画
-- **`test_modules.html`**: 模块化重构的测试页面，用于验证重构是否成功
 
 ### JavaScript模块
 
@@ -139,14 +137,6 @@ JavaScript文件的加载顺序很重要，必须按照以下顺序：
 5. 主入口文件 (main.js)
 
 这个顺序确保了依赖关系的正确性，避免出现"类未定义"的错误。
-
-## 测试验证
-
-使用 `test_modules.html` 页面可以验证：
-- 所有模块是否正确加载
-- 类是否可以正常实例化
-- 基本功能是否正常工作
-- 应用是否可以正常初始化
 
 ## 注意事项
 

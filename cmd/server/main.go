@@ -148,7 +148,6 @@ func registerStaticRoutes(mux *http.ServeMux) {
 	// 明确处理静态资源路径
 	mux.Handle("GET /js/", http.StripPrefix("/", fileServer))
 	mux.Handle("GET /styles.css", http.StripPrefix("/", fileServer))
-	mux.Handle("GET /test_modules.html", http.StripPrefix("/", fileServer))
 }
 
 // withLogging 日志中间件
