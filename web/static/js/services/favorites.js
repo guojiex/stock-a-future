@@ -57,14 +57,10 @@ class FavoritesService {
                 body: JSON.stringify(requestData)
             });
 
-            if (!response.ok) {
-                throw new Error(`添加收藏失败: ${response.status}`);
-            }
-
             const data = await response.json();
             
-            if (!data.success) {
-                throw new Error(data.error || '添加收藏失败');
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || `添加收藏失败: ${response.status}`);
             }
 
             return data.data;
@@ -86,14 +82,10 @@ class FavoritesService {
                 }
             });
 
-            if (!response.ok) {
-                throw new Error(`删除收藏失败: ${response.status}`);
-            }
-
             const data = await response.json();
             
-            if (!data.success) {
-                throw new Error(data.error || '删除收藏失败');
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || `删除收藏失败: ${response.status}`);
             }
 
             return data.data;
@@ -121,14 +113,10 @@ class FavoritesService {
                 body: JSON.stringify(requestData)
             });
 
-            if (!response.ok) {
-                throw new Error(`更新收藏失败: ${response.status}`);
-            }
-
             const data = await response.json();
             
-            if (!data.success) {
-                throw new Error(data.error || '更新收藏失败');
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || `更新收藏失败: ${response.status}`);
             }
 
             return data.data;
@@ -164,6 +152,167 @@ class FavoritesService {
         } catch (error) {
             console.error('检查收藏状态失败:', error);
             return false; // 出错时默认返回未收藏状态
+        }
+    }
+
+    /**
+     * 通过股票代码查找收藏记录
+     */
+    async findFavoriteByCode(stockCode) {
+        try {
+            const favorites = await this.getFavorites();
+            return favorites.find(favorite => favorite.ts_code === stockCode) || null;
+        } catch (error) {
+            console.error('查找收藏记录失败:', error);
+            return null;
+        }
+    }
+
+    // === 分组相关API ===
+
+    /**
+     * 获取分组列表
+     */
+    async getGroups() {
+        try {
+            const response = await fetch(`${this.client.baseURL}/api/v1/groups`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`获取分组列表失败: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error(data.error || '获取分组列表失败');
+            }
+
+            return data.data.groups || [];
+        } catch (error) {
+            console.error('获取分组列表失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 创建分组
+     */
+    async createGroup(name, color = '#3b82f6') {
+        try {
+            const requestData = {
+                name: name,
+                color: color
+            };
+
+            const response = await fetch(`${this.client.baseURL}/api/v1/groups`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            const data = await response.json();
+            
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || `创建分组失败: ${response.status}`);
+            }
+
+            return data.data;
+        } catch (error) {
+            console.error('创建分组失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 更新分组
+     */
+    async updateGroup(groupId, name, color, sortOrder) {
+        try {
+            const requestData = {};
+            if (name) requestData.name = name;
+            if (color) requestData.color = color;
+            if (sortOrder) requestData.sort_order = sortOrder;
+
+            const response = await fetch(`${this.client.baseURL}/api/v1/groups/${groupId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            const data = await response.json();
+            
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || `更新分组失败: ${response.status}`);
+            }
+
+            return data.data;
+        } catch (error) {
+            console.error('更新分组失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 删除分组
+     */
+    async deleteGroup(groupId) {
+        try {
+            const response = await fetch(`${this.client.baseURL}/api/v1/groups/${groupId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            const data = await response.json();
+            
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || `删除分组失败: ${response.status}`);
+            }
+
+            return data.data;
+        } catch (error) {
+            console.error('删除分组失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 更新收藏排序
+     */
+    async updateFavoritesOrder(favoriteOrders) {
+        try {
+            const requestData = {
+                favorite_orders: favoriteOrders
+            };
+
+            const response = await fetch(`${this.client.baseURL}/api/v1/favorites/order`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            const data = await response.json();
+            
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || `更新收藏排序失败: ${response.status}`);
+            }
+
+            return data.data;
+        } catch (error) {
+            console.error('更新收藏排序失败:', error);
+            throw error;
         }
     }
 }

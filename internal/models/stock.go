@@ -153,6 +153,18 @@ type FavoriteStock struct {
 	Name      string    `json:"name"`       // 股票名称
 	StartDate string    `json:"start_date"` // 收藏时的开始日期
 	EndDate   string    `json:"end_date"`   // 收藏时的结束日期
+	GroupID   string    `json:"group_id"`   // 所属分组ID
+	SortOrder int       `json:"sort_order"` // 排序顺序
+	CreatedAt time.Time `json:"created_at"` // 创建时间
+	UpdatedAt time.Time `json:"updated_at"` // 更新时间
+}
+
+// FavoriteGroup 收藏分组结构
+type FavoriteGroup struct {
+	ID        string    `json:"id"`         // 唯一标识
+	Name      string    `json:"name"`       // 分组名称
+	Color     string    `json:"color"`      // 分组颜色
+	SortOrder int       `json:"sort_order"` // 排序顺序
 	CreatedAt time.Time `json:"created_at"` // 创建时间
 	UpdatedAt time.Time `json:"updated_at"` // 更新时间
 }
@@ -163,12 +175,40 @@ type FavoriteStockRequest struct {
 	Name      string `json:"name"`       // 股票名称
 	StartDate string `json:"start_date"` // 开始日期
 	EndDate   string `json:"end_date"`   // 结束日期
+	GroupID   string `json:"group_id"`   // 所属分组ID
 }
 
 // UpdateFavoriteRequest 更新收藏股票请求
 type UpdateFavoriteRequest struct {
 	StartDate string `json:"start_date"` // 开始日期
 	EndDate   string `json:"end_date"`   // 结束日期
+	GroupID   string `json:"group_id"`   // 所属分组ID
+	SortOrder int    `json:"sort_order"` // 排序顺序
+}
+
+// CreateGroupRequest 创建分组请求
+type CreateGroupRequest struct {
+	Name  string `json:"name"`  // 分组名称
+	Color string `json:"color"` // 分组颜色
+}
+
+// UpdateGroupRequest 更新分组请求
+type UpdateGroupRequest struct {
+	Name      string `json:"name"`       // 分组名称
+	Color     string `json:"color"`      // 分组颜色
+	SortOrder int    `json:"sort_order"` // 排序顺序
+}
+
+// UpdateFavoritesOrderRequest 更新收藏排序请求
+type UpdateFavoritesOrderRequest struct {
+	FavoriteOrders []FavoriteOrderItem `json:"favorite_orders"` // 收藏排序列表
+}
+
+// FavoriteOrderItem 收藏排序项
+type FavoriteOrderItem struct {
+	ID        string `json:"id"`         // 收藏ID
+	GroupID   string `json:"group_id"`   // 所属分组ID
+	SortOrder int    `json:"sort_order"` // 排序顺序
 }
 
 // HealthStatus 健康检查状态

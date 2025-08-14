@@ -621,3 +621,150 @@ func (h *StockHandler) writeErrorResponse(w http.ResponseWriter, statusCode int,
 		log.Printf("写入错误响应失败: %v", err)
 	}
 }
+
+// === 分组相关API ===
+
+// GetGroups 获取分组列表
+func (h *StockHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	groups := h.favoriteService.GetGroups()
+
+	response := map[string]interface{}{
+		"total":  len(groups),
+		"groups": groups,
+	}
+
+	h.writeSuccessResponse(w, response)
+}
+
+// CreateGroup 创建分组
+func (h *StockHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method != http.MethodPost {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持POST方法")
+		return
+	}
+
+	// 解析请求体
+	var request models.CreateGroupRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, "请求数据格式错误")
+		return
+	}
+
+	// 创建分组
+	group, err := h.favoriteService.CreateGroup(&request)
+	if err != nil {
+		log.Printf("创建分组失败: %v", err)
+		h.writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	h.writeSuccessResponse(w, group)
+}
+
+// UpdateGroup 更新分组
+func (h *StockHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method != http.MethodPut {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持PUT方法")
+		return
+	}
+
+	// 解析路径参数
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 4 {
+		h.writeErrorResponse(w, http.StatusBadRequest, "无效的分组ID")
+		return
+	}
+
+	groupID := pathParts[3] // /api/v1/groups/{id}
+
+	// 解析请求体
+	var request models.UpdateGroupRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, "请求数据格式错误")
+		return
+	}
+
+	// 更新分组
+	group, err := h.favoriteService.UpdateGroup(groupID, &request)
+	if err != nil {
+		log.Printf("更新分组失败: %v", err)
+		h.writeErrorResponse(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	h.writeSuccessResponse(w, group)
+}
+
+// DeleteGroup 删除分组
+func (h *StockHandler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method != http.MethodDelete {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持DELETE方法")
+		return
+	}
+
+	// 解析路径参数
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 4 {
+		h.writeErrorResponse(w, http.StatusBadRequest, "无效的分组ID")
+		return
+	}
+
+	groupID := pathParts[3] // /api/v1/groups/{id}
+
+	// 删除分组
+	if err := h.favoriteService.DeleteGroup(groupID); err != nil {
+		log.Printf("删除分组失败: %v", err)
+		h.writeErrorResponse(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	response := map[string]interface{}{
+		"message": "分组删除成功",
+		"id":      groupID,
+	}
+
+	h.writeSuccessResponse(w, response)
+}
+
+// UpdateFavoritesOrder 更新收藏排序
+func (h *StockHandler) UpdateFavoritesOrder(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method != http.MethodPut {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持PUT方法")
+		return
+	}
+
+	// 解析请求体
+	var request models.UpdateFavoritesOrderRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, "请求数据格式错误")
+		return
+	}
+
+	// 更新排序
+	if err := h.favoriteService.UpdateFavoritesOrder(&request); err != nil {
+		log.Printf("更新收藏排序失败: %v", err)
+		h.writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	response := map[string]interface{}{
+		"message": "排序更新成功",
+	}
+
+	h.writeSuccessResponse(w, response)
+}

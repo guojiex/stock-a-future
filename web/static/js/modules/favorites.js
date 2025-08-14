@@ -9,6 +9,7 @@ class FavoritesModule {
         this.favoritesService = favoritesService;
         this.apiService = apiService;
         this.favorites = [];
+        this.groups = [];
         this.currentStockCode = null;
         this.currentStockName = null;
         
@@ -21,6 +22,7 @@ class FavoritesModule {
     init() {
         this.createFavoritesUI();
         this.setupEventListeners();
+        this.loadGroups();
         this.loadFavorites();
     }
 
@@ -117,13 +119,27 @@ class FavoritesModule {
             return;
         }
 
-        // 检查是否已收藏
-        const isFavorite = await this.favoritesService.checkFavorite(stockCode);
-        if (isFavorite) {
-            this.showMessage('该股票已在收藏列表中', 'warning');
-            return;
+        try {
+            // 检查是否已收藏
+            const isFavorite = await this.favoritesService.checkFavorite(stockCode);
+            
+            if (isFavorite) {
+                // 如果已收藏，执行取消收藏操作
+                await this.handleUnfavoriteClick(stockCode);
+            } else {
+                // 如果未收藏，执行添加收藏操作
+                await this.handleAddFavoriteClick(stockCode, startDate, endDate);
+            }
+        } catch (error) {
+            console.error('收藏操作失败:', error);
+            this.showMessage(error.message || '操作失败', 'error');
         }
+    }
 
+    /**
+     * 处理添加收藏
+     */
+    async handleAddFavoriteClick(stockCode, startDate, endDate) {
         try {
             // 获取股票名称
             let stockName = stockCode;
@@ -150,7 +166,44 @@ class FavoritesModule {
             
         } catch (error) {
             console.error('添加收藏失败:', error);
-            this.showMessage(error.message || '添加收藏失败', 'error');
+            throw error;
+        }
+    }
+
+    /**
+     * 处理取消收藏
+     */
+    async handleUnfavoriteClick(stockCode) {
+        try {
+            // 通过股票代码查找收藏记录
+            const favorite = await this.favoritesService.findFavoriteByCode(stockCode);
+            if (!favorite) {
+                throw new Error('找不到对应的收藏记录');
+            }
+
+            // 删除收藏
+            await this.favoritesService.deleteFavorite(favorite.id);
+            
+            this.showMessage(`已取消收藏 ${favorite.name}`, 'success');
+            this.loadFavorites(); // 刷新收藏列表
+            this.updateFavoriteButtonState();
+            
+        } catch (error) {
+            console.error('取消收藏失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 加载分组列表
+     */
+    async loadGroups() {
+        try {
+            this.groups = await this.favoritesService.getGroups();
+            console.log('加载分组列表:', this.groups);
+        } catch (error) {
+            console.error('加载分组列表失败:', error);
+            this.groups = [];
         }
     }
 
@@ -192,40 +245,456 @@ class FavoritesModule {
             return;
         }
 
-        // 渲染收藏列表
+        // 按分组整理收藏
+        const favoritesByGroup = this.groupFavorites();
+        
+        // 渲染分组tab和收藏列表
         let listHTML = '';
-        this.favorites.forEach(favorite => {
-            const createdDate = new Date(favorite.created_at).toLocaleDateString();
-            const dateRange = this.formatDateRange(favorite.start_date, favorite.end_date);
+        
+        // 分组tab导航
+        listHTML += `
+            <div class="group-tabs-container">
+                <div class="group-tabs">
+        `;
+        
+        // 按分组排序渲染所有分组tab
+        const sortedGroups = [...this.groups].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+        
+        sortedGroups.forEach((group, index) => {
+            const groupFavorites = favoritesByGroup[group.id] || [];
+            const isActive = index === 0 ? 'active' : '';
             
             listHTML += `
-                <div class="favorite-item" data-favorite-id="${favorite.id}" data-stock-code="${favorite.ts_code}">
-                    <div class="favorite-info">
-                        <div class="favorite-stock">
-                            <span class="stock-name">${favorite.name}</span>
-                            <span class="stock-code">${favorite.ts_code}</span>
+                <div class="group-tab ${isActive}" data-group-id="${group.id}">
+                    <div class="group-color" style="background-color: ${group.color}"></div>
+                    <span class="group-name">${group.name}</span>
+                    <span class="group-count">(${groupFavorites.length})</span>
+                    ${group.id !== 'default' ? `
+                        <div class="group-actions">
+                            <button class="btn btn-icon edit-group-btn" title="编辑分组">✏️</button>
+                            <button class="btn btn-icon delete-group-btn" title="删除分组">🗑️</button>
                         </div>
-                        <div class="favorite-details">
-                            <span class="date-range">${dateRange}</span>
-                            <span class="created-date">收藏于 ${createdDate}</span>
-                        </div>
-                    </div>
-                    <div class="favorite-actions">
-                        <button class="btn btn-outline btn-small load-chart-btn" title="查看K线图">
-                            📈 查看
-                        </button>
-                        <button class="btn btn-outline btn-small delete-favorite-btn" title="删除收藏">
-                            🗑️ 删除
-                        </button>
-                    </div>
+                    ` : ''}
                 </div>
             `;
         });
+        
+        listHTML += `
+                    <div class="group-tab-add">
+                        <button class="btn btn-outline btn-small" id="createGroupBtn">
+                            ➕ 新建分组
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 分组内容区域
+        listHTML += `<div class="group-content-container">`;
+        
+        sortedGroups.forEach((group, index) => {
+            const groupFavorites = favoritesByGroup[group.id] || [];
+            const isActive = index === 0 ? 'active' : '';
+            
+            listHTML += `
+                <div class="group-content ${isActive}" data-group-id="${group.id}">
+            `;
+            
+            // 渲染该分组下的收藏
+            if (groupFavorites.length > 0) {
+                groupFavorites.forEach(favorite => {
+                    const createdDate = new Date(favorite.created_at).toLocaleDateString();
+                    const dateRange = this.formatDateRange(favorite.start_date, favorite.end_date);
+                    
+                    listHTML += `
+                        <div class="favorite-item" data-favorite-id="${favorite.id}" data-stock-code="${favorite.ts_code}" data-group-id="${favorite.group_id || 'default'}" draggable="true">
+                            <div class="drag-handle" title="拖拽排序">⋮⋮</div>
+                            <div class="favorite-info">
+                                <div class="favorite-stock">
+                                    <span class="stock-name">${favorite.name}</span>
+                                    <span class="stock-code">${favorite.ts_code}</span>
+                                </div>
+                                <div class="favorite-details">
+                                    <span class="date-range">${dateRange}</span>
+                                    <span class="created-date">收藏于 ${createdDate}</span>
+                                </div>
+                            </div>
+                            <div class="favorite-actions">
+                                <button class="btn btn-outline btn-small load-chart-btn" title="查看K线图">
+                                    📈 查看
+                                </button>
+                                <button class="btn btn-outline btn-small delete-favorite-btn" title="删除收藏">
+                                    🗑️ 删除
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                // 空分组提示
+                listHTML += `
+                    <div class="empty-group-hint">
+                        <p>该分组暂无收藏股票</p>
+                        <p>可以拖拽其他收藏到这里进行分组</p>
+                    </div>
+                `;
+            }
+            
+            listHTML += `</div>`;
+        });
+        
+        listHTML += `</div>`;
 
         favoritesList.innerHTML = listHTML;
 
         // 添加事件监听器
         this.setupFavoriteItemEvents();
+        this.setupGroupEvents();
+        this.setupTabEvents();
+        this.setupDragAndDrop();
+    }
+
+    /**
+     * 设置分组事件监听器
+     */
+    setupGroupEvents() {
+        // 新建分组按钮
+        const createGroupBtn = document.getElementById('createGroupBtn');
+        if (createGroupBtn) {
+            createGroupBtn.addEventListener('click', () => {
+                this.showCreateGroupDialog();
+            });
+        }
+
+        // 编辑分组按钮
+        document.querySelectorAll('.edit-group-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const groupTab = e.target.closest('.group-tab');
+                const groupId = groupTab.dataset.groupId;
+                this.showEditGroupDialog(groupId);
+            });
+        });
+
+        // 删除分组按钮
+        document.querySelectorAll('.delete-group-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const groupTab = e.target.closest('.group-tab');
+                const groupId = groupTab.dataset.groupId;
+                this.deleteGroup(groupId);
+            });
+        });
+    }
+
+    /**
+     * 设置tab切换事件监听器
+     */
+    setupTabEvents() {
+        // tab点击切换
+        document.querySelectorAll('.group-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                // 如果点击的是按钮，不处理tab切换
+                if (e.target.closest('.group-actions')) {
+                    return;
+                }
+                
+                const groupId = tab.dataset.groupId;
+                this.switchToTab(groupId);
+            });
+        });
+    }
+
+    /**
+     * 切换到指定的tab
+     */
+    switchToTab(groupId) {
+        // 移除所有active状态
+        document.querySelectorAll('.group-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelectorAll('.group-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        
+        // 添加active状态到指定的tab和内容
+        const targetTab = document.querySelector(`.group-tab[data-group-id="${groupId}"]`);
+        const targetContent = document.querySelector(`.group-content[data-group-id="${groupId}"]`);
+        
+        if (targetTab) {
+            targetTab.classList.add('active');
+        }
+        if (targetContent) {
+            targetContent.classList.add('active');
+        }
+    }
+
+    /**
+     * 显示创建分组对话框
+     */
+    showCreateGroupDialog() {
+        const name = prompt('请输入分组名称:');
+        if (name && name.trim()) {
+            this.createGroup(name.trim());
+        }
+    }
+
+    /**
+     * 显示编辑分组对话框
+     */
+    showEditGroupDialog(groupId) {
+        const group = this.groups.find(g => g.id === groupId);
+        if (!group) return;
+
+        const name = prompt('请输入新的分组名称:', group.name);
+        if (name && name.trim() && name.trim() !== group.name) {
+            this.updateGroup(groupId, name.trim(), group.color);
+        }
+    }
+
+    /**
+     * 创建分组
+     */
+    async createGroup(name) {
+        try {
+            await this.favoritesService.createGroup(name);
+            this.showMessage(`成功创建分组 "${name}"`, 'success');
+            this.loadGroups();
+            this.loadFavorites();
+        } catch (error) {
+            console.error('创建分组失败:', error);
+            this.showMessage(error.message || '创建分组失败', 'error');
+        }
+    }
+
+    /**
+     * 更新分组
+     */
+    async updateGroup(groupId, name, color) {
+        try {
+            await this.favoritesService.updateGroup(groupId, name, color);
+            this.showMessage(`成功更新分组`, 'success');
+            this.loadGroups();
+            this.loadFavorites();
+        } catch (error) {
+            console.error('更新分组失败:', error);
+            this.showMessage(error.message || '更新分组失败', 'error');
+        }
+    }
+
+    /**
+     * 删除分组
+     */
+    async deleteGroup(groupId) {
+        const group = this.groups.find(g => g.id === groupId);
+        if (!group) return;
+
+        if (!confirm(`确定要删除分组 "${group.name}" 吗？\n该分组下的收藏将移动到默认分组。`)) {
+            return;
+        }
+
+        try {
+            await this.favoritesService.deleteGroup(groupId);
+            this.showMessage(`成功删除分组 "${group.name}"`, 'success');
+            this.loadGroups();
+            this.loadFavorites();
+        } catch (error) {
+            console.error('删除分组失败:', error);
+            this.showMessage(error.message || '删除分组失败', 'error');
+        }
+    }
+
+    /**
+     * 设置拖拽排序功能
+     */
+    setupDragAndDrop() {
+        let draggedElement = null;
+        let draggedData = null;
+
+        // 为所有收藏项添加拖拽事件
+        document.querySelectorAll('.favorite-item').forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                draggedElement = e.target;
+                draggedData = {
+                    favoriteId: item.dataset.favoriteId,
+                    groupId: item.dataset.groupId,
+                    stockCode: item.dataset.stockCode
+                };
+                
+                e.target.style.opacity = '0.5';
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
+            item.addEventListener('dragend', (e) => {
+                e.target.style.opacity = '1';
+                draggedElement = null;
+                draggedData = null;
+            });
+
+            item.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            });
+
+            item.addEventListener('drop', (e) => {
+                e.preventDefault();
+                
+                if (!draggedData || e.target === draggedElement) return;
+
+                const targetItem = e.target.closest('.favorite-item');
+                if (!targetItem) return;
+
+                const targetData = {
+                    favoriteId: targetItem.dataset.favoriteId,
+                    groupId: targetItem.dataset.groupId
+                };
+
+                this.handleDrop(draggedData, targetData);
+            });
+        });
+
+        // 为分组区域添加拖拽支持
+        document.querySelectorAll('.group-favorites').forEach(groupArea => {
+            groupArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            });
+
+            groupArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                
+                if (!draggedData) return;
+
+                const targetGroup = e.target.closest('.favorite-group');
+                if (!targetGroup) return;
+
+                const targetGroupId = targetGroup.dataset.groupId;
+                
+                // 如果拖拽到不同的分组
+                if (draggedData.groupId !== targetGroupId) {
+                    this.moveFavoriteToGroup(draggedData.favoriteId, targetGroupId);
+                }
+            });
+        });
+    }
+
+    /**
+     * 处理拖拽放置
+     */
+    async handleDrop(draggedData, targetData) {
+        try {
+            // 获取当前的收藏列表
+            const favorites = [...this.favorites];
+            
+            // 找到拖拽的收藏和目标收藏
+            const draggedFavorite = favorites.find(f => f.id === draggedData.favoriteId);
+            const targetFavorite = favorites.find(f => f.id === targetData.favoriteId);
+            
+            if (!draggedFavorite || !targetFavorite) return;
+
+            // 如果是同一个分组内的排序
+            if (draggedData.groupId === targetData.groupId) {
+                await this.reorderWithinGroup(draggedData.favoriteId, targetData.favoriteId, targetData.groupId);
+            } else {
+                // 跨分组移动
+                await this.moveFavoriteToGroup(draggedData.favoriteId, targetData.groupId);
+            }
+        } catch (error) {
+            console.error('拖拽操作失败:', error);
+            this.showMessage('排序失败', 'error');
+        }
+    }
+
+    /**
+     * 在分组内重新排序
+     */
+    async reorderWithinGroup(draggedId, targetId, groupId) {
+        try {
+            // 获取该分组内的所有收藏
+            const groupFavorites = this.favorites.filter(f => (f.group_id || 'default') === groupId);
+            groupFavorites.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
+            // 找到拖拽项和目标项的位置
+            const draggedIndex = groupFavorites.findIndex(f => f.id === draggedId);
+            const targetIndex = groupFavorites.findIndex(f => f.id === targetId);
+
+            if (draggedIndex === -1 || targetIndex === -1) return;
+
+            // 重新排序
+            const [draggedItem] = groupFavorites.splice(draggedIndex, 1);
+            groupFavorites.splice(targetIndex, 0, draggedItem);
+
+            // 生成新的排序数据
+            const orderUpdates = groupFavorites.map((favorite, index) => ({
+                id: favorite.id,
+                group_id: groupId,
+                sort_order: index + 1
+            }));
+
+            // 更新排序
+            await this.favoritesService.updateFavoritesOrder(orderUpdates);
+            this.showMessage('排序已更新', 'success');
+            this.loadFavorites();
+        } catch (error) {
+            console.error('分组内排序失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 移动收藏到其他分组
+     */
+    async moveFavoriteToGroup(favoriteId, targetGroupId) {
+        try {
+            const favorite = this.favorites.find(f => f.id === favoriteId);
+            if (!favorite) return;
+
+            // 获取目标分组的最大排序号
+            const targetGroupFavorites = this.favorites.filter(f => (f.group_id || 'default') === targetGroupId);
+            const maxSortOrder = Math.max(...targetGroupFavorites.map(f => f.sort_order || 0), 0);
+
+            // 更新收藏的分组和排序
+            const orderUpdate = [{
+                id: favoriteId,
+                group_id: targetGroupId,
+                sort_order: maxSortOrder + 1
+            }];
+
+            await this.favoritesService.updateFavoritesOrder(orderUpdate);
+            
+            const targetGroup = this.groups.find(g => g.id === targetGroupId) || { name: '默认分组' };
+            this.showMessage(`已移动到 "${targetGroup.name}"`, 'success');
+            this.loadFavorites();
+        } catch (error) {
+            console.error('移动收藏失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 按分组整理收藏
+     */
+    groupFavorites() {
+        const favoritesByGroup = {};
+        
+        this.favorites.forEach(favorite => {
+            const groupId = favorite.group_id || 'default';
+            if (!favoritesByGroup[groupId]) {
+                favoritesByGroup[groupId] = [];
+            }
+            favoritesByGroup[groupId].push(favorite);
+        });
+
+        // 按排序字段排序每个分组内的收藏
+        Object.keys(favoritesByGroup).forEach(groupId => {
+            favoritesByGroup[groupId].sort((a, b) => {
+                const aOrder = a.sort_order || 0;
+                const bOrder = b.sort_order || 0;
+                return aOrder - bOrder;
+            });
+        });
+
+        return favoritesByGroup;
     }
 
     /**
@@ -310,6 +779,11 @@ class FavoritesModule {
                 }
             }
 
+            // 更新收藏按钮状态（稍微延迟以确保输入框值已更新）
+            setTimeout(() => {
+                this.updateFavoriteButtonState();
+            }, 10);
+
             // 触发查询日线数据
             const queryDailyBtn = document.getElementById('queryDaily');
             if (queryDailyBtn) {
@@ -355,7 +829,16 @@ class FavoritesModule {
         const favoriteBtn = document.getElementById('favoriteBtn');
         const stockCode = document.getElementById('stockCode')?.value?.trim();
         
-        if (!favoriteBtn || !stockCode) return;
+        if (!favoriteBtn || !stockCode) {
+            // 如果没有股票代码，重置按钮状态
+            if (favoriteBtn) {
+                favoriteBtn.innerHTML = '⭐ 收藏';
+                favoriteBtn.className = 'btn btn-favorite';
+                favoriteBtn.disabled = false;
+                favoriteBtn.title = '收藏当前股票和时间范围';
+            }
+            return;
+        }
 
         try {
             const isFavorite = await this.favoritesService.checkFavorite(stockCode);
@@ -363,8 +846,8 @@ class FavoritesModule {
             if (isFavorite) {
                 favoriteBtn.innerHTML = '⭐ 已收藏';
                 favoriteBtn.className = 'btn btn-favorite favorited';
-                favoriteBtn.disabled = true;
-                favoriteBtn.title = '该股票已在收藏列表中';
+                favoriteBtn.disabled = false;  // 允许点击以取消收藏
+                favoriteBtn.title = '点击取消收藏该股票';
             } else {
                 favoriteBtn.innerHTML = '⭐ 收藏';
                 favoriteBtn.className = 'btn btn-favorite';

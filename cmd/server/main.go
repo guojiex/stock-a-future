@@ -112,6 +112,13 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler) {
 	mux.HandleFunc("DELETE /api/v1/favorites/{id}", stockHandler.DeleteFavorite)
 	mux.HandleFunc("PUT /api/v1/favorites/{id}", stockHandler.UpdateFavorite)
 	mux.HandleFunc("GET /api/v1/favorites/check/{code}", stockHandler.CheckFavorite)
+	mux.HandleFunc("PUT /api/v1/favorites/order", stockHandler.UpdateFavoritesOrder)
+
+	// 分组管理API
+	mux.HandleFunc("GET /api/v1/groups", stockHandler.GetGroups)
+	mux.HandleFunc("POST /api/v1/groups", stockHandler.CreateGroup)
+	mux.HandleFunc("PUT /api/v1/groups/{id}", stockHandler.UpdateGroup)
+	mux.HandleFunc("DELETE /api/v1/groups/{id}", stockHandler.DeleteGroup)
 
 }
 
