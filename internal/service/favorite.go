@@ -22,15 +22,18 @@ type FavoriteService struct {
 
 // NewFavoriteService 创建收藏股票服务
 func NewFavoriteService(dataDir string) *FavoriteService {
+	// 在 data 目录下创建 favorites 子目录
+	favoritesDir := filepath.Join(dataDir, "favorites")
+
 	service := &FavoriteService{
-		dataDir:   dataDir,
-		filePath:  filepath.Join(dataDir, "favorites.json"),
+		dataDir:   favoritesDir,
+		filePath:  filepath.Join(favoritesDir, "favorites.json"),
 		favorites: make(map[string]*models.FavoriteStock),
 	}
 
-	// 确保数据目录存在
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		fmt.Printf("创建数据目录失败: %v\n", err)
+	// 确保收藏数据目录存在
+	if err := os.MkdirAll(favoritesDir, 0755); err != nil {
+		fmt.Printf("创建收藏数据目录失败: %v\n", err)
 	}
 
 	// 加载现有数据
