@@ -3,7 +3,7 @@
 ## 目录结构
 
 ```
-examples/web-client/
+web/static/
 ├── index.html              # 主页面
 ├── styles.css              # 样式文件
 ├── test_modules.html       # 模块测试页面
@@ -24,6 +24,14 @@ examples/web-client/
     │   └── helpers.js      # 通用辅助函数
     └── main.js             # 主入口文件
 ```
+
+## 静态文件服务
+
+Web客户端现在已集成到Go服务器中，通过以下方式提供服务：
+
+- **访问方式**: 直接访问 `http://localhost:8081/`
+- **静态资源**: 所有CSS、JS文件通过服务器提供
+- **无需单独Web服务器**: 启动Go服务器即可访问完整Web界面
 
 ## 文件说明
 

@@ -8,10 +8,16 @@ cd /path/to/stock-a-future
 go run cmd/server/main.go
 ```
 
-### 2. 打开前端页面
-在浏览器中访问: `file:///path/to/examples/index.html`
+### 2. 打开Web界面
+**方式一：通过服务器访问（推荐）**
+- 在浏览器中访问: `http://localhost:8081/`
+- Web界面已集成到服务器中，无需额外配置
 
-### 3. 配置服务器地址
+**方式二：直接打开HTML文件**
+- 在浏览器中访问: `file:///path/to/web/static/index.html`
+- 需要手动配置服务器地址
+
+### 3. 配置服务器地址（仅方式二需要）
 - 点击右上角"⚙️ 配置"按钮
 - 输入服务器地址: `http://localhost:8081`
 - 点击"测试连接"确认连接成功

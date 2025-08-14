@@ -159,7 +159,7 @@ A: 运行 `make status` 检查，然后 `make stop` 或 `make kill` 清理进程
 A: 开发模式需要重启，运行 `make restart`。
 
 **Q: 如何确认服务器正在运行？**
-A: 运行 `make status`，或访问 `http://localhost:8081/api/v1/health`。
+A: 运行 `make status`，或访问 `http://localhost:8081/api/v1/health`，也可以直接访问 `http://localhost:8081/` 查看Web界面。
 
 **Q: 服务器无法正常停止？**
 A: 先尝试 `make stop`，如果失败则使用 `make kill`。

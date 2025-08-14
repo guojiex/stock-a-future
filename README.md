@@ -91,8 +91,8 @@
 服务将在 `http://localhost:8081` 启动。
 
 6. **使用Web界面**
-   - 打开浏览器访问 `examples/index.html`
-   - 配置服务器地址为 `http://localhost:8081`
+   - 启动服务器后，直接在浏览器访问 `http://localhost:8081/`
+   - Web界面已集成到服务器中，无需单独打开HTML文件
    - 使用智能搜索框输入股票名称或代码（如：平安银行、000001）
    - 选择股票后查看专业K线图和技术指标
 
@@ -313,6 +313,8 @@ stock-a-future/
 │   ├── indicators/      # 技术指标计算
 │   ├── models/          # 数据模型
 │   └── service/         # 业务逻辑服务
+├── web/                 # Web资源
+│   └── static/          # 静态文件（HTML、CSS、JS）
 ├── docs/                # 项目文档
 ├── examples/            # 使用示例
 ├── Makefile            # 构建脚本

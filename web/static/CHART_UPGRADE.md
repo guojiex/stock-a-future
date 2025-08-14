@@ -73,6 +73,17 @@ const volumeData = data.map((vol, index) => {
 - **MA10**: 10日移动平均线（黄色）  
 - **MA20**: 20日移动平均线（紫色）
 
+## 访问方式
+
+### 集成服务器访问（推荐）
+- 启动Go服务器：`go run cmd/server/main.go`
+- 浏览器访问：`http://localhost:8081/`
+- Web界面已集成到服务器中，无需额外配置
+
+### 直接文件访问
+- 打开 `web/static/index.html`
+- 需要手动配置服务器地址
+
 ## 使用说明
 
 ### 图表操作

@@ -1,6 +1,6 @@
 # Stock-A-Future Web Client
 
-这是一个重构后的模块化Web客户端，用于与Stock-A-Future API进行交互。
+这是一个重构后的模块化Web客户端，用于与Stock-A-Future API进行交互。现已集成到Go服务器中，可通过 `http://localhost:8081/` 直接访问。
 
 ## 项目结构
 
@@ -49,9 +49,22 @@ js/
 
 ## 使用方法
 
+### 通过Go服务器访问（推荐）
+1. 启动Go服务器：`go run cmd/server/main.go`
+2. 在浏览器中访问：`http://localhost:8081/`
+3. Web界面会自动加载，无需额外配置
+
+### 直接访问HTML文件
 1. 确保所有JavaScript文件都正确加载
 2. 应用会在页面加载完成后自动初始化
 3. 可以通过 `window.stockApp` 访问应用实例进行调试
+
+## 集成优势
+
+- **单一服务**: 只需启动Go服务器即可同时提供API和Web界面
+- **CORS支持**: 无跨域问题，静态文件和API在同一域名下
+- **部署简单**: 生产环境只需部署一个Go二进制文件
+- **开发友好**: 本地开发无需单独的Web服务器
 
 ## 重构优势
 
