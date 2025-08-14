@@ -553,26 +553,56 @@ class FavoritesModule {
             });
         });
 
-        // 为分组区域添加拖拽支持
-        document.querySelectorAll('.group-favorites').forEach(groupArea => {
-            groupArea.addEventListener('dragover', (e) => {
+        // 为分组tab添加拖拽支持（可以拖拽到tab上切换分组）
+        document.querySelectorAll('.group-tab').forEach(tab => {
+            tab.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
+                // 高亮显示可放置的tab
+                tab.classList.add('drag-over');
             });
 
-            groupArea.addEventListener('drop', (e) => {
+            tab.addEventListener('dragleave', (e) => {
+                // 移除高亮
+                tab.classList.remove('drag-over');
+            });
+
+            tab.addEventListener('drop', (e) => {
                 e.preventDefault();
+                tab.classList.remove('drag-over');
                 
                 if (!draggedData) return;
 
-                const targetGroup = e.target.closest('.favorite-group');
-                if (!targetGroup) return;
-
-                const targetGroupId = targetGroup.dataset.groupId;
+                const targetGroupId = tab.dataset.groupId;
                 
                 // 如果拖拽到不同的分组
                 if (draggedData.groupId !== targetGroupId) {
                     this.moveFavoriteToGroup(draggedData.favoriteId, targetGroupId);
+                }
+            });
+        });
+
+        // 为分组内容区域添加拖拽支持
+        document.querySelectorAll('.group-content').forEach(groupContent => {
+            groupContent.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            });
+
+            groupContent.addEventListener('drop', (e) => {
+                e.preventDefault();
+                
+                if (!draggedData) return;
+
+                // 检查是否拖拽到了空分组提示区域
+                const emptyHint = e.target.closest('.empty-group-hint');
+                if (emptyHint) {
+                    const targetGroupId = groupContent.dataset.groupId;
+                    
+                    // 如果拖拽到不同的分组
+                    if (draggedData.groupId !== targetGroupId) {
+                        this.moveFavoriteToGroup(draggedData.favoriteId, targetGroupId);
+                    }
                 }
             });
         });

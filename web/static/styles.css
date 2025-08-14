@@ -1039,8 +1039,8 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--spacing-lg);
-    padding-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -1071,7 +1071,7 @@ body {
 
 /* 分组Tab导航 */
 .group-tabs-container {
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: var(--spacing-sm);
 }
 
 .group-tabs {
@@ -1116,10 +1116,13 @@ body {
     height: 12px;
     border-radius: 50%;
     flex-shrink: 0;
+    border: 2px solid transparent;
+    transition: border 0.2s ease;
 }
 
 .group-tab.active .group-color {
-    background-color: white !important;
+    border: 2px solid white;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
 }
 
 .group-tab .group-name {
@@ -1155,6 +1158,28 @@ body {
     flex-shrink: 0;
 }
 
+/* 拖拽状态样式 */
+.group-tab.drag-over {
+    background-color: var(--color-primary-light);
+    border-color: var(--color-primary);
+    transform: scale(1.02);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.favorite-item[draggable="true"]:hover .drag-handle {
+    opacity: 1;
+    color: var(--color-primary);
+}
+
+.empty-group-hint {
+    transition: all 0.2s ease;
+}
+
+.empty-group-hint:hover {
+    border-color: var(--color-primary);
+    background-color: var(--color-primary-light);
+}
+
 /* 分组内容区域 */
 .group-content-container {
     position: relative;
@@ -1170,13 +1195,13 @@ body {
 
 /* 空分组提示 */
 .empty-group-hint {
-    padding: var(--spacing-lg);
+    padding: var(--spacing-md);
     text-align: center;
     color: var(--color-text-secondary);
     background-color: var(--color-bg-secondary);
     border: 2px dashed var(--color-border);
     border-radius: var(--border-radius);
-    margin: var(--spacing-md) 0;
+    margin: var(--spacing-sm) 0;
 }
 
 .empty-group-hint p {
@@ -1262,13 +1287,14 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--spacing-lg);
+    padding: var(--spacing-md);
     background: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
     cursor: pointer;
     transition: all 0.3s ease;
     position: relative;
+    margin-bottom: var(--spacing-sm);
 }
 
 .favorite-item[draggable="true"] {
@@ -1292,7 +1318,7 @@ body {
 }
 
 .favorite-item .favorite-info {
-    margin-left: var(--spacing-lg);
+    margin-left: var(--spacing-md);
 }
 
 .favorite-item:hover {
@@ -1311,7 +1337,7 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-sm);
+    gap: var(--spacing-xs);
 }
 
 .favorite-stock {
