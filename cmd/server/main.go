@@ -140,6 +140,18 @@ func withCORS(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
+		// 设置内容安全策略(CSP)头，解决CSP错误
+		// 允许外部CDN资源加载，允许内联脚本执行
+		cspHeader := "default-src 'self'; " +
+			"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; " +
+			"style-src 'self' 'unsafe-inline'; " +
+			"img-src 'self' data: https:; " +
+			"font-src 'self' https:; " +
+			"connect-src 'self' https:; " +
+			"frame-src 'none'; " +
+			"object-src 'none';"
+		w.Header().Set("Content-Security-Policy", cspHeader)
+
 		// 处理预检请求
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)

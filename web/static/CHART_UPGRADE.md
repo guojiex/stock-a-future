@@ -163,6 +163,22 @@ const volumeData = data.map((vol, index) => {
 - **grid间距调整**: 成交量图位置从top: '80%'调整为'78%'，增加与K线图的间距
 - **dataZoom位置**: 从top: '90%'调整为'95%'，避免与成交量图重叠
 
+#### 4. 成交量Tooltip显示问题
+- **问题描述**: 鼠标悬停在成交量柱状图上时，tooltip显示`[object Object]`而不是具体的成交量数值
+- **问题原因**: 成交量数据格式为对象`{value: vol, itemStyle: {...}}`，tooltip直接使用`volumeParam.data`导致显示错误
+- **解决方案**: 在tooltip formatter中正确解析成交量数据，提取`value`属性
+- **修复代码**:
+  ```javascript
+  // 修复成交量数据显示问题：正确处理数据格式
+  let volumeValue;
+  if (typeof volumeParam.data === 'object' && volumeParam.data.value !== undefined) {
+      volumeValue = volumeParam.data.value;
+  } else {
+      volumeValue = volumeParam.data;
+  }
+  result += `成交量: ${this.formatVolume(volumeValue)}<br/>`;
+  ```
+
 ### 修复效果
 
 ✅ **价格标签清晰可见**: 通过增加Y轴边界间距，解决了成交量柱状图遮挡价格标签的问题
@@ -170,6 +186,8 @@ const volumeData = data.map((vol, index) => {
 ✅ **完整数据展示**: 默认显示所有历史数据，用户无需手动调整即可查看完整走势
 
 ✅ **布局更加合理**: 各图表元素间距优化，避免重叠，提升用户体验
+
+✅ **成交量Tooltip正常显示**: 修复了鼠标悬停成交量柱状图时显示`[object Object]`的问题，现在正确显示成交量数值
 
 ### 测试验证
 

@@ -91,7 +91,14 @@ class ChartsModule {
                     // 成交量
                     const volumeParam = params.find(p => p.seriesName === '成交量');
                     if (volumeParam) {
-                        result += `成交量: ${this.formatVolume(volumeParam.data)}<br/>`;
+                        // 修复成交量数据显示问题：正确处理数据格式
+                        let volumeValue;
+                        if (typeof volumeParam.data === 'object' && volumeParam.data.value !== undefined) {
+                            volumeValue = volumeParam.data.value;
+                        } else {
+                            volumeValue = volumeParam.data;
+                        }
+                        result += `成交量: ${this.formatVolume(volumeValue)}<br/>`;
                     }
                     
                     // 移动平均线
