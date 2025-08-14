@@ -4,11 +4,12 @@
  */
 
 class EventsModule {
-    constructor(client, apiService, displayModule, favoritesModule = null) {
+    constructor(client, apiService, displayModule, favoritesModule = null, dateShortcutsModule = null) {
         this.client = client;
         this.apiService = apiService;
         this.displayModule = displayModule;
         this.favoritesModule = favoritesModule;
+        this.dateShortcutsModule = dateShortcutsModule;
         
         this.init();
     }
@@ -76,6 +77,14 @@ class EventsModule {
         }
         if (startDateInput) {
             startDateInput.value = this.client.formatDate(sixtyDaysAgo);
+        }
+
+        // 更新日期快捷按钮状态
+        if (this.dateShortcutsModule) {
+            // 延迟更新，确保DOM已更新
+            setTimeout(() => {
+                this.dateShortcutsModule.updateActiveButtonByDateRange();
+            }, 100);
         }
     }
 

@@ -14,6 +14,7 @@ class StockAFutureApp {
         this.configModule = null;
         this.displayModule = null;
         this.eventsModule = null;
+        this.dateShortcutsModule = null;
         
         this.init();
     }
@@ -73,10 +74,13 @@ class StockAFutureApp {
         // 7. 初始化收藏功能模块
         this.favoritesModule = new FavoritesModule(this.client, this.favoritesService, this.apiService);
         
-        // 8. 初始化事件处理模块（需要收藏模块引用）
-        this.eventsModule = new EventsModule(this.client, this.apiService, this.displayModule, this.favoritesModule);
+        // 8. 初始化日期快捷按钮模块
+        this.dateShortcutsModule = new DateShortcutsModule(this.client);
         
-        // 9. 初始化配置管理模块
+        // 9. 初始化事件处理模块（需要收藏模块和日期快捷按钮模块引用）
+        this.eventsModule = new EventsModule(this.client, this.apiService, this.displayModule, this.favoritesModule, this.dateShortcutsModule);
+        
+        // 10. 初始化配置管理模块
         this.configModule = new ConfigModule(this.client);
         
         // 等待客户端初始化完成
@@ -183,6 +187,13 @@ class StockAFutureApp {
      */
     getFavoritesModule() {
         return this.favoritesModule;
+    }
+
+    /**
+     * 获取日期快捷按钮模块实例
+     */
+    getDateShortcutsModule() {
+        return this.dateShortcutsModule;
     }
 }
 

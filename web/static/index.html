@@ -58,6 +58,18 @@
                             </div>
                         </div>
 
+                        <!-- 时间段快捷按钮 -->
+                        <div class="date-shortcuts">
+                            <label>快捷选择时间段</label>
+                            <div class="shortcuts-buttons">
+                                <button type="button" class="btn btn-outline btn-small shortcut-btn" data-days="30">近1个月</button>
+                                <button type="button" class="btn btn-outline btn-small shortcut-btn" data-days="90">近3个月</button>
+                                <button type="button" class="btn btn-outline btn-small shortcut-btn" data-days="180">近半年</button>
+                                <button type="button" class="btn btn-outline btn-small shortcut-btn" data-days="365">近1年</button>
+                                <button type="button" class="btn btn-outline btn-small shortcut-btn" data-days="730">近2年</button>
+                            </div>
+                        </div>
+
                         <div class="button-group">
                             <button id="queryDaily" class="btn btn-primary">📈 获取日线数据</button>
                             <button id="queryIndicators" class="btn btn-secondary">📊 技术指标</button>
@@ -172,6 +184,7 @@
     <script src="js/modules/favorites.js"></script>
     <script src="js/modules/config.js"></script>
     <script src="js/modules/display.js"></script>
+    <script src="js/modules/dateShortcuts.js"></script>
     <script src="js/modules/events.js"></script>
     
     <!-- 工具函数 -->

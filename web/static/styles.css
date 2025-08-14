@@ -332,6 +332,70 @@ body {
     }
 }
 
+/* 时间段快捷按钮样式 */
+.date-shortcuts {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+}
+
+.date-shortcuts label {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    margin-bottom: var(--spacing-xs);
+}
+
+.shortcuts-buttons {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.shortcut-btn {
+    padding: var(--spacing-xs) var(--spacing-md);
+    font-size: 0.8rem;
+    min-width: auto;
+    white-space: nowrap;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.shortcut-btn:hover {
+    background: var(--primary-color);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.shortcut-btn.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.shortcut-btn.active::before {
+    content: "✓ ";
+    margin-right: 4px;
+}
+
+/* 响应式设计 - 时间段快捷按钮 */
+@media (max-width: 768px) {
+    .shortcuts-buttons {
+        justify-content: flex-start;
+        gap: var(--spacing-xs);
+    }
+    
+    .shortcut-btn {
+        font-size: 0.75rem;
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+}
+
 /* 按钮样式 */
 .button-group {
     display: flex;
