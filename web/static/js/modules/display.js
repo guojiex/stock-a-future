@@ -13,10 +13,11 @@ class DisplayModule {
      * 显示日线数据
      */
     displayDailyData(data, stockCode, stockBasic) {
+        const section = document.getElementById('daily-data-section');
         const card = document.getElementById('dailyDataCard');
         const summary = document.getElementById('dailyDataSummary');
         
-        if (!card || !summary) return;
+        if (!section || !card || !summary) return;
         
         // 更新卡片标题
         const cardTitle = card.querySelector('h3');
@@ -24,9 +25,9 @@ class DisplayModule {
             cardTitle.textContent = `📈 ${stockBasic.name}(${stockCode}) - 日线数据`;
         }
         
-        // 显示卡片
-        card.style.display = 'block';
-        card.classList.add('fade-in');
+        // 显示section
+        section.style.display = 'block';
+        section.classList.add('fade-in');
         
         // 创建价格图表
         this.chartsModule.createPriceChart(data, stockCode, stockBasic);
@@ -40,7 +41,7 @@ class DisplayModule {
         }
         
         // 滚动到结果
-        card.scrollIntoView({ behavior: 'smooth' });
+        section.scrollIntoView({ behavior: 'smooth' });
     }
 
     /**
@@ -100,10 +101,11 @@ class DisplayModule {
      * 显示技术指标
      */
     displayIndicators(data, stockCode, stockBasic) {
+        const section = document.getElementById('indicators-section');
         const card = document.getElementById('indicatorsCard');
         const grid = document.getElementById('indicatorsGrid');
         
-        if (!card || !grid) return;
+        if (!section || !card || !grid) return;
         
         // 更新卡片标题
         const cardTitle = card.querySelector('h3');
@@ -111,9 +113,9 @@ class DisplayModule {
             cardTitle.textContent = `📊 ${stockBasic.name}(${stockCode}) - 技术指标`;
         }
         
-        // 显示卡片
-        card.style.display = 'block';
-        card.classList.add('fade-in');
+        // 显示section
+        section.style.display = 'block';
+        section.classList.add('fade-in');
         
         // 构建指标HTML
         let indicatorsHTML = '';
@@ -165,7 +167,7 @@ class DisplayModule {
         grid.innerHTML = indicatorsHTML;
         
         // 滚动到结果
-        card.scrollIntoView({ behavior: 'smooth' });
+        section.scrollIntoView({ behavior: 'smooth' });
     }
 
     /**
@@ -208,10 +210,11 @@ class DisplayModule {
      * 显示预测结果
      */
     displayPredictions(data, stockCode, stockBasic) {
+        const section = document.getElementById('predictions-section');
         const card = document.getElementById('predictionsCard');
         const container = document.getElementById('predictionsContainer');
         
-        if (!card || !container) return;
+        if (!section || !card || !container) return;
         
         // 更新卡片标题
         const cardTitle = card.querySelector('h3');
@@ -219,9 +222,9 @@ class DisplayModule {
             cardTitle.textContent = `🎯 ${stockBasic.name}(${stockCode}) - 买卖点预测`;
         }
         
-        // 显示卡片
-        card.style.display = 'block';
-        card.classList.add('fade-in');
+        // 显示section
+        section.style.display = 'block';
+        section.classList.add('fade-in');
         
         // 构建预测HTML
         let predictionsHTML = '';
@@ -272,7 +275,7 @@ class DisplayModule {
         container.innerHTML = predictionsHTML;
         
         // 滚动到结果
-        card.scrollIntoView({ behavior: 'smooth' });
+        section.scrollIntoView({ behavior: 'smooth' });
     }
 
     /**

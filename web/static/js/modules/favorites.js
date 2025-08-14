@@ -12,6 +12,7 @@ class FavoritesModule {
         this.groups = [];
         this.currentStockCode = null;
         this.currentStockName = null;
+        this.currentGroupId = 'default'; // 跟踪当前选择的分组
         
         this.init();
     }
@@ -49,6 +50,7 @@ class FavoritesModule {
         if (mainContent) {
             const favoritesSection = document.createElement('section');
             favoritesSection.className = 'favorites-section';
+            favoritesSection.id = 'favorites-section'; // 添加ID以便折叠功能识别
             favoritesSection.innerHTML = `
                 <div class="card">
                     <h2>⭐ 收藏股票</h2>
@@ -120,14 +122,14 @@ class FavoritesModule {
         }
 
         try {
-            // 检查是否已收藏
-            const isFavorite = await this.favoritesService.checkFavorite(stockCode);
+            // 检查在当前分组中是否已收藏
+            const isFavoriteInCurrentGroup = await this.favoritesService.checkFavoriteInGroup(stockCode, this.currentGroupId);
             
-            if (isFavorite) {
-                // 如果已收藏，执行取消收藏操作
-                await this.handleUnfavoriteClick(stockCode);
+            if (isFavoriteInCurrentGroup) {
+                // 如果在当前分组中已收藏，从当前分组中移除
+                await this.handleRemoveFromGroupClick(stockCode, this.currentGroupId);
             } else {
-                // 如果未收藏，执行添加收藏操作
+                // 如果在当前分组中未收藏，添加到当前分组
                 await this.handleAddFavoriteClick(stockCode, startDate, endDate);
             }
         } catch (error) {
@@ -152,15 +154,25 @@ class FavoritesModule {
                 console.warn('获取股票名称失败，使用代码作为名称:', error);
             }
 
-            // 添加收藏
+            // 直接添加收藏到当前分组
+            // 后端会处理分组级别的重复检查：同一分组内不能重复，不同分组间可以重复
+            const groupId = this.currentGroupId || 'default';
+            
             const favorite = await this.favoritesService.addFavorite(
                 stockCode,
                 stockName,
                 startDate || '',
-                endDate || ''
+                endDate || '',
+                groupId // 分组ID是必传参数
             );
 
-            this.showMessage(`成功收藏 ${stockName}`, 'success');
+            // 显示成功消息，包含分组信息
+            const currentGroup = this.groups.find(g => g.id === this.currentGroupId);
+            const groupName = currentGroup ? currentGroup.name : '默认分组';
+            const message = this.currentGroupId === 'default' 
+                ? `成功收藏 ${stockName}` 
+                : `成功收藏 ${stockName} 到"${groupName}"分组`;
+            this.showMessage(message, 'success');
             this.loadFavorites(); // 刷新收藏列表
             this.updateFavoriteButtonState();
             
@@ -170,8 +182,40 @@ class FavoritesModule {
         }
     }
 
+
+
     /**
-     * 处理取消收藏
+     * 处理从特定分组中移除收藏
+     */
+    async handleRemoveFromGroupClick(stockCode, groupId) {
+        try {
+            // 通过股票代码和分组ID查找收藏记录
+            const favorite = await this.favoritesService.findFavoriteByCodeAndGroup(stockCode, groupId);
+            if (!favorite) {
+                throw new Error('找不到对应的收藏记录');
+            }
+
+            // 删除该分组中的收藏
+            await this.favoritesService.deleteFavorite(favorite.id);
+            
+            const currentGroup = this.groups.find(g => g.id === groupId);
+            const groupName = currentGroup ? currentGroup.name : '默认分组';
+            const message = groupId === 'default' 
+                ? `已取消收藏 ${favorite.name}` 
+                : `已从"${groupName}"分组中移除 ${favorite.name}`;
+            
+            this.showMessage(message, 'success');
+            this.loadFavorites(); // 刷新收藏列表
+            this.updateFavoriteButtonState();
+            
+        } catch (error) {
+            console.error('移除收藏失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 处理取消收藏（完全删除，保留用于兼容性）
      */
     async handleUnfavoriteClick(stockCode) {
         try {
@@ -260,9 +304,14 @@ class FavoritesModule {
         // 按分组排序渲染所有分组tab
         const sortedGroups = [...this.groups].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
         
+        // 如果当前分组不存在，设置为第一个分组
+        if (sortedGroups.length > 0 && !sortedGroups.find(g => g.id === this.currentGroupId)) {
+            this.currentGroupId = sortedGroups[0].id;
+        }
+        
         sortedGroups.forEach((group, index) => {
             const groupFavorites = favoritesByGroup[group.id] || [];
-            const isActive = index === 0 ? 'active' : '';
+            const isActive = group.id === this.currentGroupId ? 'active' : '';
             
             listHTML += `
                 <div class="group-tab ${isActive}" data-group-id="${group.id}">
@@ -294,7 +343,7 @@ class FavoritesModule {
         
         sortedGroups.forEach((group, index) => {
             const groupFavorites = favoritesByGroup[group.id] || [];
-            const isActive = index === 0 ? 'active' : '';
+            const isActive = group.id === this.currentGroupId ? 'active' : '';
             
             listHTML += `
                 <div class="group-content ${isActive}" data-group-id="${group.id}">
@@ -350,6 +399,9 @@ class FavoritesModule {
         // 添加事件监听器
         this.setupFavoriteItemEvents();
         this.setupGroupEvents();
+        
+        // 更新收藏按钮状态
+        this.updateFavoriteButtonState();
         this.setupTabEvents();
         this.setupDragAndDrop();
     }
@@ -409,6 +461,9 @@ class FavoritesModule {
      * 切换到指定的tab
      */
     switchToTab(groupId) {
+        // 更新当前分组ID
+        this.currentGroupId = groupId;
+        
         // 移除所有active状态
         document.querySelectorAll('.group-tab').forEach(tab => {
             tab.classList.remove('active');
@@ -427,6 +482,9 @@ class FavoritesModule {
         if (targetContent) {
             targetContent.classList.add('active');
         }
+        
+        // 更新收藏按钮状态
+        this.updateFavoriteButtonState();
     }
 
     /**
@@ -852,6 +910,8 @@ class FavoritesModule {
         }
     }
 
+
+
     /**
      * 更新收藏按钮状态
      */
@@ -871,18 +931,34 @@ class FavoritesModule {
         }
 
         try {
-            const isFavorite = await this.favoritesService.checkFavorite(stockCode);
+            // 检查在当前分组中是否已收藏
+            const isFavoriteInCurrentGroup = await this.favoritesService.checkFavoriteInGroup(stockCode, this.currentGroupId);
             
-            if (isFavorite) {
-                favoriteBtn.innerHTML = '⭐ 已收藏';
+            const currentGroup = this.groups.find(g => g.id === this.currentGroupId);
+            const groupName = currentGroup ? currentGroup.name : '默认分组';
+            
+            if (isFavoriteInCurrentGroup) {
+                // 在当前分组中已收藏
+                if (this.currentGroupId === 'default') {
+                    favoriteBtn.innerHTML = '⭐ 已收藏';
+                    favoriteBtn.title = '点击取消收藏该股票';
+                } else {
+                    favoriteBtn.innerHTML = `⭐ 已在${groupName}中`;
+                    favoriteBtn.title = `点击从"${groupName}"分组中移除该股票`;
+                }
                 favoriteBtn.className = 'btn btn-favorite favorited';
-                favoriteBtn.disabled = false;  // 允许点击以取消收藏
-                favoriteBtn.title = '点击取消收藏该股票';
+                favoriteBtn.disabled = false;
             } else {
-                favoriteBtn.innerHTML = '⭐ 收藏';
+                // 在当前分组中未收藏
+                if (this.currentGroupId === 'default') {
+                    favoriteBtn.innerHTML = '⭐ 收藏';
+                    favoriteBtn.title = '收藏当前股票和时间范围';
+                } else {
+                    favoriteBtn.innerHTML = `⭐ 收藏到${groupName}`;
+                    favoriteBtn.title = `收藏当前股票和时间范围到"${groupName}"分组`;
+                }
                 favoriteBtn.className = 'btn btn-favorite';
                 favoriteBtn.disabled = false;
-                favoriteBtn.title = '收藏当前股票和时间范围';
             }
         } catch (error) {
             console.error('更新收藏按钮状态失败:', error);

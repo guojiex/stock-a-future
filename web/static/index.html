@@ -26,7 +26,7 @@
         <!-- 主要内容区域 -->
         <main class="main-content">
             <!-- 股票查询区域 -->
-            <section class="search-section">
+            <section class="search-section" id="search-section">
                 <div class="card">
                     <h2>📊 股票查询</h2>
                     <div class="search-form">
@@ -80,34 +80,42 @@
             </section>
 
             <!-- 结果显示区域 -->
-            <section class="results-section">
+            <div class="results-container">
                 <!-- 日线数据 -->
-                <div class="card" id="dailyDataCard" style="display: none;">
-                    <h3>📈 日线数据</h3>
-                    <div class="chart-container">
-                        <div id="priceChart" style="width: 100%; height: 100%;"></div>
+                <section class="daily-data-section" id="daily-data-section" style="display: none;">
+                    <div class="card" id="dailyDataCard">
+                        <h3>📈 日线数据</h3>
+                        <div class="chart-container">
+                            <div id="priceChart" style="width: 100%; height: 100%;"></div>
+                        </div>
+                        <div class="data-summary" id="dailyDataSummary"></div>
                     </div>
-                    <div class="data-summary" id="dailyDataSummary"></div>
-                </div>
+                </section>
 
                 <!-- 技术指标 -->
-                <div class="card" id="indicatorsCard" style="display: none;">
-                    <h3>📊 技术指标</h3>
-                    <div class="indicators-grid" id="indicatorsGrid"></div>
-                </div>
+                <section class="indicators-section" id="indicators-section" style="display: none;">
+                    <div class="card" id="indicatorsCard">
+                        <h3>📊 技术指标</h3>
+                        <div class="indicators-grid" id="indicatorsGrid"></div>
+                    </div>
+                </section>
 
                 <!-- 买卖预测 -->
-                <div class="card" id="predictionsCard" style="display: none;">
-                    <h3>🎯 买卖点预测</h3>
-                    <div class="predictions-container" id="predictionsContainer"></div>
-                </div>
+                <section class="predictions-section" id="predictions-section" style="display: none;">
+                    <div class="card" id="predictionsCard">
+                        <h3>🎯 买卖点预测</h3>
+                        <div class="predictions-container" id="predictionsContainer"></div>
+                    </div>
+                </section>
 
                 <!-- 错误提示 -->
-                <div class="card error-card" id="errorCard" style="display: none;">
-                    <h3>❌ 错误信息</h3>
-                    <div class="error-message" id="errorMessage"></div>
-                </div>
-            </section>
+                <section class="error-section" id="error-section" style="display: none;">
+                    <div class="card error-card" id="errorCard">
+                        <h3>❌ 错误信息</h3>
+                        <div class="error-message" id="errorMessage"></div>
+                    </div>
+                </section>
+            </div>
         </main>
 
         <!-- 底部信息 -->
@@ -179,6 +187,7 @@
     <script src="js/services/favorites.js"></script>
     
     <!-- 功能模块 -->
+    <script src="js/modules/sectionToggle.js"></script>
     <script src="js/modules/charts.js"></script>
     <script src="js/modules/stockSearch.js"></script>
     <script src="js/modules/favorites.js"></script>

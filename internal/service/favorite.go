@@ -73,18 +73,24 @@ func (s *FavoriteService) AddFavorite(request *models.FavoriteStockRequest) (*mo
 		return nil, fmt.Errorf("股票名称不能为空")
 	}
 
-	// 检查是否已经收藏
-	for _, favorite := range s.favorites {
-		if favorite.TSCode == request.TSCode {
-			return nil, fmt.Errorf("股票 %s 已经在收藏列表中", request.TSCode)
-		}
-	}
-
 	// 确定分组ID
 	groupID := request.GroupID
 	if groupID == "" {
 		groupID = s.defaultGroupID
 	}
+
+	// 添加调试日志
+	fmt.Printf("添加收藏请求: 股票=%s, 名称=%s, 分组=%s\n", request.TSCode, request.Name, groupID)
+
+	// 检查在指定分组中是否已经收藏（分组级别的重复检查）
+	for _, favorite := range s.favorites {
+		if favorite.TSCode == request.TSCode && favorite.GroupID == groupID {
+			fmt.Printf("检查结果: 股票 %s 已在分组 %s 中收藏\n", request.TSCode, groupID)
+			return nil, fmt.Errorf("股票 %s 已在当前分组中收藏", request.TSCode)
+		}
+	}
+
+	fmt.Printf("检查结果: 股票 %s 在分组 %s 中未收藏，允许添加\n", request.TSCode, groupID)
 
 	// 计算排序顺序（在分组内的最后位置）
 	sortOrder := s.getNextSortOrderInGroup(groupID)
@@ -112,6 +118,7 @@ func (s *FavoriteService) AddFavorite(request *models.FavoriteStockRequest) (*mo
 		return nil, fmt.Errorf("保存收藏失败: %v", err)
 	}
 
+	fmt.Printf("成功添加收藏: ID=%s, 股票=%s, 分组=%s\n", favorite.ID, favorite.TSCode, favorite.GroupID)
 	return favorite, nil
 }
 
@@ -188,17 +195,21 @@ func (s *FavoriteService) DeleteFavorite(id string) error {
 	return nil
 }
 
-// IsFavorite 检查股票是否已收藏
+// IsFavorite 检查股票是否已收藏（全局检查，不区分分组）
 func (s *FavoriteService) IsFavorite(tsCode string) bool {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
+	fmt.Printf("全局收藏检查: 股票=%s\n", tsCode)
+
 	for _, favorite := range s.favorites {
 		if favorite.TSCode == tsCode {
+			fmt.Printf("全局收藏检查结果: 股票 %s 已在分组 %s 中收藏\n", tsCode, favorite.GroupID)
 			return true
 		}
 	}
 
+	fmt.Printf("全局收藏检查结果: 股票 %s 未收藏\n", tsCode)
 	return false
 }
 

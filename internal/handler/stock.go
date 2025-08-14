@@ -473,6 +473,9 @@ func (h *StockHandler) AddFavorite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 添加调试日志
+	log.Printf("收到添加收藏请求: %+v", request)
+
 	// 添加收藏
 	favorite, err := h.favoriteService.AddFavorite(&request)
 	if err != nil {
@@ -481,6 +484,7 @@ func (h *StockHandler) AddFavorite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("添加收藏成功: %+v", favorite)
 	h.writeSuccessResponse(w, favorite)
 }
 

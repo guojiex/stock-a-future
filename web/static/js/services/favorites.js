@@ -40,13 +40,17 @@ class FavoritesService {
     /**
      * 添加收藏
      */
-    async addFavorite(stockCode, stockName, startDate, endDate) {
+    async addFavorite(stockCode, stockName, startDate, endDate, groupId) {
+        if (!groupId) {
+            throw new Error('分组ID是必需的参数');
+        }
         try {
             const requestData = {
                 ts_code: stockCode,
                 name: stockName,
                 start_date: startDate,
-                end_date: endDate
+                end_date: endDate,
+                group_id: groupId
             };
 
             const response = await fetch(`${this.client.baseURL}/api/v1/favorites`, {
@@ -69,6 +73,8 @@ class FavoritesService {
             throw error;
         }
     }
+
+
 
     /**
      * 删除收藏
@@ -127,32 +133,29 @@ class FavoritesService {
     }
 
     /**
-     * 检查股票是否已收藏
+     * 检查股票是否已收藏到指定分组
      */
-    async checkFavorite(stockCode) {
+    async checkFavoriteInGroup(stockCode, groupId = null) {
         try {
-            const response = await fetch(`${this.client.baseURL}/api/v1/favorites/check/${stockCode}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`检查收藏状态失败: ${response.status}`);
+            if (groupId === null) {
+                // 如果没有指定分组，检查是否在任何分组中收藏
+                return this.checkFavorite(stockCode);
             }
-
-            const data = await response.json();
             
-            if (!data.success) {
-                throw new Error(data.error || '检查收藏状态失败');
-            }
-
-            return data.data.is_favorite || false;
+            // 使用本地数据检查特定分组中是否已收藏
+            const favorite = await this.findFavoriteByCodeAndGroup(stockCode, groupId);
+            return favorite !== null;
         } catch (error) {
-            console.error('检查收藏状态失败:', error);
+            console.error('检查分组收藏状态失败:', error);
             return false; // 出错时默认返回未收藏状态
         }
+    }
+
+    /**
+     * 检查股票是否已收藏（任何分组）- 向后兼容
+     */
+    async checkFavorite(stockCode) {
+        return this.checkFavoriteInGroup(stockCode, null);
     }
 
     /**
@@ -164,6 +167,25 @@ class FavoritesService {
             return favorites.find(favorite => favorite.ts_code === stockCode) || null;
         } catch (error) {
             console.error('查找收藏记录失败:', error);
+            return null;
+        }
+    }
+
+    /**
+     * 通过股票代码和分组ID查找收藏记录
+     */
+    async findFavoriteByCodeAndGroup(stockCode, groupId) {
+        try {
+            const favorites = await this.getFavorites();
+            
+            const result = favorites.find(favorite => 
+                favorite.ts_code === stockCode && 
+                (favorite.group_id || 'default') === groupId
+            ) || null;
+            
+            return result;
+        } catch (error) {
+            console.error('查找分组收藏记录失败:', error);
             return null;
         }
     }

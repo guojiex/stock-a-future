@@ -196,31 +196,32 @@ class StockAFutureClient {
      * 显示错误信息
      */
     showError(message) {
+        const errorSection = document.getElementById('error-section');
         const errorCard = document.getElementById('errorCard');
         const errorMessage = document.getElementById('errorMessage');
         
-        if (errorCard && errorMessage) {
+        if (errorSection && errorCard && errorMessage) {
             errorMessage.textContent = message;
-            errorCard.style.display = 'block';
-            errorCard.classList.add('fade-in');
+            errorSection.style.display = 'block';
+            errorSection.classList.add('fade-in');
             
-            // 隐藏其他卡片
-            this.hideAllResultCards();
-            errorCard.style.display = 'block';
+            // 隐藏其他section
+            this.hideAllResultSections();
+            errorSection.style.display = 'block';
             
-            // 滚动到错误卡片
-            errorCard.scrollIntoView({ behavior: 'smooth' });
+            // 滚动到错误section
+            errorSection.scrollIntoView({ behavior: 'smooth' });
         }
     }
 
     /**
-     * 隐藏所有结果卡片
+     * 隐藏所有结果section
      */
-    hideAllResultCards() {
-        const cards = ['dailyDataCard', 'indicatorsCard', 'predictionsCard', 'errorCard'];
-        cards.forEach(cardId => {
-            const card = document.getElementById(cardId);
-            if (card) card.style.display = 'none';
+    hideAllResultSections() {
+        const sections = ['daily-data-section', 'indicators-section', 'predictions-section', 'error-section'];
+        sections.forEach(sectionId => {
+            const section = document.getElementById(sectionId);
+            if (section) section.style.display = 'none';
         });
     }
 

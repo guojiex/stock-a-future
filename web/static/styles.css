@@ -1499,3 +1499,128 @@ body {
         max-width: none;
     }
 }
+
+/* ========================================
+   Section 展开/折叠功能样式
+   ======================================== */
+
+/* Section 标题容器 */
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-lg);
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.section-header:hover {
+    opacity: 0.8;
+}
+
+.section-header h2,
+.section-header h3 {
+    margin: 0;
+    flex: 1;
+}
+
+/* 折叠切换按钮 */
+.section-toggle-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    min-height: 32px;
+}
+
+.section-toggle-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.section-toggle-btn:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* 箭头图标动画 */
+.section-toggle-btn .toggle-icon {
+    transition: transform 0.3s ease;
+    display: inline-block;
+}
+
+.section-toggle-btn.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+/* Section 内容容器 */
+.section-content {
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.section-content.collapsed {
+    max-height: 0 !important;
+    margin-bottom: 0;
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+.section-content.expanded {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* 为不同的section类型添加特定样式 */
+.search-section.collapsible .card,
+.favorites-section.collapsible .card,
+.results-section.collapsible .card {
+    overflow: visible;
+}
+
+.search-section.collapsible .section-content,
+.favorites-section.collapsible .section-content,
+.results-section.collapsible .section-content {
+    padding-top: 0;
+}
+
+/* 折叠状态指示器 */
+.section-status {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: normal;
+    margin-left: var(--spacing-sm);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.section-header.collapsed .section-status {
+    opacity: 1;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .section-header {
+        margin-bottom: var(--spacing-md);
+    }
+    
+    .section-toggle-btn {
+        font-size: 1rem;
+        padding: var(--spacing-xs);
+        min-width: 28px;
+        min-height: 28px;
+    }
+    
+    .section-status {
+        display: none; /* 在移动设备上隐藏状态文字 */
+    }
+}

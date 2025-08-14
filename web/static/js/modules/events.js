@@ -108,7 +108,7 @@ class EventsModule {
     async handleDailyQuery() {
         try {
             this.client.setLoading(true);
-            this.client.hideAllResultCards();
+            this.client.hideAllResultSections();
             
             const stockCode = this.client.getStockCode();
             const { startDate, endDate } = this.client.getDateRange();
@@ -134,7 +134,7 @@ class EventsModule {
     async handleIndicatorsQuery() {
         try {
             this.client.setLoading(true);
-            this.client.hideAllResultCards();
+            this.client.hideAllResultSections();
             
             const stockCode = this.client.getStockCode();
             
@@ -159,7 +159,7 @@ class EventsModule {
     async handlePredictionsQuery() {
         try {
             this.client.setLoading(true);
-            this.client.hideAllResultCards();
+            this.client.hideAllResultSections();
             
             const stockCode = this.client.getStockCode();
             
