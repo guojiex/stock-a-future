@@ -9,7 +9,11 @@ import (
 	"stock-a-future/internal/client"
 	"stock-a-future/internal/handler"
 	"stock-a-future/internal/service"
+	"sync/atomic"
 )
+
+// 健康检查请求计数器，用于抽样记录日志
+var healthCheckCounter int64
 
 func main() {
 	// 加载配置
@@ -150,7 +154,16 @@ func registerStaticRoutes(mux *http.ServeMux) {
 // withLogging 日志中间件
 func withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("%s %s %s", r.Method, r.URL.Path, r.RemoteAddr)
+		// 对health接口进行抽样记录，每100次请求只记录1次
+		if r.URL.Path == "/api/v1/health" {
+			count := atomic.AddInt64(&healthCheckCounter, 1)
+			if count%100 == 1 { // 第1次、第101次、第201次...记录日志
+				log.Printf("%s %s %s (健康检查 #%d)", r.Method, r.URL.Path, r.RemoteAddr, count)
+			}
+		} else {
+			// 非health接口正常记录日志
+			log.Printf("%s %s %s", r.Method, r.URL.Path, r.RemoteAddr)
+		}
 		next.ServeHTTP(w, r)
 	})
 }
