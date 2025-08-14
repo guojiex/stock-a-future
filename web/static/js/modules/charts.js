@@ -101,13 +101,6 @@ class ChartsModule {
                         result += `成交量: ${this.formatVolume(volumeValue)}<br/>`;
                     }
                     
-                    // 移动平均线
-                    params.forEach(param => {
-                        if (param.seriesName.includes('MA')) {
-                            result += `${param.seriesName}: ¥${param.data.toFixed(2)}<br/>`;
-                        }
-                    });
-                    
                     return result;
                 }.bind(this)
             },

@@ -8,6 +8,7 @@ import (
 	"stock-a-future/config"
 	"stock-a-future/internal/client"
 	"stock-a-future/internal/handler"
+	"stock-a-future/internal/service"
 )
 
 func main() {
@@ -21,8 +22,22 @@ func main() {
 	// 创建Tushare客户端
 	tushareClient := client.NewTushareClient(cfg.TushareToken, cfg.TushareBaseURL)
 
+	// 创建缓存服务
+	var cacheService *service.DailyCacheService
+	if cfg.CacheEnabled {
+		cacheConfig := &service.CacheConfig{
+			DefaultTTL:      cfg.CacheDefaultTTL,
+			MaxCacheAge:     cfg.CacheMaxAge,
+			CleanupInterval: cfg.CacheCleanupInterval,
+		}
+		cacheService = service.NewDailyCacheService(cacheConfig)
+		log.Printf("日线数据缓存已启用")
+	} else {
+		log.Printf("日线数据缓存已禁用")
+	}
+
 	// 创建处理器
-	stockHandler := handler.NewStockHandler(tushareClient)
+	stockHandler := handler.NewStockHandler(tushareClient, cacheService)
 
 	// 创建路由器
 	mux := http.NewServeMux()
@@ -47,6 +62,10 @@ func main() {
 	log.Printf("  买卖预测: GET http://%s/api/v1/stocks/{code}/predictions", addr)
 	log.Printf("  本地股票列表: GET http://%s/api/v1/stocks", addr)
 	log.Printf("  刷新本地数据: POST http://%s/api/v1/stocks/refresh", addr)
+	if cfg.CacheEnabled {
+		log.Printf("  缓存统计: GET http://%s/api/v1/cache/stats", addr)
+		log.Printf("  清空缓存: DELETE http://%s/api/v1/cache", addr)
+	}
 	log.Printf("  Web客户端: http://%s/", addr)
 	log.Printf("示例: curl http://%s/api/v1/stocks/000001.SZ/daily", addr)
 
@@ -70,6 +89,10 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler) {
 	mux.HandleFunc("GET /api/v1/stocks", stockHandler.GetStockList)
 	mux.HandleFunc("GET /api/v1/stocks/search", stockHandler.SearchStocks)
 	mux.HandleFunc("POST /api/v1/stocks/refresh", stockHandler.RefreshLocalData)
+
+	// 缓存管理API
+	mux.HandleFunc("GET /api/v1/cache/stats", stockHandler.GetCacheStats)
+	mux.HandleFunc("DELETE /api/v1/cache", stockHandler.ClearCache)
 
 }
 

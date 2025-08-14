@@ -20,15 +20,17 @@ type StockHandler struct {
 	calculator        *indicators.Calculator
 	predictionService *service.PredictionService
 	localStockService *service.LocalStockService
+	dailyCacheService *service.DailyCacheService
 }
 
 // NewStockHandler 创建股票处理器
-func NewStockHandler(tushareClient *client.TushareClient) *StockHandler {
+func NewStockHandler(tushareClient *client.TushareClient, cacheService *service.DailyCacheService) *StockHandler {
 	return &StockHandler{
 		tushareClient:     tushareClient,
 		calculator:        indicators.NewCalculator(),
 		predictionService: service.NewPredictionService(),
 		localStockService: service.NewLocalStockService("data"),
+		dailyCacheService: cacheService,
 	}
 }
 
@@ -60,12 +62,33 @@ func (h *StockHandler) GetDailyData(w http.ResponseWriter, r *http.Request) {
 		endDate = time.Now().Format("20060102")
 	}
 
-	// 调用Tushare API
-	data, err := h.tushareClient.GetDailyData(stockCode, startDate, endDate)
-	if err != nil {
-		log.Printf("获取股票数据失败: %v", err)
-		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
-		return
+	// 尝试从缓存获取数据
+	var data []models.StockDaily
+	var err error
+
+	if h.dailyCacheService != nil {
+		if cachedData, found := h.dailyCacheService.Get(stockCode, startDate, endDate); found {
+			data = cachedData
+		} else {
+			// 缓存未命中，从API获取数据
+			data, err = h.tushareClient.GetDailyData(stockCode, startDate, endDate)
+			if err != nil {
+				log.Printf("获取股票数据失败: %v", err)
+				h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
+				return
+			}
+
+			// 将数据存入缓存
+			h.dailyCacheService.Set(stockCode, startDate, endDate, data)
+		}
+	} else {
+		// 如果缓存服务未启用，直接从API获取
+		data, err = h.tushareClient.GetDailyData(stockCode, startDate, endDate)
+		if err != nil {
+			log.Printf("获取股票数据失败: %v", err)
+			h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
+			return
+		}
 	}
 
 	// 返回成功响应
@@ -99,12 +122,33 @@ func (h *StockHandler) GetIndicators(w http.ResponseWriter, r *http.Request) {
 		endDate = time.Now().Format("20060102")
 	}
 
-	// 获取股票数据
-	data, err := h.tushareClient.GetDailyData(stockCode, startDate, endDate)
-	if err != nil {
-		log.Printf("获取股票数据失败: %v", err)
-		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
-		return
+	// 获取股票数据（优先使用缓存）
+	var data []models.StockDaily
+	var err error
+
+	if h.dailyCacheService != nil {
+		if cachedData, found := h.dailyCacheService.Get(stockCode, startDate, endDate); found {
+			data = cachedData
+		} else {
+			// 缓存未命中，从API获取数据
+			data, err = h.tushareClient.GetDailyData(stockCode, startDate, endDate)
+			if err != nil {
+				log.Printf("获取股票数据失败: %v", err)
+				h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
+				return
+			}
+
+			// 将数据存入缓存
+			h.dailyCacheService.Set(stockCode, startDate, endDate, data)
+		}
+	} else {
+		// 如果缓存服务未启用，直接从API获取
+		data, err = h.tushareClient.GetDailyData(stockCode, startDate, endDate)
+		if err != nil {
+			log.Printf("获取股票数据失败: %v", err)
+			h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
+			return
+		}
 	}
 
 	if len(data) == 0 {
@@ -181,12 +225,33 @@ func (h *StockHandler) GetPredictions(w http.ResponseWriter, r *http.Request) {
 	startDate := time.Now().AddDate(0, 0, -120).Format("20060102")
 	endDate := time.Now().Format("20060102")
 
-	// 获取股票数据
-	data, err := h.tushareClient.GetDailyData(stockCode, startDate, endDate)
-	if err != nil {
-		log.Printf("获取股票数据失败: %v", err)
-		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
-		return
+	// 获取股票数据（优先使用缓存）
+	var data []models.StockDaily
+	var err error
+
+	if h.dailyCacheService != nil {
+		if cachedData, found := h.dailyCacheService.Get(stockCode, startDate, endDate); found {
+			data = cachedData
+		} else {
+			// 缓存未命中，从API获取数据
+			data, err = h.tushareClient.GetDailyData(stockCode, startDate, endDate)
+			if err != nil {
+				log.Printf("获取股票数据失败: %v", err)
+				h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
+				return
+			}
+
+			// 将数据存入缓存
+			h.dailyCacheService.Set(stockCode, startDate, endDate, data)
+		}
+	} else {
+		// 如果缓存服务未启用，直接从API获取
+		data, err = h.tushareClient.GetDailyData(stockCode, startDate, endDate)
+		if err != nil {
+			log.Printf("获取股票数据失败: %v", err)
+			h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
+			return
+		}
 	}
 
 	if len(data) == 0 {
@@ -306,6 +371,40 @@ func (h *StockHandler) RefreshLocalData(w http.ResponseWriter, r *http.Request) 
 	response := map[string]interface{}{
 		"message": "本地数据刷新成功",
 		"count":   count,
+	}
+
+	h.writeSuccessResponse(w, response)
+}
+
+// GetCacheStats 获取缓存统计信息
+func (h *StockHandler) GetCacheStats(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if h.dailyCacheService == nil {
+		h.writeErrorResponse(w, http.StatusServiceUnavailable, "缓存服务未启用")
+		return
+	}
+
+	cacheInfo := h.dailyCacheService.GetCacheInfo()
+	h.writeSuccessResponse(w, cacheInfo)
+}
+
+// ClearCache 清空缓存
+func (h *StockHandler) ClearCache(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if h.dailyCacheService == nil {
+		h.writeErrorResponse(w, http.StatusServiceUnavailable, "缓存服务未启用")
+		return
+	}
+
+	h.dailyCacheService.Clear()
+
+	response := map[string]interface{}{
+		"message":   "缓存已清空",
+		"timestamp": time.Now(),
 	}
 
 	h.writeSuccessResponse(w, response)
