@@ -76,7 +76,7 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler) {
 // registerStaticRoutes 注册静态文件路由
 func registerStaticRoutes(mux *http.ServeMux) {
 	// 获取静态文件目录的绝对路径
-	webClientDir := filepath.Join("examples", "web-client")
+	webClientDir := filepath.Join("web", "static")
 
 	// 服务静态文件
 	fileServer := http.FileServer(http.Dir(webClientDir))
