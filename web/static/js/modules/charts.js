@@ -273,7 +273,7 @@ class ChartsModule {
                         };
                     }),
                     label: {
-                        show: true,
+                        show: false,
                         position: 'top',
                         formatter: function(params) {
                             return this.formatVolume(params.value);
