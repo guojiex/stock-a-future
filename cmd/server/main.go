@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path/filepath"
 	"stock-a-future/config"
 	"stock-a-future/internal/client"
 	"stock-a-future/internal/handler"
@@ -29,6 +30,9 @@ func main() {
 	// 注册路由
 	registerRoutes(mux, stockHandler)
 
+	// 添加静态文件服务
+	registerStaticRoutes(mux)
+
 	// 添加中间件
 	handler := withCORS(withLogging(mux))
 
@@ -43,6 +47,7 @@ func main() {
 	log.Printf("  买卖预测: GET http://%s/api/v1/stocks/{code}/predictions", addr)
 	log.Printf("  本地股票列表: GET http://%s/api/v1/stocks", addr)
 	log.Printf("  刷新本地数据: POST http://%s/api/v1/stocks/refresh", addr)
+	log.Printf("  Web客户端: http://%s/", addr)
 	log.Printf("示例: curl http://%s/api/v1/stocks/000001.SZ/daily", addr)
 
 	if err := http.ListenAndServe(addr, handler); err != nil {
@@ -66,28 +71,57 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler) {
 	mux.HandleFunc("GET /api/v1/stocks/search", stockHandler.SearchStocks)
 	mux.HandleFunc("POST /api/v1/stocks/refresh", stockHandler.RefreshLocalData)
 
-	// 根路径
+}
+
+// registerStaticRoutes 注册静态文件路由
+func registerStaticRoutes(mux *http.ServeMux) {
+	// 获取静态文件目录的绝对路径
+	webClientDir := filepath.Join("examples", "web-client")
+
+	// 服务静态文件
+	fileServer := http.FileServer(http.Dir(webClientDir))
+
+	// 处理根路径，返回index.html
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte(`{
-			"service": "Stock-A-Future API",
-			"version": "1.0.0",
-			"description": "A股股票买卖点预测API服务",
-			"endpoints": {
-				"health": "GET /api/v1/health",
-				"basic": "GET /api/v1/stocks/{code}/basic",
-				"daily": "GET /api/v1/stocks/{code}/daily",
-				"indicators": "GET /api/v1/stocks/{code}/indicators", 
-				"predictions": "GET /api/v1/stocks/{code}/predictions",
-				"stocks": "GET /api/v1/stocks",
-				"refresh": "POST /api/v1/stocks/refresh"
-			},
-			"example": "curl http://localhost:8080/api/v1/stocks/000001.SZ/daily"
-		}`)); err != nil {
-			log.Printf("写入根路径响应失败: %v", err)
+		// 如果是根路径，服务index.html
+		if r.URL.Path == "/" {
+			http.ServeFile(w, r, filepath.Join(webClientDir, "index.html"))
+			return
 		}
+
+		// 检查是否是API路径，如果是则返回API信息
+		if r.URL.Path == "/api" || r.URL.Path == "/api/" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if _, err := w.Write([]byte(`{
+				"service": "Stock-A-Future API",
+				"version": "1.0.0",
+				"description": "A股股票买卖点预测API服务",
+				"endpoints": {
+					"health": "GET /api/v1/health",
+					"basic": "GET /api/v1/stocks/{code}/basic",
+					"daily": "GET /api/v1/stocks/{code}/daily",
+					"indicators": "GET /api/v1/stocks/{code}/indicators", 
+					"predictions": "GET /api/v1/stocks/{code}/predictions",
+					"stocks": "GET /api/v1/stocks",
+					"refresh": "POST /api/v1/stocks/refresh"
+				},
+				"web_client": "GET /",
+				"example": "curl http://localhost:8080/api/v1/stocks/000001.SZ/daily"
+			}`)); err != nil {
+				log.Printf("写入API路径响应失败: %v", err)
+			}
+			return
+		}
+
+		// 其他路径，尝试服务静态文件
+		fileServer.ServeHTTP(w, r)
 	})
+
+	// 明确处理静态资源路径
+	mux.Handle("GET /js/", http.StripPrefix("/", fileServer))
+	mux.Handle("GET /styles.css", http.StripPrefix("/", fileServer))
+	mux.Handle("GET /test_modules.html", http.StripPrefix("/", fileServer))
 }
 
 // withLogging 日志中间件
