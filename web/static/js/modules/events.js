@@ -4,10 +4,11 @@
  */
 
 class EventsModule {
-    constructor(client, apiService, displayModule) {
+    constructor(client, apiService, displayModule, favoritesModule = null) {
         this.client = client;
         this.apiService = apiService;
         this.displayModule = displayModule;
+        this.favoritesModule = favoritesModule;
         
         this.init();
     }
@@ -49,8 +50,14 @@ class EventsModule {
                 }
             });
 
-            // 实时验证股票代码格式
-            stockCodeInput.addEventListener('input', this.validateStockCode);
+            // 实时验证股票代码格式和更新收藏按钮状态
+            stockCodeInput.addEventListener('input', (e) => {
+                this.validateStockCode(e);
+                // 更新收藏按钮状态
+                if (this.favoritesModule) {
+                    this.favoritesModule.updateFavoriteButtonState();
+                }
+            });
         }
     }
 

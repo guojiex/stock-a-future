@@ -935,3 +935,274 @@ body {
         justify-content: center;
     }
 }
+
+/* 收藏功能样式 */
+.btn-favorite {
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+    color: white;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.btn-favorite:hover {
+    background: linear-gradient(135deg, #d97706, #ea580c);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.btn-favorite.favorited {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.btn-favorite.favorited:hover {
+    transform: none;
+    box-shadow: var(--shadow-sm);
+}
+
+/* 收藏区域 */
+.favorites-section {
+    margin-top: var(--spacing-xl);
+}
+
+.favorites-container {
+    padding: var(--spacing-lg);
+}
+
+.favorites-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.favorites-count {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.btn-small {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.875rem;
+    min-width: auto;
+}
+
+/* 收藏列表 */
+.favorites-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.favorites-empty {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    border: 2px dashed var(--border-color);
+}
+
+.favorites-empty p {
+    margin-bottom: var(--spacing-sm);
+}
+
+.favorites-empty p:last-child {
+    margin-bottom: 0;
+    font-size: 0.875rem;
+}
+
+/* 收藏项 */
+.favorite-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-lg);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.favorite-item:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.favorite-item.active {
+    border-color: var(--primary-color);
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    box-shadow: var(--shadow-md);
+}
+
+.favorite-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.favorite-stock {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.stock-name {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.stock-code {
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+}
+
+.favorite-details {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.date-range {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.created-date {
+    font-size: 0.8rem;
+}
+
+/* 收藏操作按钮 */
+.favorite-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.favorite-actions .btn {
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+}
+
+.favorite-item:hover .favorite-actions .btn {
+    opacity: 1;
+}
+
+.load-chart-btn {
+    background: var(--success-color);
+    color: white;
+    border: none;
+}
+
+.load-chart-btn:hover {
+    background: #059669;
+}
+
+.delete-favorite-btn {
+    background: var(--error-color);
+    color: white;
+    border: none;
+}
+
+.delete-favorite-btn:hover {
+    background: #dc2626;
+}
+
+/* 消息提示样式 */
+.message {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    color: white;
+    font-weight: 500;
+    z-index: 10000;
+    animation: slideInRight 0.3s ease, fadeOut 0.5s ease 2.5s forwards;
+    max-width: 400px;
+    box-shadow: var(--shadow-lg);
+}
+
+.message-success {
+    background: var(--success-color);
+}
+
+.message-error {
+    background: var(--error-color);
+}
+
+.message-warning {
+    background: var(--warning-color);
+}
+
+.message-info {
+    background: var(--primary-color);
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+/* 响应式设计 - 收藏功能 */
+@media (max-width: 768px) {
+    .favorites-header {
+        flex-direction: column;
+        gap: var(--spacing-md);
+        align-items: flex-start;
+    }
+    
+    .favorite-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-md);
+    }
+    
+    .favorite-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    
+    .favorite-stock {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+    }
+    
+    .favorite-details {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+    }
+    
+    .message {
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+}

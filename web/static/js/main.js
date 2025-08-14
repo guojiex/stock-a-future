@@ -7,8 +7,10 @@ class StockAFutureApp {
     constructor() {
         this.client = null;
         this.apiService = null;
+        this.favoritesService = null;
         this.stockSearchModule = null;
         this.chartsModule = null;
+        this.favoritesModule = null;
         this.configModule = null;
         this.displayModule = null;
         this.eventsModule = null;
@@ -56,19 +58,25 @@ class StockAFutureApp {
         // 2. 初始化API服务
         this.apiService = new ApiService(this.client);
         
-        // 3. 初始化图表模块
+        // 3. 初始化收藏服务
+        this.favoritesService = new FavoritesService(this.client);
+        
+        // 4. 初始化图表模块
         this.chartsModule = new ChartsModule(this.client);
         
-        // 4. 初始化数据展示模块
+        // 5. 初始化数据展示模块
         this.displayModule = new DisplayModule(this.client, this.chartsModule);
-        
-        // 5. 初始化事件处理模块
-        this.eventsModule = new EventsModule(this.client, this.apiService, this.displayModule);
         
         // 6. 初始化股票搜索模块
         this.stockSearchModule = new StockSearchModule(this.client, this.apiService);
         
-        // 7. 初始化配置管理模块
+        // 7. 初始化收藏功能模块
+        this.favoritesModule = new FavoritesModule(this.client, this.favoritesService, this.apiService);
+        
+        // 8. 初始化事件处理模块（需要收藏模块引用）
+        this.eventsModule = new EventsModule(this.client, this.apiService, this.displayModule, this.favoritesModule);
+        
+        // 9. 初始化配置管理模块
         this.configModule = new ConfigModule(this.client);
         
         // 等待客户端初始化完成
@@ -161,6 +169,20 @@ class StockAFutureApp {
      */
     getConfigModule() {
         return this.configModule;
+    }
+
+    /**
+     * 获取收藏服务实例
+     */
+    getFavoritesService() {
+        return this.favoritesService;
+    }
+
+    /**
+     * 获取收藏模块实例
+     */
+    getFavoritesModule() {
+        return this.favoritesModule;
     }
 }
 

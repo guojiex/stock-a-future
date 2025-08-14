@@ -146,6 +146,31 @@ type APIResponse struct {
 	Error   string      `json:"error,omitempty"`
 }
 
+// FavoriteStock 收藏股票结构
+type FavoriteStock struct {
+	ID        string    `json:"id"`         // 唯一标识
+	TSCode    string    `json:"ts_code"`    // 股票代码
+	Name      string    `json:"name"`       // 股票名称
+	StartDate string    `json:"start_date"` // 收藏时的开始日期
+	EndDate   string    `json:"end_date"`   // 收藏时的结束日期
+	CreatedAt time.Time `json:"created_at"` // 创建时间
+	UpdatedAt time.Time `json:"updated_at"` // 更新时间
+}
+
+// FavoriteStockRequest 添加收藏股票请求
+type FavoriteStockRequest struct {
+	TSCode    string `json:"ts_code"`    // 股票代码
+	Name      string `json:"name"`       // 股票名称
+	StartDate string `json:"start_date"` // 开始日期
+	EndDate   string `json:"end_date"`   // 结束日期
+}
+
+// UpdateFavoriteRequest 更新收藏股票请求
+type UpdateFavoriteRequest struct {
+	StartDate string `json:"start_date"` // 开始日期
+	EndDate   string `json:"end_date"`   // 结束日期
+}
+
 // HealthStatus 健康检查状态
 type HealthStatus struct {
 	Status    string            `json:"status"`

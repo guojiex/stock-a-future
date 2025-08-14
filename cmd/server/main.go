@@ -40,8 +40,11 @@ func main() {
 		log.Printf("日线数据缓存已禁用")
 	}
 
+	// 创建收藏服务
+	favoriteService := service.NewFavoriteService("data")
+
 	// 创建处理器
-	stockHandler := handler.NewStockHandler(tushareClient, cacheService)
+	stockHandler := handler.NewStockHandler(tushareClient, cacheService, favoriteService)
 
 	// 创建路由器
 	mux := http.NewServeMux()
@@ -65,7 +68,12 @@ func main() {
 	log.Printf("  技术指标: GET http://%s/api/v1/stocks/{code}/indicators", addr)
 	log.Printf("  买卖预测: GET http://%s/api/v1/stocks/{code}/predictions", addr)
 	log.Printf("  本地股票列表: GET http://%s/api/v1/stocks", addr)
+	log.Printf("  股票搜索: GET http://%s/api/v1/stocks/search?q=keyword", addr)
 	log.Printf("  刷新本地数据: POST http://%s/api/v1/stocks/refresh", addr)
+	log.Printf("  收藏列表: GET http://%s/api/v1/favorites", addr)
+	log.Printf("  添加收藏: POST http://%s/api/v1/favorites", addr)
+	log.Printf("  删除收藏: DELETE http://%s/api/v1/favorites/{id}", addr)
+	log.Printf("  检查收藏: GET http://%s/api/v1/favorites/check/{code}", addr)
 	if cfg.CacheEnabled {
 		log.Printf("  缓存统计: GET http://%s/api/v1/cache/stats", addr)
 		log.Printf("  清空缓存: DELETE http://%s/api/v1/cache", addr)
@@ -97,6 +105,13 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler) {
 	// 缓存管理API
 	mux.HandleFunc("GET /api/v1/cache/stats", stockHandler.GetCacheStats)
 	mux.HandleFunc("DELETE /api/v1/cache", stockHandler.ClearCache)
+
+	// 收藏股票API
+	mux.HandleFunc("GET /api/v1/favorites", stockHandler.GetFavorites)
+	mux.HandleFunc("POST /api/v1/favorites", stockHandler.AddFavorite)
+	mux.HandleFunc("DELETE /api/v1/favorites/{id}", stockHandler.DeleteFavorite)
+	mux.HandleFunc("PUT /api/v1/favorites/{id}", stockHandler.UpdateFavorite)
+	mux.HandleFunc("GET /api/v1/favorites/check/{code}", stockHandler.CheckFavorite)
 
 }
 

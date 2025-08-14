@@ -21,16 +21,18 @@ type StockHandler struct {
 	predictionService *service.PredictionService
 	localStockService *service.LocalStockService
 	dailyCacheService *service.DailyCacheService
+	favoriteService   *service.FavoriteService
 }
 
 // NewStockHandler 创建股票处理器
-func NewStockHandler(tushareClient *client.TushareClient, cacheService *service.DailyCacheService) *StockHandler {
+func NewStockHandler(tushareClient *client.TushareClient, cacheService *service.DailyCacheService, favoriteService *service.FavoriteService) *StockHandler {
 	return &StockHandler{
 		tushareClient:     tushareClient,
 		calculator:        indicators.NewCalculator(),
 		predictionService: service.NewPredictionService(),
 		localStockService: service.NewLocalStockService("data"),
 		dailyCacheService: cacheService,
+		favoriteService:   favoriteService,
 	}
 }
 
@@ -437,6 +439,144 @@ func (h *StockHandler) GetHealthStatus(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		h.writeSuccessResponse(w, status)
 	}
+}
+
+// GetFavorites 获取收藏股票列表
+func (h *StockHandler) GetFavorites(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	favorites := h.favoriteService.GetFavorites()
+
+	response := map[string]interface{}{
+		"total":     len(favorites),
+		"favorites": favorites,
+	}
+
+	h.writeSuccessResponse(w, response)
+}
+
+// AddFavorite 添加收藏股票
+func (h *StockHandler) AddFavorite(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method != http.MethodPost {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持POST方法")
+		return
+	}
+
+	// 解析请求体
+	var request models.FavoriteStockRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, "请求数据格式错误")
+		return
+	}
+
+	// 添加收藏
+	favorite, err := h.favoriteService.AddFavorite(&request)
+	if err != nil {
+		log.Printf("添加收藏失败: %v", err)
+		h.writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	h.writeSuccessResponse(w, favorite)
+}
+
+// DeleteFavorite 删除收藏股票
+func (h *StockHandler) DeleteFavorite(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method != http.MethodDelete {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持DELETE方法")
+		return
+	}
+
+	// 解析路径参数
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 4 {
+		h.writeErrorResponse(w, http.StatusBadRequest, "无效的收藏ID")
+		return
+	}
+
+	favoriteID := pathParts[3] // /api/v1/favorites/{id}
+
+	// 删除收藏
+	if err := h.favoriteService.DeleteFavorite(favoriteID); err != nil {
+		log.Printf("删除收藏失败: %v", err)
+		h.writeErrorResponse(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	response := map[string]interface{}{
+		"message": "收藏删除成功",
+		"id":      favoriteID,
+	}
+
+	h.writeSuccessResponse(w, response)
+}
+
+// UpdateFavorite 更新收藏股票的时间范围
+func (h *StockHandler) UpdateFavorite(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method != http.MethodPut {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持PUT方法")
+		return
+	}
+
+	// 解析路径参数
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 4 {
+		h.writeErrorResponse(w, http.StatusBadRequest, "无效的收藏ID")
+		return
+	}
+
+	favoriteID := pathParts[3] // /api/v1/favorites/{id}
+
+	// 解析请求体
+	var request models.UpdateFavoriteRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, "请求数据格式错误")
+		return
+	}
+
+	// 更新收藏
+	favorite, err := h.favoriteService.UpdateFavorite(favoriteID, &request)
+	if err != nil {
+		log.Printf("更新收藏失败: %v", err)
+		h.writeErrorResponse(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	h.writeSuccessResponse(w, favorite)
+}
+
+// CheckFavorite 检查股票是否已收藏
+func (h *StockHandler) CheckFavorite(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// 解析路径参数
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 5 {
+		h.writeErrorResponse(w, http.StatusBadRequest, "无效的股票代码")
+		return
+	}
+
+	stockCode := pathParts[4] // /api/v1/favorites/check/{code}
+
+	isFavorite := h.favoriteService.IsFavorite(stockCode)
+
+	response := map[string]interface{}{
+		"ts_code":     stockCode,
+		"is_favorite": isFavorite,
+	}
+
+	h.writeSuccessResponse(w, response)
 }
 
 // writeSuccessResponse 写入成功响应
