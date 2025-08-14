@@ -47,6 +47,11 @@ class ChartsModule {
         const ma10 = this.calculateMA(data.map(item => parseFloat(item.close)), 10);
         const ma20 = this.calculateMA(data.map(item => parseFloat(item.close)), 20);
         
+        // 获取最新的移动平均线数值
+        const latestMA5 = ma5.length > 0 ? ma5[ma5.length - 1] : null;
+        const latestMA10 = ma10.length > 0 ? ma10[ma10.length - 1] : null;
+        const latestMA20 = ma20.length > 0 ? ma20[ma20.length - 1] : null;
+        
         // 构建图表标题
         let chartTitle = `${stockCode} K线图`;
         if (stockBasic && stockBasic.name) {
@@ -106,7 +111,17 @@ class ChartsModule {
             },
             legend: {
                 data: ['K线', 'MA5', 'MA10', 'MA20', '成交量'],
-                top: 30
+                top: 30,
+                formatter: function(name) {
+                    if (name === 'MA5' && latestMA5) {
+                        return `MA5: ¥${latestMA5.toFixed(2)}`;
+                    } else if (name === 'MA10' && latestMA10) {
+                        return `MA10: ¥${latestMA10.toFixed(2)}`;
+                    } else if (name === 'MA20' && latestMA20) {
+                        return `MA20: ¥${latestMA20.toFixed(2)}`;
+                    }
+                    return name;
+                }
             },
             grid: [
                 {
