@@ -1,32 +1,112 @@
-/**
- * 图表渲染模块
- * 负责K线图和技术指标的图表展示
- */
-
-class ChartsModule {
-    constructor(client) {
-        this.client = client;
-        this.currentChart = null;
-    }
-
-    /**
-     * 创建K线图表（使用ECharts）
-     */
-    createPriceChart(data, stockCode, stockBasic) {
-        const chartContainer = document.getElementById('priceChart');
-        
-        if (!chartContainer) return;
-        
-        // 销毁现有图表
-        if (this.currentChart) {
-            this.currentChart.dispose();
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图表修复测试页面</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
         }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .info h3 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+        .info ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .info li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>图表修复效果测试</h1>
         
-        // 初始化ECharts实例
-        this.currentChart = echarts.init(chartContainer);
+        <div class="info">
+            <h3>修复内容说明：</h3>
+            <ul>
+                <li><strong>量柱遮挡价格问题</strong>：通过设置Y轴boundaryGap增加边界间距，避免成交量柱状图遮挡价格标签</li>
+                <li><strong>默认显示完整数据</strong>：将dataZoom的start和end都设置为0和100，默认显示所有数据而不是只显示部分</li>
+                <li><strong>布局优化</strong>：调整grid间距和dataZoom位置，确保各元素不重叠</li>
+            </ul>
+        </div>
+        
+        <div id="priceChart" class="chart-container"></div>
+        
+        <div class="info">
+            <h3>测试说明：</h3>
+            <ul>
+                <li>图表现在应该默认显示完整的数据范围</li>
+                <li>价格标签应该清晰可见，不被成交量柱状图遮挡</li>
+                <li>可以使用底部的滑块进行数据缩放</li>
+                <li>鼠标悬停可以查看详细数据</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // 模拟股票数据
+        const mockData = [
+            { trade_date: '20250101', open: 3.85, close: 3.87, low: 3.84, high: 3.88, vol: 735500 },
+            { trade_date: '20250102', open: 3.87, close: 3.89, low: 3.86, high: 3.90, vol: 825000 },
+            { trade_date: '20250103', open: 3.89, close: 3.86, low: 3.85, high: 3.91, vol: 680000 },
+            { trade_date: '20250106', open: 3.86, close: 3.88, low: 3.84, high: 3.89, vol: 720000 },
+            { trade_date: '20250107', open: 3.88, close: 3.90, low: 3.87, high: 3.92, vol: 890000 },
+            { trade_date: '20250108', open: 3.90, close: 3.87, low: 3.86, high: 3.91, vol: 650000 },
+            { trade_date: '20250109', open: 3.87, close: 3.89, low: 3.85, high: 3.90, vol: 780000 },
+            { trade_date: '20250110', open: 3.89, close: 3.91, low: 3.88, high: 3.93, vol: 920000 },
+            { trade_date: '20250113', open: 3.91, close: 3.88, low: 3.87, high: 3.92, vol: 710000 },
+            { trade_date: '20250114', open: 3.88, close: 3.90, low: 3.86, high: 3.91, vol: 850000 },
+            { trade_date: '20250115', open: 3.90, close: 3.92, low: 3.89, high: 3.94, vol: 950000 },
+            { trade_date: '20250116', open: 3.92, close: 3.89, low: 3.88, high: 3.93, vol: 730000 },
+            { trade_date: '20250117', open: 3.89, close: 3.91, low: 3.87, high: 3.92, vol: 820000 },
+            { trade_date: '20250120', open: 3.91, close: 3.93, low: 3.90, high: 3.95, vol: 980000 },
+            { trade_date: '20250121', open: 3.93, close: 3.90, low: 3.89, high: 3.94, vol: 750000 },
+            { trade_date: '20250122', open: 3.90, close: 3.92, low: 3.88, high: 3.93, vol: 870000 },
+            { trade_date: '20250123', open: 3.92, close: 3.94, low: 3.91, high: 3.96, vol: 1020000 },
+            { trade_date: '20250124', open: 3.94, close: 3.91, low: 3.90, high: 3.95, vol: 790000 },
+            { trade_date: '20250127', open: 3.91, close: 3.93, low: 3.89, high: 3.94, vol: 880000 },
+            { trade_date: '20250128', open: 3.93, close: 3.95, low: 3.92, high: 3.97, vol: 1050000 }
+        ];
+
+        // 初始化图表
+        const chartContainer = document.getElementById('priceChart');
+        const chart = echarts.init(chartContainer);
         
         // 准备K线数据 [开盘价, 收盘价, 最低价, 最高价]
-        const klineData = data.map(item => [
+        const klineData = mockData.map(item => [
             parseFloat(item.open),
             parseFloat(item.close),
             parseFloat(item.low),
@@ -34,29 +114,49 @@ class ChartsModule {
         ]);
         
         // 准备成交量数据
-        const volumeData = data.map(item => parseFloat(item.vol));
+        const volumeData = mockData.map(item => parseFloat(item.vol));
         
         // 准备日期标签
-        const dates = data.map(item => {
+        const dates = mockData.map(item => {
             const dateStr = item.trade_date;
             return `${dateStr.substring(0,4)}-${dateStr.substring(4,6)}-${dateStr.substring(6,8)}`;
         });
         
         // 计算移动平均线
-        const ma5 = this.calculateMA(data.map(item => parseFloat(item.close)), 5);
-        const ma10 = this.calculateMA(data.map(item => parseFloat(item.close)), 10);
-        const ma20 = this.calculateMA(data.map(item => parseFloat(item.close)), 20);
+        function calculateMA(data, period) {
+            const result = [];
+            for (let i = 0; i < data.length; i++) {
+                if (i < period - 1) {
+                    result.push(null);
+                } else {
+                    let sum = 0;
+                    for (let j = i - period + 1; j <= i; j++) {
+                        sum += data[j];
+                    }
+                    result.push(sum / period);
+                }
+            }
+            return result;
+        }
         
-        // 构建图表标题
-        let chartTitle = `${stockCode} K线图`;
-        if (stockBasic && stockBasic.name) {
-            chartTitle = `${stockBasic.name}(${stockCode}) K线图`;
+        const ma5 = calculateMA(mockData.map(item => parseFloat(item.close)), 5);
+        const ma10 = calculateMA(mockData.map(item => parseFloat(item.close)), 10);
+        const ma20 = calculateMA(mockData.map(item => parseFloat(item.close)), 20);
+        
+        // 格式化成交量
+        function formatVolume(volume) {
+            if (volume >= 100000000) {
+                return (volume / 100000000).toFixed(2) + '亿';
+            } else if (volume >= 10000) {
+                return (volume / 10000).toFixed(2) + '万';
+            }
+            return volume.toString();
         }
         
         // 配置图表选项
         const option = {
             title: {
-                text: chartTitle,
+                text: '测试股票(000001) K线图',
                 left: 'center',
                 textStyle: {
                     fontSize: 16,
@@ -91,7 +191,7 @@ class ChartsModule {
                     // 成交量
                     const volumeParam = params.find(p => p.seriesName === '成交量');
                     if (volumeParam) {
-                        result += `成交量: ${this.formatVolume(volumeParam.data)}<br/>`;
+                        result += `成交量: ${formatVolume(volumeParam.data)}<br/>`;
                     }
                     
                     // 移动平均线
@@ -102,7 +202,7 @@ class ChartsModule {
                     });
                     
                     return result;
-                }.bind(this)
+                }
             },
             legend: {
                 data: ['K线', 'MA5', 'MA10', 'MA20', '成交量'],
@@ -167,8 +267,8 @@ class ChartsModule {
                     axisLabel: { 
                         show: true,
                         formatter: function(value) {
-                            return this.formatVolume(value);
-                        }.bind(this),
+                            return formatVolume(value);
+                        },
                         fontSize: 10,
                         color: '#666'
                     },
@@ -261,8 +361,8 @@ class ChartsModule {
                         show: true,
                         position: 'top',
                         formatter: function(params) {
-                            return this.formatVolume(params.value);
-                        }.bind(this),
+                            return formatVolume(params.value);
+                        },
                         fontSize: 10,
                         color: '#666'
                     }
@@ -271,57 +371,12 @@ class ChartsModule {
         };
         
         // 设置图表配置并渲染
-        this.currentChart.setOption(option);
+        chart.setOption(option);
         
         // 响应式调整
         window.addEventListener('resize', () => {
-            if (this.currentChart) {
-                this.currentChart.resize();
-            }
+            chart.resize();
         });
-    }
-    
-    /**
-     * 计算移动平均线
-     */
-    calculateMA(data, period) {
-        const result = [];
-        for (let i = 0; i < data.length; i++) {
-            if (i < period - 1) {
-                result.push(null);
-            } else {
-                let sum = 0;
-                for (let j = i - period + 1; j <= i; j++) {
-                    sum += data[j];
-                }
-                result.push(sum / period);
-            }
-        }
-        return result;
-    }
-
-    /**
-     * 格式化成交量
-     */
-    formatVolume(volume) {
-        if (volume >= 100000000) {
-            return (volume / 100000000).toFixed(2) + '亿';
-        } else if (volume >= 10000) {
-            return (volume / 10000).toFixed(2) + '万';
-        }
-        return volume.toString();
-    }
-
-    /**
-     * 销毁当前图表
-     */
-    destroyChart() {
-        if (this.currentChart) {
-            this.currentChart.dispose();
-            this.currentChart = null;
-        }
-    }
-}
-
-// 导出图表模块类
-window.ChartsModule = ChartsModule;
+    </script>
+</body>
+</html>
