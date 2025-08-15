@@ -17,7 +17,7 @@ STOCKLIST_PATH=./bin/$(STOCKLIST_BINARY)
 STOCKLIST_MAIN_PATH=./cmd/stocklist
 
 # 默认目标
-.PHONY: all build clean test deps run help stocklist fetch-stocks fetch-sse dev fmt vet tools lint env stop kill status restart test-tushare
+.PHONY: all build clean test deps run help stocklist fetch-stocks fetch-sse dev fmt vet tools lint env stop kill status restart test-tushare test-aktools aktools-test
 
 all: clean deps build
 
@@ -40,6 +40,19 @@ test-tushare:
 	@echo "测试Tushare API连接..."
 	@$(GOCMD) run test_tushare_connection.go
 	@echo "Tushare连接测试完成"
+
+# 构建AKTools测试工具
+aktools-test:
+	@echo "构建AKTools测试工具..."
+	@mkdir -p bin
+	$(GOBUILD) -o ./bin/aktools-test ./cmd/aktools-test
+	@echo "AKTools测试工具构建完成: ./bin/aktools-test"
+
+# 测试AKTools连接
+test-aktools: aktools-test
+	@echo "测试AKTools API连接..."
+	@./bin/aktools-test
+	@echo "AKTools连接测试完成"
 
 # 清理构建文件
 clean:
@@ -183,6 +196,8 @@ help:
 	@echo "  make fetch-stocks - 获取所有股票列表"
 	@echo "  make fetch-sse   - 获取上交所股票列表"
 	@echo "  make test-tushare - 测试Tushare API连接"
+	@echo "  make test-aktools - 测试AKTools API连接"
+	@echo "  make aktools-test - 构建AKTools测试工具"
 	@echo ""
 	@echo "服务器管理:"
 	@echo "  make stop        - 停止运行中的服务器"

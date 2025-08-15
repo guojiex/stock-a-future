@@ -196,13 +196,16 @@ class ConfigModule {
         // 更新服务器URL
         this.client.setServerURL(serverURL);
         
-        // 立即进行健康检查
-        this.client.checkHealth();
+        // 保存到本地存储
+        localStorage.setItem('serverURL', serverURL);
         
-        // 关闭模态框
-        this.hideConfigModal();
+        // 显示保存成功消息
+        this.showTestResult('✅ 配置已保存', 'success');
         
-        console.log(`配置已保存: ${serverURL}`);
+        // 隐藏配置模态框
+        setTimeout(() => {
+            this.hideConfigModal();
+        }, 1500);
     }
 }
 

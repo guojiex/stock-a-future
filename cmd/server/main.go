@@ -21,17 +21,51 @@ func main() {
 
 	log.Printf("启动Stock-A-Future API服务器...")
 	log.Printf("服务器地址: %s:%s", cfg.ServerHost, cfg.ServerPort)
-	log.Printf("Tushare API: %s", cfg.TushareBaseURL)
 
-	// 创建Tushare客户端
-	tushareClient := client.NewTushareClient(cfg.TushareToken, cfg.TushareBaseURL)
+	// 使用数据源工厂创建客户端
+	factory := client.NewDataSourceFactory()
 
-	// 启动时测试Tushare连接
-	log.Printf("正在测试Tushare API连接...")
-	if err := tushareClient.TestConnection(); err != nil {
-		log.Fatalf("Tushare API连接测试失败: %v", err)
+	var dataSourceClient client.DataSourceClient
+	var err error
+
+	if cfg.DataSourceType == "tushare" {
+		log.Printf("Tushare API: %s", cfg.TushareBaseURL)
+
+		config := map[string]string{
+			"token":    cfg.TushareToken,
+			"base_url": cfg.TushareBaseURL,
+		}
+		dataSourceClient, err = factory.CreateClient(client.DataSourceTushare, config)
+		if err != nil {
+			log.Fatalf("创建Tushare客户端失败: %v", err)
+		}
+
+		// 启动时测试Tushare连接
+		log.Printf("正在测试Tushare API连接...")
+		if err := dataSourceClient.TestConnection(); err != nil {
+			log.Fatalf("Tushare API连接测试失败: %v", err)
+		}
+		log.Printf("✓ Tushare API连接测试成功")
+	} else if cfg.DataSourceType == "aktools" {
+		log.Printf("AKTools API: %s", cfg.AKToolsBaseURL)
+
+		config := map[string]string{
+			"base_url": cfg.AKToolsBaseURL,
+		}
+		dataSourceClient, err = factory.CreateClient(client.DataSourceAKTools, config)
+		if err != nil {
+			log.Fatalf("创建AKTools客户端失败: %v", err)
+		}
+
+		// 启动时测试AKTools连接
+		log.Printf("正在测试AKTools API连接...")
+		if err := dataSourceClient.TestConnection(); err != nil {
+			log.Fatalf("AKTools API连接测试失败: %v", err)
+		}
+		log.Printf("✓ AKTools API连接测试成功")
+	} else {
+		log.Fatalf("不支持的数据源类型: %s", cfg.DataSourceType)
 	}
-	log.Printf("✓ Tushare API连接测试成功")
 
 	// 创建缓存服务
 	var cacheService *service.DailyCacheService
@@ -51,7 +85,7 @@ func main() {
 	favoriteService := service.NewFavoriteService("data")
 
 	// 创建处理器
-	stockHandler := handler.NewStockHandler(tushareClient, cacheService, favoriteService)
+	stockHandler := handler.NewStockHandler(dataSourceClient, cacheService, favoriteService)
 
 	// 创建路由器
 	mux := http.NewServeMux()

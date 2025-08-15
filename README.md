@@ -2,12 +2,12 @@
 
 ![Stock-A-Future API 网页示例](docs/imgs/Stock-A-Future-API-网页示例-08-12-2025_02_30_PM.png)
 
-基于Go语言开发的A股股票买卖点预测系统，使用Tushare作为数据源，提供技术指标计算和买卖点预测功能。
+基于Go语言开发的A股股票买卖点预测系统，支持多种数据源（Tushare、AKTools），提供技术指标计算和买卖点预测功能。
 
 ## 功能特性
 
 ### 📊 数据获取
-- 集成Tushare API，获取A股实时和历史数据
+- **多数据源支持**：集成Tushare API和AKTools（基于AKShare的免费开源数据源）
 - 支持股票日线数据查询
 - 自动数据预处理和清洗
 - **股票列表工具**：支持从上交所在线获取最新股票列表
@@ -45,7 +45,9 @@
 
 ### 环境要求
 - Go 1.22+
-- Tushare Pro账号和Token
+- 数据源选择：
+  - **Tushare**: 需要Tushare Pro账号和Token
+  - **AKTools**: 免费开源，需要Python环境安装AKTools
 
 ### 安装步骤
 
@@ -63,8 +65,16 @@
 3. **配置环境变量**
    ```bash
    make env
-   # 编辑.env文件，填入您的Tushare Token
+   # 编辑.env文件，选择数据源并配置相应参数
    vim .env
+   
+   # 使用Tushare数据源
+   DATA_SOURCE_TYPE=tushare
+   TUSHARE_TOKEN=your_tushare_token_here
+   
+   # 或使用AKTools数据源（免费）
+   DATA_SOURCE_TYPE=aktools
+   AKTOOLS_BASE_URL=http://127.0.0.1:8080
    ```
 
 4. **获取股票列表（可选）**
@@ -89,6 +99,23 @@
    ```
 
 服务将在 `http://localhost:8081` 启动。
+
+### 使用AKTools数据源（可选）
+
+如果您选择使用AKTools数据源，需要先启动AKTools服务：
+
+```bash
+# 安装AKTools
+pip install aktools
+
+# 启动AKTools服务
+python -m aktools
+
+# 测试连接
+make test-aktools
+```
+
+AKTools将在 `http://127.0.0.1:8080` 启动，提供免费的财经数据服务。
 
 6. **使用Web界面**
    - 启动服务器后，直接在浏览器访问 `http://localhost:8081/`
@@ -632,6 +659,7 @@ if __name__ == "__main__":
 ### 2025-08-13
 
 #### 🆕 新增功能
+- **多数据源支持**: 新增AKTools数据源集成，支持免费开源财经数据
 - **专业K线图**: 升级前端图表为ECharts，支持完整OHLC显示
 - **智能股票搜索**: 新增股票名称和代码搜索API和前端界面
 - **服务器管理命令**: 新增 `make stop/kill/status/restart` 命令

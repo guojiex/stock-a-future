@@ -118,12 +118,12 @@ class StockAFutureApp {
      * 启动定期健康检查
      */
     startHealthCheck() {
-        // 每30秒检查一次健康状态
+        // 每5分钟检查一次健康状态，减少不必要的连接测试
         setInterval(() => {
             if (this.client && !this.client.isLoading) {
                 this.client.checkHealth();
             }
-        }, 30000);
+        }, 300000); // 5分钟 = 300秒 = 300000毫秒
     }
 
     /**

@@ -330,6 +330,96 @@ func (c *TushareClient) GetBaseURL() string {
 	return c.baseURL
 }
 
+// GetStockList 获取股票列表
+func (c *TushareClient) GetStockList() ([]models.StockBasic, error) {
+	params := map[string]interface{}{
+		"status": "L", // 上市状态
+	}
+
+	request := TushareRequest{
+		APIName: "stock_basic",
+		Token:   c.token,
+		Params:  params,
+		Fields:  "ts_code,symbol,name,area,industry,market,list_date",
+	}
+
+	response, err := c.makeRequest(request)
+	if err != nil {
+		return nil, fmt.Errorf("请求Tushare API失败: %w", err)
+	}
+
+	if response.Code != 0 {
+		return nil, fmt.Errorf("tushare API错误: %s (代码: %d)", response.Msg, response.Code)
+	}
+
+	return c.parseStockList(response.Data)
+}
+
+// parseStockList 解析股票列表
+func (c *TushareClient) parseStockList(data *TushareData) ([]models.StockBasic, error) {
+	if data == nil || len(data.Items) == 0 {
+		return []models.StockBasic{}, nil
+	}
+
+	// 构建字段索引映射
+	fieldMap := make(map[string]int)
+	for i, field := range data.Fields {
+		fieldMap[field] = i
+	}
+
+	var stockList []models.StockBasic
+	for _, item := range data.Items {
+		stockBasic := &models.StockBasic{}
+
+		// 解析各个字段
+		if idx, ok := fieldMap["ts_code"]; ok && idx < len(item) {
+			if val, ok := item[idx].(string); ok {
+				stockBasic.TSCode = val
+			}
+		}
+
+		if idx, ok := fieldMap["symbol"]; ok && idx < len(item) {
+			if val, ok := item[idx].(string); ok {
+				stockBasic.Symbol = val
+			}
+		}
+
+		if idx, ok := fieldMap["name"]; ok && idx < len(item) {
+			if val, ok := item[idx].(string); ok {
+				stockBasic.Name = val
+			}
+		}
+
+		if idx, ok := fieldMap["area"]; ok && idx < len(item) {
+			if val, ok := item[idx].(string); ok {
+				stockBasic.Area = val
+			}
+		}
+
+		if idx, ok := fieldMap["industry"]; ok && idx < len(item) {
+			if val, ok := item[idx].(string); ok {
+				stockBasic.Industry = val
+			}
+		}
+
+		if idx, ok := fieldMap["market"]; ok && idx < len(item) {
+			if val, ok := item[idx].(string); ok {
+				stockBasic.Market = val
+			}
+		}
+
+		if idx, ok := fieldMap["list_date"]; ok && idx < len(item) {
+			if val, ok := item[idx].(string); ok {
+				stockBasic.ListDate = val
+			}
+		}
+
+		stockList = append(stockList, *stockBasic)
+	}
+
+	return stockList, nil
+}
+
 // TestConnection 测试Tushare连接
 func (c *TushareClient) TestConnection() error {
 	// 使用轻量级的API调用测试连接 - 获取股票基本信息

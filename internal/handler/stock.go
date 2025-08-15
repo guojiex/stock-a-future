@@ -19,7 +19,7 @@ var startTime = time.Now()
 
 // StockHandler 股票数据处理器
 type StockHandler struct {
-	tushareClient     *client.TushareClient
+	dataSourceClient  client.DataSourceClient
 	calculator        *indicators.Calculator
 	predictionService *service.PredictionService
 	localStockService *service.LocalStockService
@@ -28,9 +28,9 @@ type StockHandler struct {
 }
 
 // NewStockHandler 创建股票处理器
-func NewStockHandler(tushareClient *client.TushareClient, cacheService *service.DailyCacheService, favoriteService *service.FavoriteService) *StockHandler {
+func NewStockHandler(dataSourceClient client.DataSourceClient, cacheService *service.DailyCacheService, favoriteService *service.FavoriteService) *StockHandler {
 	return &StockHandler{
-		tushareClient:     tushareClient,
+		dataSourceClient:  dataSourceClient,
 		calculator:        indicators.NewCalculator(),
 		predictionService: service.NewPredictionService(),
 		localStockService: service.NewLocalStockService("data"),
@@ -76,7 +76,7 @@ func (h *StockHandler) GetDailyData(w http.ResponseWriter, r *http.Request) {
 			data = cachedData
 		} else {
 			// 缓存未命中，从API获取数据
-			data, err = h.tushareClient.GetDailyData(stockCode, startDate, endDate)
+			data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate)
 			if err != nil {
 				log.Printf("获取股票数据失败: %v", err)
 				h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
@@ -88,7 +88,7 @@ func (h *StockHandler) GetDailyData(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// 如果缓存服务未启用，直接从API获取
-		data, err = h.tushareClient.GetDailyData(stockCode, startDate, endDate)
+		data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate)
 		if err != nil {
 			log.Printf("获取股票数据失败: %v", err)
 			h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
@@ -136,7 +136,7 @@ func (h *StockHandler) GetIndicators(w http.ResponseWriter, r *http.Request) {
 			data = cachedData
 		} else {
 			// 缓存未命中，从API获取数据
-			data, err = h.tushareClient.GetDailyData(stockCode, startDate, endDate)
+			data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate)
 			if err != nil {
 				log.Printf("获取股票数据失败: %v", err)
 				h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
@@ -148,7 +148,7 @@ func (h *StockHandler) GetIndicators(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// 如果缓存服务未启用，直接从API获取
-		data, err = h.tushareClient.GetDailyData(stockCode, startDate, endDate)
+		data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate)
 		if err != nil {
 			log.Printf("获取股票数据失败: %v", err)
 			h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
@@ -239,7 +239,7 @@ func (h *StockHandler) GetPredictions(w http.ResponseWriter, r *http.Request) {
 			data = cachedData
 		} else {
 			// 缓存未命中，从API获取数据
-			data, err = h.tushareClient.GetDailyData(stockCode, startDate, endDate)
+			data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate)
 			if err != nil {
 				log.Printf("获取股票数据失败: %v", err)
 				h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
@@ -251,7 +251,7 @@ func (h *StockHandler) GetPredictions(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// 如果缓存服务未启用，直接从API获取
-		data, err = h.tushareClient.GetDailyData(stockCode, startDate, endDate)
+		data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate)
 		if err != nil {
 			log.Printf("获取股票数据失败: %v", err)
 			h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
@@ -294,8 +294,8 @@ func (h *StockHandler) GetStockBasic(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("从本地获取股票基本信息失败: %v，尝试从API获取", err)
 
-		// 如果本地获取失败，尝试从Tushare API获取
-		stockBasic, err = h.tushareClient.GetStockBasic(stockCode)
+		// 如果本地获取失败，尝试从数据源API获取
+		stockBasic, err = h.dataSourceClient.GetStockBasic(stockCode)
 		if err != nil {
 			log.Printf("从API获取股票基本信息也失败: %v", err)
 			h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票基本信息失败: %v", err))
@@ -417,11 +417,16 @@ func (h *StockHandler) ClearCache(w http.ResponseWriter, r *http.Request) {
 
 // GetHealthStatus 获取服务器健康状态
 func (h *StockHandler) GetHealthStatus(w http.ResponseWriter, r *http.Request) {
-	// 检查Tushare连接状态
-	tushareStatus := "healthy"
-	if err := h.tushareClient.TestConnection(); err != nil {
-		tushareStatus = "unhealthy"
-		log.Printf("健康检查: Tushare连接失败: %v", err)
+	// 使用缓存的数据源状态，避免每次健康检查都进行连接测试
+	// 只有在明确需要检查连接时才进行实际测试
+	dataSourceStatus := "healthy"
+
+	// 检查是否需要强制刷新连接状态（通过查询参数控制）
+	if r.URL.Query().Get("check_connection") == "true" {
+		if err := h.dataSourceClient.TestConnection(); err != nil {
+			dataSourceStatus = "unhealthy"
+			log.Printf("健康检查: 数据源连接失败: %v", err)
+		}
 	}
 
 	// 构建健康状态响应
@@ -429,9 +434,10 @@ func (h *StockHandler) GetHealthStatus(w http.ResponseWriter, r *http.Request) {
 		"status":    "healthy",
 		"timestamp": time.Now().Format(time.RFC3339),
 		"services": map[string]interface{}{
-			"tushare_api": map[string]interface{}{
-				"status": tushareStatus,
-				"url":    h.tushareClient.GetBaseURL(),
+			"data_source": map[string]interface{}{
+				"status": dataSourceStatus,
+				"url":    h.dataSourceClient.GetBaseURL(),
+				"note":   "使用 ?check_connection=true 参数可强制检查连接状态",
 			},
 			"cache": map[string]interface{}{
 				"enabled": h.dailyCacheService != nil,
@@ -443,8 +449,8 @@ func (h *StockHandler) GetHealthStatus(w http.ResponseWriter, r *http.Request) {
 		"uptime": time.Since(startTime).String(),
 	}
 
-	// 如果Tushare不健康，设置整体状态为不健康
-	if tushareStatus == "unhealthy" {
+	// 如果数据源不健康，设置整体状态为不健康
+	if dataSourceStatus == "unhealthy" {
 		healthStatus["status"] = "degraded"
 		w.WriteHeader(http.StatusServiceUnavailable)
 	} else {

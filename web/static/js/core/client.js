@@ -71,6 +71,7 @@ class StockAFutureClient {
      */
     async checkHealth() {
         try {
+            // 使用轻量级健康检查，不进行数据源连接测试
             const response = await this.makeRequest('/api/v1/health');
             
             if (response.success) {

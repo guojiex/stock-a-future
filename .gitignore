@@ -38,3 +38,4 @@ go.work.sum
 /.idea/stock-a-future.iml
 /.idea/vcs.xml
 /bin/
+*.log

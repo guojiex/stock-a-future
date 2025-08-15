@@ -11,9 +11,15 @@ import (
 
 // Config 应用配置结构
 type Config struct {
+	// 数据源配置
+	DataSourceType string // 数据源类型: tushare, aktools
+
 	// Tushare API配置
 	TushareToken   string
 	TushareBaseURL string
+
+	// AKTools配置
+	AKToolsBaseURL string
 
 	// 服务器配置
 	ServerPort string
@@ -37,8 +43,10 @@ func Load() *Config {
 	}
 
 	config := &Config{
+		DataSourceType: getEnv("DATA_SOURCE_TYPE", "tushare"),
 		TushareToken:   getEnv("TUSHARE_TOKEN", ""),
 		TushareBaseURL: getEnv("TUSHARE_BASE_URL", "http://api.tushare.pro"),
+		AKToolsBaseURL: getEnv("AKTOOLS_BASE_URL", "http://127.0.0.1:8080"),
 		ServerPort:     getEnv("SERVER_PORT", "8080"),
 		ServerHost:     getEnv("SERVER_HOST", "localhost"),
 		LogLevel:       getEnv("LOG_LEVEL", "info"),
@@ -51,9 +59,19 @@ func Load() *Config {
 	}
 
 	// 验证必要配置
-	if config.TushareToken == "" {
-		log.Fatal("TUSHARE_TOKEN 环境变量是必需的")
+	if config.DataSourceType == "tushare" && config.TushareToken == "" {
+		log.Fatal("使用Tushare数据源时，TUSHARE_TOKEN 环境变量是必需的")
 	}
+
+	// 打印数据源配置信息
+	log.Printf("=== 数据源配置信息 ===")
+	log.Printf("数据源类型: %s", config.DataSourceType)
+	log.Printf("Tushare基础URL: %s", config.TushareBaseURL)
+	log.Printf("AKTools基础URL: %s", config.AKToolsBaseURL)
+	if config.DataSourceType == "tushare" {
+		log.Printf("Tushare Token: %s", maskToken(config.TushareToken))
+	}
+	log.Printf("=====================")
 
 	return config
 }
@@ -86,4 +104,12 @@ func getDurationEnv(key string, defaultValue time.Duration) time.Duration {
 		log.Printf("警告: 无法解析环境变量 %s=%s 为时间间隔，使用默认值 %v", key, value, defaultValue)
 	}
 	return defaultValue
+}
+
+// maskToken 掩码Token，只显示前4位和后4位
+func maskToken(token string) string {
+	if len(token) <= 8 {
+		return "***"
+	}
+	return token[:4] + "..." + token[len(token)-4:]
 }
