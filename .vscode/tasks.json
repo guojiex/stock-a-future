@@ -1,0 +1,192 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "启动 Stock-A-Future 服务器",
+            "type": "shell",
+            "command": "go",
+            "args": ["run", "cmd/server/main.go"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "启动Go API服务器"
+        },
+        {
+            "label": "启动服务器 (开发模式)",
+            "type": "shell",
+            "command": "air",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "使用Air启动服务器，支持热重载",
+            "dependsOn": "安装 Air (如果未安装)"
+        },
+        {
+            "label": "安装 Air (如果未安装)",
+            "type": "shell",
+            "command": "go",
+            "args": ["install", "github.com/cosmtrek/air@latest"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "安装Air热重载工具"
+        },
+        {
+            "label": "构建并启动服务器",
+            "type": "shell",
+            "command": "go",
+            "args": ["build", "-o", "stock-server.exe", "cmd/server/main.go"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "构建Go程序并启动",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "构建服务器",
+                "运行构建的服务器"
+            ]
+        },
+        {
+            "label": "构建服务器",
+            "type": "shell",
+            "command": "go",
+            "args": ["build", "-o", "stock-server.exe", "cmd/server/main.go"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "构建Go程序"
+        },
+        {
+            "label": "运行构建的服务器",
+            "type": "shell",
+            "command": "./stock-server.exe",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "运行已构建的服务器程序"
+        },
+        {
+            "label": "检查Go环境",
+            "type": "shell",
+            "command": "go",
+            "args": ["version"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "检查Go版本和环境"
+        },
+        {
+            "label": "更新依赖",
+            "type": "shell",
+            "command": "go",
+            "args": ["mod", "tidy"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "更新Go模块依赖"
+        },
+        {
+            "label": "测试API",
+            "type": "shell",
+            "command": "curl",
+            "args": ["http://localhost:8080/api/v1/health"],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "测试API健康检查端点"
+        }
+    ]
+}

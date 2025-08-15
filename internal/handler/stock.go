@@ -14,6 +14,9 @@ import (
 	"time"
 )
 
+// 记录服务器启动时间，用于健康检查
+var startTime = time.Now()
+
 // StockHandler 股票数据处理器
 type StockHandler struct {
 	tushareClient     *client.TushareClient
@@ -412,32 +415,47 @@ func (h *StockHandler) ClearCache(w http.ResponseWriter, r *http.Request) {
 	h.writeSuccessResponse(w, response)
 }
 
-// GetHealthStatus 健康检查
+// GetHealthStatus 获取服务器健康状态
 func (h *StockHandler) GetHealthStatus(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	status := &models.HealthStatus{
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Version:   "1.0.0",
-		Services:  make(map[string]string),
-	}
-
-	// 测试Tushare连接
+	// 检查Tushare连接状态
+	tushareStatus := "healthy"
 	if err := h.tushareClient.TestConnection(); err != nil {
-		status.Status = "unhealthy"
-		status.Services["tushare"] = "error: " + err.Error()
-	} else {
-		status.Services["tushare"] = "healthy"
+		tushareStatus = "unhealthy"
+		log.Printf("健康检查: Tushare连接失败: %v", err)
 	}
 
-	// 根据整体状态设置HTTP状态码
-	if status.Status == "healthy" {
-		h.writeSuccessResponse(w, status)
-	} else {
+	// 构建健康状态响应
+	healthStatus := map[string]interface{}{
+		"status":    "healthy",
+		"timestamp": time.Now().Format(time.RFC3339),
+		"services": map[string]interface{}{
+			"tushare_api": map[string]interface{}{
+				"status": tushareStatus,
+				"url":    h.tushareClient.GetBaseURL(),
+			},
+			"cache": map[string]interface{}{
+				"enabled": h.dailyCacheService != nil,
+			},
+			"favorites": map[string]interface{}{
+				"status": "healthy",
+			},
+		},
+		"uptime": time.Since(startTime).String(),
+	}
+
+	// 如果Tushare不健康，设置整体状态为不健康
+	if tushareStatus == "unhealthy" {
+		healthStatus["status"] = "degraded"
 		w.WriteHeader(http.StatusServiceUnavailable)
-		h.writeSuccessResponse(w, status)
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+
+	// 返回JSON响应
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(healthStatus); err != nil {
+		log.Printf("编码健康状态响应失败: %v", err)
+		http.Error(w, "内部服务器错误", http.StatusInternalServerError)
 	}
 }
 

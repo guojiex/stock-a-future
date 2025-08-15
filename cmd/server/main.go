@@ -26,6 +26,13 @@ func main() {
 	// 创建Tushare客户端
 	tushareClient := client.NewTushareClient(cfg.TushareToken, cfg.TushareBaseURL)
 
+	// 启动时测试Tushare连接
+	log.Printf("正在测试Tushare API连接...")
+	if err := tushareClient.TestConnection(); err != nil {
+		log.Fatalf("Tushare API连接测试失败: %v", err)
+	}
+	log.Printf("✓ Tushare API连接测试成功")
+
 	// 创建缓存服务
 	var cacheService *service.DailyCacheService
 	if cfg.CacheEnabled {

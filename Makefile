@@ -17,7 +17,7 @@ STOCKLIST_PATH=./bin/$(STOCKLIST_BINARY)
 STOCKLIST_MAIN_PATH=./cmd/stocklist
 
 # 默认目标
-.PHONY: all build clean test deps run help stocklist fetch-stocks fetch-sse dev fmt vet tools lint env stop kill status restart
+.PHONY: all build clean test deps run help stocklist fetch-stocks fetch-sse dev fmt vet tools lint env stop kill status restart test-tushare
 
 all: clean deps build
 
@@ -34,6 +34,12 @@ stocklist:
 	@mkdir -p bin
 	$(GOBUILD) -o $(STOCKLIST_PATH) $(STOCKLIST_MAIN_PATH)
 	@echo "构建完成: $(STOCKLIST_PATH)"
+
+# 测试Tushare连接
+test-tushare:
+	@echo "测试Tushare API连接..."
+	@$(GOCMD) run test_tushare_connection.go
+	@echo "Tushare连接测试完成"
 
 # 清理构建文件
 clean:
@@ -176,6 +182,7 @@ help:
 	@echo "  make stocklist   - 构建股票列表工具"
 	@echo "  make fetch-stocks - 获取所有股票列表"
 	@echo "  make fetch-sse   - 获取上交所股票列表"
+	@echo "  make test-tushare - 测试Tushare API连接"
 	@echo ""
 	@echo "服务器管理:"
 	@echo "  make stop        - 停止运行中的服务器"

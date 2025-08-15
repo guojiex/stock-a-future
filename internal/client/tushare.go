@@ -325,12 +325,83 @@ func (c *TushareClient) sortDailyDataByDate(data []models.StockDaily) {
 	})
 }
 
+// GetBaseURL 获取Tushare API基础URL
+func (c *TushareClient) GetBaseURL() string {
+	return c.baseURL
+}
+
 // TestConnection 测试Tushare连接
 func (c *TushareClient) TestConnection() error {
-	// 使用简单的API调用测试连接
-	_, err := c.GetDailyDataByDate("20240101")
-	if err != nil {
-		return fmt.Errorf("tushare连接测试失败: %w", err)
+	// 使用轻量级的API调用测试连接 - 获取股票基本信息
+	// 选择000001.SZ（平安银行）作为测试股票，这是A股中比较稳定的股票
+	testParams := map[string]interface{}{
+		"ts_code": "000001.SZ",
 	}
+
+	request := TushareRequest{
+		APIName: "stock_basic",
+		Token:   c.token,
+		Params:  testParams,
+		Fields:  "ts_code,symbol,name",
+	}
+
+	// 设置较短的超时时间用于连接测试
+	testClient := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	// 创建测试请求
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return fmt.Errorf("序列化测试请求失败: %w", err)
+	}
+
+	httpReq, err := http.NewRequest("POST", c.baseURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("创建测试HTTP请求失败: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("User-Agent", "stock-a-future/1.0")
+
+	// 发送测试请求
+	resp, err := testClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("Tushare连接测试失败: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("关闭测试响应体失败: %v", err)
+		}
+	}()
+
+	// 检查HTTP状态码
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Tushare API返回非200状态码: %d", resp.StatusCode)
+	}
+
+	// 读取响应体
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("读取测试响应体失败: %w", err)
+	}
+
+	// 解析响应
+	var tushareResp TushareResponse
+	if err := json.Unmarshal(body, &tushareResp); err != nil {
+		return fmt.Errorf("解析测试响应失败: %w", err)
+	}
+
+	// 检查API响应码
+	if tushareResp.Code != 0 {
+		return fmt.Errorf("Tushare API错误: %s (代码: %d)", tushareResp.Msg, tushareResp.Code)
+	}
+
+	// 验证返回的数据
+	if tushareResp.Data == nil || len(tushareResp.Data.Items) == 0 {
+		return fmt.Errorf("Tushare API返回空数据")
+	}
+
+	log.Printf("Tushare连接测试成功 - 获取到股票数据: %v", tushareResp.Data.Items[0])
 	return nil
 }
