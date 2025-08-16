@@ -50,8 +50,23 @@
 ### 环境要求
 - Go 1.22+
 - 数据源选择：
-  - **Tushare**: 需要Tushare Pro账号和Token
-  - **AKTools**: 免费开源，需要Python环境安装AKTools
+  - **Tushare**: 需要Tushare Pro账号和Token，数据质量高但有限制
+  - **AKTools**: 免费开源，基于[AKShare](https://akshare.akfamily.xyz/)，数据全面且无调用限制
+    - 需要Python 3.7+环境
+    - 安装命令：`pip install aktools`
+
+### 数据源对比
+
+| 特性 | Tushare | AKTools |
+|------|---------|---------|
+| **费用** | 免费账号有限制，Pro版收费 | 完全免费，无调用限制 |
+| **数据质量** | 专业级，数据准确度高 | 基于AKShare，数据质量良好 |
+| **更新频率** | 实时，T+1 | 实时，T+1 |
+| **安装复杂度** | 简单，仅需Token | 需要Python环境，安装AKTools |
+| **稳定性** | 商业服务，稳定性高 | 开源项目，依赖社区维护 |
+| **推荐场景** | 生产环境，商业应用 | 学习研究，个人项目 |
+
+> **推荐**: 如果您是初学者或用于学习研究，建议使用AKTools数据源；如果是商业应用或对数据质量要求极高，建议使用Tushare。
 
 ### 安装步骤
 
@@ -118,22 +133,100 @@
 
 服务将在 `http://localhost:8081` 启动。
 
-### 使用AKTools数据源（可选）
+### 🚀 AKTools快速启动指南
 
-如果您选择使用AKTools数据源，需要先启动AKTools服务：
+如果您想快速体验系统功能，推荐使用AKTools数据源（完全免费）：
 
+#### 1. 一键启动AKTools服务
 ```bash
-# 安装AKTools
-pip install aktools
+# Windows用户（推荐）
+start-aktools-server.bat
 
-# 启动AKTools服务
+# PowerShell用户
+.\start-aktools-server.ps1
+
+# 手动启动
 python -m aktools
-
-# 测试连接
-make test-aktools
 ```
 
-AKTools将在 `http://127.0.0.1:8080` 启动，提供免费的财经数据服务。
+#### 2. 启动Stock-A-Future API
+```bash
+# 使用启动脚本
+start-aktools-server.bat
+
+# 或手动启动
+go run cmd/server/main.go
+```
+
+#### 3. 验证服务
+```bash
+# 测试AKTools连接
+curl http://127.0.0.1:8080/api/public/stock_zh_a_info?symbol=000001
+
+# 测试Stock-A-Future API
+curl http://localhost:8081/api/v1/health
+```
+
+#### 4. 访问Web界面
+在浏览器中打开：http://localhost:8081
+
+> **提示**: 使用项目提供的启动脚本可以自动处理端口配置和依赖检查，推荐新手使用。
+
+### 使用AKTools数据源（推荐免费使用）
+
+如果您选择使用AKTools数据源，需要先启动AKTools服务。AKTools是基于[AKShare](https://akshare.akfamily.xyz/)的免费开源数据源，提供完整的A股数据。
+
+#### 安装AKTools
+```bash
+# 安装AKTools（基于AKShare的免费开源数据源）
+pip install aktools
+
+# 或者从源码安装最新版本
+pip install git+https://github.com/akfamily/aktools.git
+```
+
+#### 启动AKTools服务
+```bash
+# 启动AKTools服务（默认端口8080）
+python -m aktools
+
+# 或者指定端口启动
+python -m aktools --port 8080
+
+# 后台运行（Linux/Mac）
+nohup python -m aktools > aktools.log 2>&1 &
+
+# Windows后台运行
+start /B python -m aktools
+
+# 使用项目提供的启动脚本（推荐）
+# Windows批处理
+start-aktools-server.bat
+
+# PowerShell脚本
+.\start-aktools-server.ps1
+```
+
+#### 验证AKTools服务
+```bash
+# 测试AKTools连接
+curl http://127.0.0.1:8080/api/public/stock_zh_a_info?symbol=000001
+
+# 或使用项目内置的测试工具
+make test-aktools
+
+# 或直接运行测试程序
+go run cmd/aktools-test/main.go
+```
+
+#### AKTools配置说明
+- **默认端口**: 8080
+- **数据源**: 基于[AKShare](https://akshare.akfamily.xyz/)，免费开源
+- **支持数据**: A股股票数据、基金、债券、期货等
+- **更新频率**: 实时数据，T+1历史数据
+- **官方文档**: [AKShare官方文档](https://akshare.akfamily.xyz/)
+
+> **注意**: AKTools服务需要保持运行状态，Stock-A-Future API才能正常获取数据。详细设置请参考 [AKTOOLS_SETUP.md](AKTOOLS_SETUP.md)。
 
 6. **使用Web界面**
    - 启动服务器后，直接在浏览器访问 `http://localhost:8081/`
@@ -194,13 +287,22 @@ GET /api/v1/health
 
 #### 2. 获取股票日线数据
 ```http
-GET /api/v1/stocks/{code}/daily?start_date=20240101&end_date=20240131
+GET /api/v1/stocks/{code}/daily?start_date=20240101&end_date=20240131&adjust=qfq
 ```
 
 **参数说明**:
 - `code`: 股票代码 (如: 000001.SZ, 600000.SH)
-- `start_date`: 开始日期 (YYYYMMDD格式，可选)
-- `end_date`: 结束日期 (YYYYMMDD格式，可选)
+- `start_date`: 开始日期 (YYYYMMDD格式，可选，默认30天前)
+- `end_date`: 结束日期 (YYYYMMDD格式，可选，默认今天)
+- `adjust`: 复权方式 (可选，默认qfq)
+  - `qfq`: 前复权 - 以当前价格为基准，向前调整历史价格
+  - `hfq`: 后复权 - 以历史价格为基准，向后调整当前价格  
+  - `none`: 不复权 - 原始价格数据
+
+**复权说明**:
+- **前复权(qfq)**: 推荐使用，价格连续性更好，便于技术分析
+- **后复权(hfq)**: 历史价格真实，但当前价格可能偏离实际交易价格
+- **不复权(none)**: 原始数据，包含除权除息缺口
 
 **响应示例**:
 ```json
@@ -209,7 +311,7 @@ GET /api/v1/stocks/{code}/daily?start_date=20240101&end_date=20240131
   "data": [
     {
       "ts_code": "000001.SZ",
-      "trade_date": "20240115",
+      "trade_date": "2024-01-15T00:00:00.000",
       "open": 8.75,
       "high": 8.85,
       "low": 8.69,
@@ -347,12 +449,12 @@ GET /api/v1/stocks/{code}/predictions
   "success": true,
   "data": {
     "ts_code": "000001.SZ",
-    "trade_date": "20240115",
+    "trade_date": "2024-01-15",
     "predictions": [
       {
         "type": "BUY",
         "price": 8.70,
-        "date": "20240116",
+        "date": "2024-01-16",
         "probability": 0.65,
         "reason": "MACD金叉信号，DIF线上穿DEA线",
         "indicators": ["MACD"]
@@ -363,6 +465,41 @@ GET /api/v1/stocks/{code}/predictions
   }
 }
 ```
+
+### 复权选择建议
+
+#### 不同场景的复权选择
+- **技术分析**: 推荐使用前复权(`adjust=qfq`)，价格连续性更好
+- **历史研究**: 推荐使用后复权(`adjust=hfq`)，历史价格真实
+- **实时交易**: 推荐使用不复权(`adjust=none`)，当前价格准确
+
+#### 复权参数使用示例
+```bash
+# 获取前复权数据（推荐用于技术分析）
+curl "http://localhost:8081/api/v1/stocks/000001.SZ/daily?adjust=qfq"
+
+# 获取后复权数据（历史价格真实）
+curl "http://localhost:8081/api/v1/stocks/000001.SZ/daily?adjust=hfq"
+
+# 获取不复权数据（原始价格）
+curl "http://localhost:8081/api/v1/stocks/000001.SZ/daily?adjust=none"
+
+# 不指定复权参数时，默认使用前复权
+curl "http://localhost:8081/api/v1/stocks/000001.SZ/daily"
+```
+
+#### 常见问题
+**Q: 为什么同一只股票在不同复权方式下价格差异很大？**
+A: 这是因为股票在除权除息后，不同复权方式对历史价格的调整方式不同：
+- 前复权：以当前价格为基准，向前调整历史价格
+- 后复权：以历史价格为基准，向后调整当前价格
+- 不复权：保持原始价格，但存在价格跳跃
+
+**Q: 哪种复权方式最适合K线图分析？**
+A: 推荐使用前复权(`qfq`)，因为：
+1. 价格连续性最好，便于识别趋势
+2. 技术指标计算更准确
+3. 符合大多数交易软件的习惯
 
 ## 技术架构
 
@@ -542,6 +679,8 @@ make restart
 ## 使用示例
 
 ### cURL示例
+
+#### 基础API测试
 ```bash
 # 健康检查
 curl http://localhost:8081/api/v1/health
@@ -563,6 +702,18 @@ curl http://localhost:8081/api/v1/stocks/000001.SZ/indicators
 
 # 获取买卖点预测
 curl http://localhost:8081/api/v1/stocks/000001.SZ/predictions
+```
+
+#### AKTools快速测试
+```bash
+# 测试AKTools服务连接
+curl http://127.0.0.1:8080/api/public/stock_zh_a_info?symbol=000001
+
+# 测试Stock-A-Future API（使用AKTools数据源）
+curl http://localhost:8081/api/v1/stocks/000001/basic
+
+# 获取股票日线数据
+curl http://localhost:8081/api/v1/stocks/000001/daily
 ```
 
 ### Python示例
@@ -706,6 +857,7 @@ if __name__ == "__main__":
 - **服务器管理命令**: 新增 `make stop/kill/status/restart` 命令
 - **成交量副图**: K线图下方显示成交量柱状图
 - **技术指标叠加**: 自动显示MA5/MA10/MA20移动平均线
+- **复权参数支持**: 新增`adjust`参数，支持前复权(qfq)、后复权(hfq)、不复权(none)选择
 
 #### 🔧 改进优化
 - **端口更新**: 默认端口从8080改为8081，避免常见冲突
@@ -713,17 +865,22 @@ if __name__ == "__main__":
 - **交互体验**: 支持图表缩放、平移、键盘导航
 - **响应式设计**: 优化移动端显示效果
 - **错误处理**: 改进API错误处理和用户反馈
+- **默认复权方式**: 默认使用前复权(qfq)，更适合技术分析
 
 #### 🐛 修复问题
 - 修复图表数据格式化问题
+- 修复K线图日期显示格式错误（从"2025--0-7-"修复为"2025-07-17"）
 - 优化搜索性能和防抖处理
 - 改进服务器进程管理和端口检测
+- 修复AKTools数据源日期格式兼容性问题
 
 #### 📚 文档更新
 - 更新所有API示例和端口号
 - 新增服务器管理指南
 - 完善Python使用示例
 - 添加功能展示说明
+- 新增复权选择指南和常见问题解答
+- 完善AKTools启动和配置说明
 
 ### 2025-08-12
 
@@ -790,3 +947,75 @@ if __name__ == "__main__":
 ---
 
 **免责声明**: 本项目仅用于技术学习和研究目的，不构成任何投资建议。使用者应当自行承担投资风险。
+
+## 常见问题解决
+
+### 复权相关问题
+
+**Q: 为什么K线图显示的股票价格与实际交易价格不符？**
+A: 这是因为系统默认使用前复权数据。不同复权方式下的价格差异是正常的：
+- **前复权(qfq)**: 以当前价格为基准调整历史价格，适合技术分析
+- **后复权(hfq)**: 以历史价格为基准调整当前价格，历史价格真实
+- **不复权(none)**: 原始价格，包含除权除息缺口
+
+**解决方案**: 在API调用时指定复权参数：
+```bash
+# 获取后复权数据（历史价格真实）
+curl "http://localhost:8081/api/v1/stocks/601225.SH/daily?adjust=hfq"
+
+# 获取不复权数据（当前价格准确）
+curl "http://localhost:8081/api/v1/stocks/601225.SH/daily?adjust=none"
+```
+
+### 日期显示问题
+
+**Q: K线图X轴日期显示为"2025--0-7-"这样的错误格式？**
+A: 这个问题已经修复。现在系统正确处理ISO 8601格式的日期字符串，自动转换为"2025-07-17"格式。
+
+### AKTools服务问题
+
+**Q: 启动Stock-A-Future后无法获取股票数据？**
+A: 请确保AKTools服务正在运行：
+```bash
+# 检查AKTools服务状态
+curl http://127.0.0.1:8080/api/public/stock_zh_a_info?symbol=000001
+
+# 如果服务未启动，请启动AKTools
+python -m aktools
+```
+
+**Q: AKTools服务启动失败？**
+A: 检查Python环境和依赖：
+```bash
+# 检查Python版本（需要3.7+）
+python --version
+
+# 重新安装AKTools
+pip uninstall aktools
+pip install aktools
+
+# 或者从源码安装
+pip install git+https://github.com/akfamily/aktools.git
+```
+
+### 端口冲突问题
+
+**Q: 启动服务时提示端口被占用？**
+A: 使用项目提供的端口管理命令：
+```bash
+# 查看端口占用情况
+make status
+
+# 停止占用端口的进程
+make stop
+
+# 或者指定其他端口启动
+go run cmd/server/main.go --port 8082
+```
+
+## 技术支持
+
+如果您遇到其他问题，请：
+1. 查看项目文档和更新日志
+2. 搜索GitHub Issues中的类似问题
+3. 创建新的Issue并提供详细的错误信息和环境描述
