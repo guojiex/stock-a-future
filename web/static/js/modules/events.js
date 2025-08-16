@@ -11,6 +11,10 @@ class EventsModule {
         this.favoritesModule = favoritesModule;
         this.dateShortcutsModule = dateShortcutsModule;
         
+        // 添加数据缓存，避免重复加载
+        this.dataCache = new Map();
+        this.lastStockCode = null;
+        
         this.init();
     }
 
@@ -42,6 +46,9 @@ class EventsModule {
             queryPredictionsBtn.addEventListener('click', () => this.handlePredictionsQuery());
         }
 
+        // Tab切换事件
+        this.setupTabNavigation();
+
         // 回车键支持
         const stockCodeInput = document.getElementById('stockCode');
         if (stockCodeInput) {
@@ -60,6 +67,131 @@ class EventsModule {
                 }
             });
         }
+    }
+
+    /**
+     * 设置Tab导航事件
+     */
+    setupTabNavigation() {
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.switchTab(btn.dataset.tab);
+            });
+        });
+    }
+
+    /**
+     * 切换Tab
+     */
+    switchTab(tabName, loadData = true) {
+        console.log(`[Events] 切换到tab: ${tabName}, 是否加载数据: ${loadData}`);
+        
+        // 移除所有tab按钮的active状态
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        tabButtons.forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        // 隐藏所有tab内容
+        const tabPanes = document.querySelectorAll('.tab-pane');
+        tabPanes.forEach(pane => {
+            pane.classList.remove('active');
+        });
+
+        // 激活选中的tab按钮
+        const activeTabBtn = document.querySelector(`[data-tab="${tabName}"]`);
+        if (activeTabBtn) {
+            activeTabBtn.classList.add('active');
+        }
+
+        // 显示选中的tab内容
+        const activeTabPane = document.getElementById(`${tabName}-tab`);
+        if (activeTabPane) {
+            activeTabPane.classList.add('active');
+        }
+        
+        // 根据tab类型获取对应数据（只有在需要时才加载）
+        if (loadData) {
+            this.loadDataForTab(tabName);
+        }
+        
+        console.log(`[Events] Tab切换完成: ${tabName}`);
+    }
+
+    /**
+     * 根据tab类型加载对应数据
+     */
+    async loadDataForTab(tabName) {
+        try {
+            const stockCode = this.client.getStockCode();
+            console.log(`[Events] 为tab ${tabName} 加载数据，股票代码: ${stockCode}`);
+            
+            // 显示加载状态
+            this.showTabLoadingState(tabName, true);
+            
+            switch (tabName) {
+                case 'daily-data':
+                    await this.handleDailyQuery();
+                    break;
+                case 'indicators':
+                    await this.handleIndicatorsQuery();
+                    break;
+                case 'predictions':
+                    await this.handlePredictionsQuery();
+                    break;
+                default:
+                    console.warn(`[Events] 未知的tab类型: ${tabName}`);
+            }
+        } catch (error) {
+            console.error(`[Events] 为tab ${tabName} 加载数据失败:`, error);
+            // 显示错误信息但不阻止tab切换
+            this.client.showError(`加载${this.getTabDisplayName(tabName)}数据失败: ${error.message}`);
+        } finally {
+            // 隐藏加载状态
+            this.showTabLoadingState(tabName, false);
+        }
+    }
+
+    /**
+     * 显示/隐藏tab的加载状态
+     */
+    showTabLoadingState(tabName, isLoading) {
+        const tabPane = document.getElementById(`${tabName}-tab`);
+        if (!tabPane) return;
+        
+        if (isLoading) {
+            // 显示加载状态
+            if (!tabPane.querySelector('.tab-loading')) {
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'tab-loading';
+                loadingDiv.innerHTML = `
+                    <div class="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>正在加载${this.getTabDisplayName(tabName)}数据...</p>
+                    </div>
+                `;
+                tabPane.appendChild(loadingDiv);
+            }
+        } else {
+            // 隐藏加载状态
+            const loadingDiv = tabPane.querySelector('.tab-loading');
+            if (loadingDiv) {
+                loadingDiv.remove();
+            }
+        }
+    }
+
+    /**
+     * 获取tab的显示名称
+     */
+    getTabDisplayName(tabName) {
+        const nameMap = {
+            'daily-data': '日线数据',
+            'indicators': '技术指标',
+            'predictions': '买卖预测'
+        };
+        return nameMap[tabName] || tabName;
     }
 
     /**

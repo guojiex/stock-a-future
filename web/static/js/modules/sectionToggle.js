@@ -87,7 +87,10 @@ class SectionToggleModule {
             return; // 已经处理过了
         }
 
-
+        // 检查是否是包含tab的section，如果是则不添加折叠功能
+        if (section.classList.contains('daily-chart-section') || section.querySelector('.tab-navigation')) {
+            return;
+        }
 
         // 添加可折叠标记
         section.classList.add('collapsible');
@@ -153,6 +156,11 @@ class SectionToggleModule {
             return;
         }
 
+        // 检查是否是包含tab的section，如果是则不创建内容容器
+        if (section.classList.contains('daily-chart-section') || card.querySelector('.tab-navigation')) {
+            return;
+        }
+
         // 获取除标题外的所有内容
         const contentElements = Array.from(card.children).filter(child => 
             child !== titleElement && !child.classList.contains('section-header')
@@ -179,6 +187,11 @@ class SectionToggleModule {
     createToggleHeader(section, titleElement, sectionId) {
         const card = section.querySelector('.card');
         if (!card) return;
+
+        // 检查是否是包含tab的section，如果是则不创建折叠功能
+        if (section.classList.contains('daily-chart-section') || card.querySelector('.tab-navigation')) {
+            return;
+        }
 
         // 创建标题容器
         const headerContainer = document.createElement('div');

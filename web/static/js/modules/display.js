@@ -13,27 +13,29 @@ class DisplayModule {
      * 显示日线数据
      */
     displayDailyData(data, stockCode, stockBasic) {
-        const section = document.getElementById('daily-data-section');
-        const card = document.getElementById('dailyDataCard');
+        console.log(`[Display] 显示日线数据 - 数据:`, data);
+        
+        const section = document.getElementById('daily-chart-section');
+        const card = document.getElementById('dailyChartCard');
         const summary = document.getElementById('dailyDataSummary');
         
-        if (!section || !card || !summary) return;
-        
-        // 更新卡片标题
-        const cardTitle = card.querySelector('h3');
-        if (cardTitle && stockBasic && stockBasic.name) {
-            cardTitle.textContent = `📈 ${stockBasic.name}(${stockCode}) - 日线数据`;
+        if (!section || !card || !summary) {
+            console.error(`[Display] 找不到必要的DOM元素:`, { section: !!section, card: !!card, summary: !!summary });
+            return;
         }
         
         // 显示section
         section.style.display = 'block';
         section.classList.add('fade-in');
         
+        // 切换到日线数据tab（不触发数据加载）
+        this.switchToTabWithoutDataLoad('daily-data');
+        
         // 创建价格图表
         this.chartsModule.createPriceChart(data, stockCode, stockBasic);
         
         // 显示数据摘要
-        if (data.length > 0) {
+        if (data && data.length > 0) {
             const latest = data[data.length - 1];
             const previous = data.length > 1 ? data[data.length - 2] : latest;
             
@@ -42,6 +44,8 @@ class DisplayModule {
         
         // 滚动到结果
         section.scrollIntoView({ behavior: 'smooth' });
+        
+        console.log(`[Display] 日线数据显示完成`);
     }
 
     /**
@@ -101,23 +105,211 @@ class DisplayModule {
      * 显示技术指标
      */
     displayIndicators(data, stockCode, stockBasic) {
-        const section = document.getElementById('indicators-section');
-        const card = document.getElementById('indicatorsCard');
-        const grid = document.getElementById('indicatorsGrid');
+        console.log(`[Display] 显示技术指标 - 数据:`, data);
         
-        if (!section || !card || !grid) return;
+        const section = document.getElementById('daily-chart-section');
+        const indicatorsGrid = document.getElementById('indicatorsGrid');
         
-        // 更新卡片标题
-        const cardTitle = card.querySelector('h3');
-        if (cardTitle && stockBasic && stockBasic.name) {
-            cardTitle.textContent = `📊 ${stockBasic.name}(${stockCode}) - 技术指标`;
+        if (!section || !indicatorsGrid) {
+            console.error(`[Display] 找不到必要的DOM元素:`, { section: !!section, indicatorsGrid: !!indicatorsGrid });
+            return;
         }
         
         // 显示section
         section.style.display = 'block';
         section.classList.add('fade-in');
         
-        // 构建指标HTML
+        // 切换到技术指标tab（不触发数据加载）
+        this.switchToTabWithoutDataLoad('indicators');
+        
+        // 显示技术指标数据 - 修复数据检查逻辑
+        if (data && (Array.isArray(data) ? data.length > 0 : Object.keys(data).length > 0)) {
+            console.log(`[Display] 有技术指标数据，创建显示内容`);
+            indicatorsGrid.innerHTML = this.createIndicatorsGrid(data);
+        } else {
+            console.log(`[Display] 无技术指标数据，显示提示信息`);
+            indicatorsGrid.innerHTML = '<div class="no-data">暂无技术指标数据</div>';
+        }
+        
+        // 滚动到结果
+        section.scrollIntoView({ behavior: 'smooth' });
+        
+        console.log(`[Display] 技术指标显示完成`);
+    }
+
+    /**
+     * 创建指标项HTML
+     */
+    createIndicatorItem(title, values, signal = null) {
+        const signalHTML = signal ? `<span class="signal ${signal.toLowerCase()}">${this.getSignalText(signal)}</span>` : '';
+        
+        const valuesHTML = values.map(item => 
+            `<div class="indicator-value">
+                <span class="name">${item.name}:</span>
+                <span class="value">${item.value}</span>
+            </div>`
+        ).join('');
+        
+        return `
+            <div class="indicator-item slide-in">
+                <h4>${title} ${signalHTML}</h4>
+                <div class="indicator-values">
+                    ${valuesHTML}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 显示买卖预测
+     */
+    displayPredictions(data, stockCode, stockBasic) {
+        console.log(`[Display] 显示买卖预测 - 数据:`, data);
+        
+        const section = document.getElementById('daily-chart-section');
+        const predictionsContainer = document.getElementById('predictionsContainer');
+        
+        if (!section || !predictionsContainer) {
+            console.error(`[Display] 找不到必要的DOM元素:`, { section: !!section, predictionsContainer: !!predictionsContainer });
+            return;
+        }
+        
+        // 显示section
+        section.style.display = 'block';
+        section.classList.add('fade-in');
+        
+        // 切换到买卖预测tab（不触发数据加载）
+        console.log(`[Display] 准备切换到predictions tab`);
+        this.switchToTabWithoutDataLoad('predictions');
+        
+        // 显示预测数据 - 修复数据检查逻辑
+        if (data && (Array.isArray(data) ? data.length > 0 : Object.keys(data).length > 0)) {
+            console.log(`[Display] 有预测数据，创建显示内容`);
+            predictionsContainer.innerHTML = this.createPredictionsDisplay(data);
+        } else {
+            console.log(`[Display] 无预测数据，显示提示信息`);
+            predictionsContainer.innerHTML = '<div class="no-data">暂无预测数据</div>';
+        }
+        
+        // 滚动到结果
+        section.scrollIntoView({ behavior: 'smooth' });
+        
+        console.log(`[Display] 买卖预测显示完成`);
+    }
+
+    /**
+     * 获取信号文本
+     */
+    getSignalText(signal) {
+        const signalMap = {
+            'buy': '买入',
+            'sell': '卖出',
+            'hold': '持有',
+            'neutral': '中性'
+        };
+        return signalMap[signal.toLowerCase()] || signal;
+    }
+
+    /**
+     * 格式化成交额
+     */
+    formatAmount(amount) {
+        // 成交额单位是千元，需要转换
+        const amountInYuan = amount * 1000;
+        if (amountInYuan >= 100000000) {
+            return (amountInYuan / 100000000).toFixed(2) + '亿元';
+        } else if (amountInYuan >= 10000) {
+            return (amountInYuan / 10000).toFixed(2) + '万元';
+        }
+        return amountInYuan.toFixed(0) + '元';
+    }
+
+    /**
+     * 格式化成交量
+     */
+    formatVolume(volume) {
+        if (volume >= 100000000) {
+            return (volume / 100000000).toFixed(2) + '亿';
+        } else if (volume >= 10000) {
+            return (volume / 10000).toFixed(2) + '万';
+        }
+        return volume.toString();
+    }
+
+    /**
+     * 切换到指定tab
+     */
+    switchToTab(tabName) {
+        // 调用events模块中的switchTab方法
+        if (window.eventsModule && window.eventsModule.switchTab) {
+            window.eventsModule.switchTab(tabName);
+        } else {
+            // 备用方案：直接操作DOM
+            // 移除所有tab按钮的active状态
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            tabButtons.forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // 隐藏所有tab内容
+            const tabPanes = document.querySelectorAll('.tab-pane');
+            tabPanes.forEach(pane => {
+                pane.classList.remove('active');
+            });
+
+            // 激活选中的tab按钮
+            const activeTabBtn = document.querySelector(`[data-tab="${tabName}"]`);
+            if (activeTabBtn) {
+                activeTabBtn.classList.add('active');
+            }
+
+            // 显示选中的tab内容
+            const activeTabPane = document.getElementById(`${tabName}-tab`);
+            if (activeTabPane) {
+                activeTabPane.classList.add('active');
+            }
+        }
+    }
+
+    /**
+     * 切换到指定tab（不触发数据加载）
+     */
+    switchToTabWithoutDataLoad(tabName) {
+        // 调用events模块中的switchTab方法，但不加载数据
+        if (window.eventsModule && window.eventsModule.switchTab) {
+            window.eventsModule.switchTab(tabName, false);
+        } else {
+            // 备用方案：直接操作DOM
+            // 移除所有tab按钮的active状态
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            tabButtons.forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // 隐藏所有tab内容
+            const tabPanes = document.querySelectorAll('.tab-pane');
+            tabPanes.forEach(pane => {
+                pane.classList.remove('active');
+            });
+
+            // 激活选中的tab按钮
+            const activeTabBtn = document.querySelector(`[data-tab="${tabName}"]`);
+            if (activeTabBtn) {
+                activeTabBtn.classList.add('active');
+            }
+
+            // 显示选中的tab内容
+            const activeTabPane = document.getElementById(`${tabName}-tab`);
+            if (activeTabPane) {
+                activeTabPane.classList.add('active');
+            }
+        }
+    }
+
+    /**
+     * 创建技术指标网格
+     */
+    createIndicatorsGrid(data) {
         let indicatorsHTML = '';
         
         // MACD指标
@@ -164,69 +356,13 @@ class DisplayModule {
             ], data.kdj.signal);
         }
         
-        grid.innerHTML = indicatorsHTML;
-        
-        // 滚动到结果
-        section.scrollIntoView({ behavior: 'smooth' });
+        return indicatorsHTML;
     }
 
     /**
-     * 创建指标项HTML
+     * 创建预测数据显示
      */
-    createIndicatorItem(title, values, signal = null) {
-        const signalHTML = signal ? `<span class="signal ${signal.toLowerCase()}">${this.getSignalText(signal)}</span>` : '';
-        
-        const valuesHTML = values.map(item => 
-            `<div class="indicator-value">
-                <span class="name">${item.name}:</span>
-                <span class="value">${item.value}</span>
-            </div>`
-        ).join('');
-        
-        return `
-            <div class="indicator-item slide-in">
-                <h4>${title} ${signalHTML}</h4>
-                <div class="indicator-values">
-                    ${valuesHTML}
-                </div>
-            </div>
-        `;
-    }
-
-    /**
-     * 获取信号文本
-     */
-    getSignalText(signal) {
-        const signalMap = {
-            'buy': '买入',
-            'sell': '卖出',
-            'hold': '持有',
-            'neutral': '中性'
-        };
-        return signalMap[signal.toLowerCase()] || signal;
-    }
-
-    /**
-     * 显示预测结果
-     */
-    displayPredictions(data, stockCode, stockBasic) {
-        const section = document.getElementById('predictions-section');
-        const card = document.getElementById('predictionsCard');
-        const container = document.getElementById('predictionsContainer');
-        
-        if (!section || !card || !container) return;
-        
-        // 更新卡片标题
-        const cardTitle = card.querySelector('h3');
-        if (cardTitle && stockBasic && stockBasic.name) {
-            cardTitle.textContent = `🎯 ${stockBasic.name}(${stockCode}) - 买卖点预测`;
-        }
-        
-        // 显示section
-        section.style.display = 'block';
-        section.classList.add('fade-in');
-        
-        // 构建预测HTML
+    createPredictionsDisplay(data) {
         let predictionsHTML = '';
         
         // 置信度摘要
@@ -272,36 +408,7 @@ class DisplayModule {
             `;
         }
         
-        container.innerHTML = predictionsHTML;
-        
-        // 滚动到结果
-        section.scrollIntoView({ behavior: 'smooth' });
-    }
-
-    /**
-     * 格式化成交额
-     */
-    formatAmount(amount) {
-        // 成交额单位是千元，需要转换
-        const amountInYuan = amount * 1000;
-        if (amountInYuan >= 100000000) {
-            return (amountInYuan / 100000000).toFixed(2) + '亿元';
-        } else if (amountInYuan >= 10000) {
-            return (amountInYuan / 10000).toFixed(2) + '万元';
-        }
-        return amountInYuan.toFixed(0) + '元';
-    }
-
-    /**
-     * 格式化成交量
-     */
-    formatVolume(volume) {
-        if (volume >= 100000000) {
-            return (volume / 100000000).toFixed(2) + '亿';
-        } else if (volume >= 10000) {
-            return (volume / 10000).toFixed(2) + '万';
-        }
-        return volume.toString();
+        return predictionsHTML;
     }
 }
 

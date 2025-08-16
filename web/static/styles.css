@@ -1624,3 +1624,180 @@ body {
         display: none; /* 在移动设备上隐藏状态文字 */
     }
 }
+
+/* Tab导航样式 */
+.tab-navigation {
+    display: flex;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: var(--spacing-lg);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    overflow: hidden;
+    margin-top: var(--spacing-md);
+}
+
+/* 确保section标题和tab导航之间有适当间距 */
+.daily-chart-section .card > h3 {
+    margin-bottom: var(--spacing-md);
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xs);
+    color: var(--text-secondary);
+    font-weight: 500;
+    position: relative;
+}
+
+.tab-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    background: var(--bg-primary);
+    color: var(--primary-color);
+    border-bottom: 3px solid var(--primary-color);
+}
+
+.tab-btn .tab-icon {
+    font-size: 1.25rem;
+}
+
+.tab-btn .tab-text {
+    font-size: 0.875rem;
+}
+
+/* Tab内容样式 */
+.tab-content {
+    position: relative;
+    min-height: 400px;
+}
+
+.tab-pane {
+    display: none;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+/* 无数据提示样式 */
+.no-data {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    color: var(--text-muted);
+    font-size: 1.1rem;
+}
+
+.no-data::before {
+    content: "📊";
+    font-size: 3rem;
+    display: block;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.5;
+}
+
+/* 确保图表容器在tab中正确显示 */
+#daily-data-tab .chart-container {
+    margin-bottom: var(--spacing-lg);
+}
+
+/* 技术指标网格在tab中的样式 */
+#indicators-tab .indicators-grid {
+    padding: var(--spacing-md);
+}
+
+/* 预测容器在tab中的样式 */
+#predictions-tab .predictions-container {
+    padding: var(--spacing-md);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .tab-navigation {
+        flex-direction: column;
+    }
+    
+    .tab-btn {
+        flex-direction: row;
+        justify-content: center;
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+    
+    .tab-btn .tab-icon {
+        font-size: 1rem;
+    }
+    
+    .tab-btn .tab-text {
+        font-size: 0.8rem;
+    }
+}
+
+/* Tab加载状态样式 */
+.tab-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.tab-loading .loading-spinner {
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.tab-loading .spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--bg-tertiary);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto var(--spacing-md);
+}
+
+.tab-loading p {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 确保tab内容区域有相对定位，以便加载状态能正确定位 */
+.tab-content {
+    position: relative;
+    min-height: 400px;
+}

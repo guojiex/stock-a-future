@@ -273,7 +273,7 @@ class StockAFutureClient {
      * 隐藏所有结果section
      */
     hideAllResultSections() {
-        const sections = ['daily-data-section', 'indicators-section', 'predictions-section', 'error-section'];
+        const sections = ['daily-chart-section', 'error-section'];
         sections.forEach(sectionId => {
             const section = document.getElementById(sectionId);
             if (section) section.style.display = 'none';

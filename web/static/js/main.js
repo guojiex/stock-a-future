@@ -209,6 +209,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 将应用实例挂载到全局对象，方便调试
         window.stockApp = stockApp;
         
+        // 将关键模块挂载到全局对象，方便其他模块调用
+        if (stockApp.eventsModule) {
+            window.eventsModule = stockApp.eventsModule;
+        }
+        
         console.log('Stock-A-Future 网页客户端已初始化');
         
     } catch (error) {

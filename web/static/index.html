@@ -82,30 +82,47 @@
 
             <!-- 结果显示区域 -->
             <div class="results-container">
-                <!-- 日线数据 -->
-                <section class="daily-data-section" id="daily-data-section" style="display: none;">
-                    <div class="card" id="dailyDataCard">
-                        <h3>📈 日线数据</h3>
-                        <div class="chart-container">
-                            <div id="priceChart" style="width: 100%; height: 100%;"></div>
+                <!-- 日K线展示section（包含三个tab） -->
+                <section class="daily-chart-section" id="daily-chart-section" style="display: none;">
+                    <div class="card" id="dailyChartCard">
+                        <h3>📊 股票数据分析</h3>
+                        
+                        <!-- Tab导航 -->
+                        <div class="tab-navigation">
+                            <button class="tab-btn active" data-tab="daily-data">
+                                <span class="tab-icon">📈</span>
+                                <span class="tab-text">日线数据</span>
+                            </button>
+                            <button class="tab-btn" data-tab="indicators">
+                                <span class="tab-icon">📊</span>
+                                <span class="tab-text">技术指标</span>
+                            </button>
+                            <button class="tab-btn" data-tab="predictions">
+                                <span class="tab-icon">🎯</span>
+                                <span class="tab-text">买卖预测</span>
+                            </button>
                         </div>
-                        <div class="data-summary" id="dailyDataSummary"></div>
-                    </div>
-                </section>
 
-                <!-- 技术指标 -->
-                <section class="indicators-section" id="indicators-section" style="display: none;">
-                    <div class="card" id="indicatorsCard">
-                        <h3>📊 技术指标</h3>
-                        <div class="indicators-grid" id="indicatorsGrid"></div>
-                    </div>
-                </section>
+                        <!-- Tab内容区域 -->
+                        <div class="tab-content">
+                            <!-- 日线数据tab -->
+                            <div class="tab-pane active" id="daily-data-tab">
+                                <div class="chart-container">
+                                    <div id="priceChart" style="width: 100%; height: 100%;"></div>
+                                </div>
+                                <div class="data-summary" id="dailyDataSummary"></div>
+                            </div>
 
-                <!-- 买卖预测 -->
-                <section class="predictions-section" id="predictions-section" style="display: none;">
-                    <div class="card" id="predictionsCard">
-                        <h3>🎯 买卖点预测</h3>
-                        <div class="predictions-container" id="predictionsContainer"></div>
+                            <!-- 技术指标tab -->
+                            <div class="tab-pane" id="indicators-tab">
+                                <div class="indicators-grid" id="indicatorsGrid"></div>
+                            </div>
+
+                            <!-- 买卖预测tab -->
+                            <div class="tab-pane" id="predictions-tab">
+                                <div class="predictions-container" id="predictionsContainer"></div>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
