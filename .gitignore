@@ -39,3 +39,4 @@ go.work.sum
 /.idea/vcs.xml
 /bin/
 *.log
+aktools_log.log.*

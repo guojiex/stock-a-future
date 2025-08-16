@@ -337,22 +337,31 @@ func (c *AKToolsClient) formatDateForFrontend(dateStr string) string {
 		if len(parts) >= 2 {
 			year := parts[0]
 			month := parts[1]
-			
+
+			// 检查年份和月份是否为纯数字
+			if !isNumeric(year) || !isNumeric(month) {
+				return dateStr // 如果不是纯数字，返回原始字符串
+			}
+
 			// 确保月份是两位数
 			if len(month) == 1 {
 				month = "0" + month
 			}
-			
+
 			// 如果有日期部分，使用它；否则使用"01"
 			day := "01"
 			if len(parts) >= 3 && parts[2] != "" {
 				day = parts[2]
+				// 检查日期是否为纯数字
+				if !isNumeric(day) {
+					return dateStr // 如果不是纯数字，返回原始字符串
+				}
 				// 确保日期是两位数
 				if len(day) == 1 {
 					day = "0" + day
 				}
 			}
-			
+
 			// 返回YYYYMMDD格式
 			return year + month + day
 		}
