@@ -39,7 +39,17 @@ class ChartsModule {
         // 准备日期标签
         const dates = data.map(item => {
             const dateStr = item.trade_date;
-            return `${dateStr.substring(0,4)}-${dateStr.substring(4,6)}-${dateStr.substring(6,8)}`;
+            // 处理ISO 8601格式的日期字符串 (如: "2025-07-17T00:00:00.000")
+            if (dateStr && dateStr.includes('T')) {
+                // 提取日期部分，去掉时间部分
+                return dateStr.split('T')[0];
+            } else if (dateStr && dateStr.length === 8) {
+                // 处理传统的8位数字格式 (如: "20250717")
+                return `${dateStr.substring(0,4)}-${dateStr.substring(4,6)}-${dateStr.substring(6,8)}`;
+            } else {
+                // 如果格式不匹配，返回原始字符串
+                return dateStr;
+            }
         });
         
         // 计算移动平均线

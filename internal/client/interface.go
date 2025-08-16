@@ -8,7 +8,7 @@ import (
 // DataSourceClient 数据源客户端接口
 type DataSourceClient interface {
 	// 获取股票日线数据
-	GetDailyData(symbol, startDate, endDate string) ([]models.StockDaily, error)
+	GetDailyData(symbol, startDate, endDate, adjust string) ([]models.StockDaily, error)
 
 	// 根据交易日期获取所有股票数据
 	GetDailyDataByDate(tradeDate string) ([]models.StockDaily, error)

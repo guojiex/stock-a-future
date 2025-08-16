@@ -57,7 +57,7 @@ func NewTushareClient(token, baseURL string) *TushareClient {
 }
 
 // GetDailyData 获取股票日线数据
-func (c *TushareClient) GetDailyData(tsCode, startDate, endDate string) ([]models.StockDaily, error) {
+func (c *TushareClient) GetDailyData(tsCode, startDate, endDate, adjust string) ([]models.StockDaily, error) {
 	params := make(map[string]interface{})
 
 	if tsCode != "" {
@@ -69,6 +69,12 @@ func (c *TushareClient) GetDailyData(tsCode, startDate, endDate string) ([]model
 	if endDate != "" {
 		params["end_date"] = endDate
 	}
+
+	// 设置复权方式，如果没有指定则使用前复权
+	if adjust == "" {
+		adjust = "qfq" // 默认前复权，更符合用户习惯
+	}
+	params["adjust"] = adjust
 
 	request := TushareRequest{
 		APIName: "daily",

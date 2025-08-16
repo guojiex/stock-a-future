@@ -100,7 +100,7 @@ func (c *AKToolsClient) DetermineTSCode(symbol string) string {
 }
 
 // GetDailyData 获取股票日线数据
-func (c *AKToolsClient) GetDailyData(symbol, startDate, endDate string) ([]models.StockDaily, error) {
+func (c *AKToolsClient) GetDailyData(symbol, startDate, endDate, adjust string) ([]models.StockDaily, error) {
 	// 清理股票代码，移除市场后缀
 	cleanSymbol := c.CleanStockSymbol(symbol)
 
@@ -115,7 +115,12 @@ func (c *AKToolsClient) GetDailyData(symbol, startDate, endDate string) ([]model
 	}
 	// 使用默认参数
 	params.Set("period", "daily")
-	params.Set("adjust", "hfq") // 默认后复权
+
+	// 设置复权方式，如果没有指定则使用前复权
+	if adjust == "" {
+		adjust = "qfq" // 默认前复权，更符合用户习惯
+	}
+	params.Set("adjust", adjust)
 
 	// 构建完整URL
 	apiURL := fmt.Sprintf("%s/api/public/stock_zh_a_hist?%s", c.baseURL, params.Encode())

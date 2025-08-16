@@ -65,6 +65,7 @@ func (h *StockHandler) GetDailyData(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	startDate := query.Get("start_date")
 	endDate := query.Get("end_date")
+	adjust := query.Get("adjust") // 复权方式：qfq(前复权), hfq(后复权), none(不复权)
 
 	// 默认获取最近30天数据
 	if startDate == "" {
@@ -75,8 +76,8 @@ func (h *StockHandler) GetDailyData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 记录请求参数
-	log.Printf("[GetDailyData] 请求参数 - 股票代码: %s, 开始日期: %s, 结束日期: %s",
-		stockCode, startDate, endDate)
+	log.Printf("[GetDailyData] 请求参数 - 股票代码: %s, 开始日期: %s, 结束日期: %s, 复权方式: %s",
+		stockCode, startDate, endDate, adjust)
 
 	// 尝试从缓存获取数据
 	var data []models.StockDaily
@@ -90,11 +91,11 @@ func (h *StockHandler) GetDailyData(w http.ResponseWriter, r *http.Request) {
 		} else {
 			log.Printf("[GetDailyData] 缓存未命中 - 股票代码: %s, 从API获取数据", stockCode)
 			// 缓存未命中，从API获取数据
-			data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate)
+			data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate, adjust)
 			if err != nil {
 				// 详细记录错误信息
-				log.Printf("[GetDailyData] 获取股票数据失败 - 股票代码: %s, 开始日期: %s, 结束日期: %s, 错误: %v",
-					stockCode, startDate, endDate, err)
+				log.Printf("[GetDailyData] 获取股票数据失败 - 股票代码: %s, 开始日期: %s, 结束日期: %s, 复权方式: %s, 错误: %v",
+					stockCode, startDate, endDate, adjust, err)
 				log.Printf("[GetDailyData] 错误详情 - 类型: %T, 消息: %s", err, err.Error())
 
 				// 记录请求上下文信息
@@ -113,11 +114,11 @@ func (h *StockHandler) GetDailyData(w http.ResponseWriter, r *http.Request) {
 	} else {
 		log.Printf("[GetDailyData] 缓存服务未启用 - 股票代码: %s, 直接从API获取", stockCode)
 		// 如果缓存服务未启用，直接从API获取
-		data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate)
+		data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate, adjust)
 		if err != nil {
 			// 详细记录错误信息
-			log.Printf("[GetDailyData] 获取股票数据失败 - 股票代码: %s, 开始日期: %s, 结束日期: %s, 错误: %v",
-				stockCode, startDate, endDate, err)
+			log.Printf("[GetDailyData] 获取股票数据失败 - 股票代码: %s, 开始日期: %s, 结束日期: %s, 复权方式: %s, 错误: %v",
+				stockCode, startDate, endDate, adjust, err)
 			log.Printf("[GetDailyData] 错误详情 - 类型: %T, 消息: %s", err, err.Error())
 
 			// 记录请求上下文信息
@@ -190,7 +191,7 @@ func (h *StockHandler) GetIndicators(w http.ResponseWriter, r *http.Request) {
 		} else {
 			log.Printf("[GetIndicators] 缓存未命中 - 股票代码: %s, 从API获取数据", stockCode)
 			// 缓存未命中，从API获取数据
-			data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate)
+			data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate, "")
 			if err != nil {
 				// 详细记录错误信息
 				log.Printf("[GetIndicators] 获取股票数据失败 - 股票代码: %s, 开始日期: %s, 结束日期: %s, 错误: %v",
@@ -213,7 +214,7 @@ func (h *StockHandler) GetIndicators(w http.ResponseWriter, r *http.Request) {
 	} else {
 		log.Printf("[GetIndicators] 缓存服务未启用 - 股票代码: %s, 直接从API获取", stockCode)
 		// 如果缓存服务未启用，直接从API获取
-		data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate)
+		data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate, "")
 		if err != nil {
 			// 详细记录错误信息
 			log.Printf("[GetIndicators] 获取股票数据失败 - 股票代码: %s, 开始日期: %s, 结束日期: %s, 错误: %v",
@@ -318,7 +319,7 @@ func (h *StockHandler) GetPredictions(w http.ResponseWriter, r *http.Request) {
 		} else {
 			log.Printf("[GetPredictions] 缓存未命中 - 股票代码: %s, 从API获取数据", stockCode)
 			// 缓存未命中，从API获取数据
-			data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate)
+			data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate, "")
 			if err != nil {
 				// 详细记录错误信息
 				log.Printf("[GetPredictions] 获取股票数据失败 - 股票代码: %s, 开始日期: %s, 结束日期: %s, 错误: %v",
@@ -341,7 +342,7 @@ func (h *StockHandler) GetPredictions(w http.ResponseWriter, r *http.Request) {
 	} else {
 		log.Printf("[GetPredictions] 缓存服务未启用 - 股票代码: %s, 直接从API获取", stockCode)
 		// 如果缓存服务未启用，直接从API获取
-		data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate)
+		data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate, "")
 		if err != nil {
 			// 详细记录错误信息
 			log.Printf("[GetPredictions] 获取股票数据失败 - 股票代码: %s, 开始日期: %s, 结束日期: %s, 错误: %v",
