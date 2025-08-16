@@ -41,6 +41,10 @@
 - **响应式设计**: 自适应桌面端和移动端
 - **交互体验**: 缩放、平移、十字光标等专业功能
 
+### 🛠️ 开发工具
+- **内置Curl工具**: Go语言版本的curl工具，支持Windows环境下的API调试
+- **多平台支持**: 提供批处理和PowerShell脚本，简化编译和测试流程
+
 ## 快速开始
 
 ### 环境要求
@@ -98,6 +102,20 @@
    make run
    ```
 
+6. **编译Curl工具（可选）**
+   ```bash
+   # 使用批处理文件（推荐Windows用户）
+   build-curl.bat
+   
+   # 或使用PowerShell脚本
+   .\build-curl.ps1
+   
+   # 或手动编译
+   go build -o curl.exe ./cmd/curl
+   ```
+   
+   > **注意**：curl工具特别适合在Windows环境下调试API接口，无需安装额外的curl工具。
+
 服务将在 `http://localhost:8081` 启动。
 
 ### 使用AKTools数据源（可选）
@@ -124,6 +142,29 @@ AKTools将在 `http://127.0.0.1:8080` 启动，提供免费的财经数据服务
    - 选择股票后查看专业K线图和技术指标
 
 ## API文档
+
+### 使用内置Curl工具测试API
+
+项目内置了Go语言版本的curl工具，特别适合在Windows环境下调试API接口：
+
+```bash
+# 编译curl工具
+build-curl.bat
+
+# 测试基本API
+curl.exe http://localhost:8081/api/v1/stocks
+
+# 搜索股票
+curl.exe -X POST -d '{"query":"平安"}' http://localhost:8081/api/v1/stocks/search
+
+# 获取技术指标（详细输出模式）
+curl.exe -v http://localhost:8081/api/v1/stocks/000001.SZ/indicators
+
+# 添加请求头
+curl.exe -H "Authorization: Bearer token123" http://localhost:8081/api/v1/stocks
+```
+
+更多curl工具使用方法，请参考 [cmd/curl/README.md](cmd/curl/README.md)
 
 ### 基础信息
 - **Base URL**: `http://localhost:8081`

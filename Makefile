@@ -17,7 +17,7 @@ STOCKLIST_PATH=./bin/$(STOCKLIST_BINARY)
 STOCKLIST_MAIN_PATH=./cmd/stocklist
 
 # 默认目标
-.PHONY: all build clean test deps run help stocklist fetch-stocks fetch-sse dev fmt vet tools lint env stop kill status restart test-tushare test-aktools aktools-test
+.PHONY: all build clean test deps run help stocklist fetch-stocks fetch-sse dev fmt vet tools lint env stop kill status restart test-tushare test-aktools aktools-test curl
 
 all: clean deps build
 
@@ -53,6 +53,13 @@ test-aktools: aktools-test
 	@echo "测试AKTools API连接..."
 	@./bin/aktools-test
 	@echo "AKTools连接测试完成"
+
+# 构建Curl工具
+curl:
+	@echo "构建Curl工具..."
+	@mkdir -p bin
+	$(GOBUILD) -o ./bin/curl ./cmd/curl
+	@echo "Curl工具构建完成: ./bin/curl"
 
 # 清理构建文件
 clean:
@@ -198,6 +205,7 @@ help:
 	@echo "  make test-tushare - 测试Tushare API连接"
 	@echo "  make test-aktools - 测试AKTools API连接"
 	@echo "  make aktools-test - 构建AKTools测试工具"
+	@echo "  make curl         - 构建内置Curl工具"
 	@echo ""
 	@echo "服务器管理:"
 	@echo "  make stop        - 停止运行中的服务器"
