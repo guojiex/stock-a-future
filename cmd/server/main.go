@@ -171,6 +171,16 @@ func registerStaticRoutes(mux *http.ServeMux) {
 	// 服务静态文件
 	fileServer := http.FileServer(http.Dir(webClientDir))
 
+	// 专门处理favicon.ico请求，重定向到favicon.png
+	mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		// 设置缓存头，避免重复请求
+		w.Header().Set("Cache-Control", "public, max-age=86400") // 24小时缓存
+		w.Header().Set("Content-Type", "image/png")
+
+		// 重定向到favicon.png
+		http.Redirect(w, r, "/favicon.png", http.StatusMovedPermanently)
+	})
+
 	// 处理根路径，返回index.html
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		// 如果是根路径，服务index.html
@@ -197,7 +207,7 @@ func registerStaticRoutes(mux *http.ServeMux) {
 					"refresh": "POST /api/v1/stocks/refresh"
 				},
 				"web_client": "GET /",
-				"example": "curl http://localhost:8080/api/v1/stocks/000001.SZ/daily"
+				"example": "curl http://localhost:8080/api/v1/stocks/{code}/daily"
 			}`)); err != nil {
 				log.Printf("写入API路径响应失败: %v", err)
 			}
@@ -211,6 +221,7 @@ func registerStaticRoutes(mux *http.ServeMux) {
 	// 明确处理静态资源路径
 	mux.Handle("GET /js/", http.StripPrefix("/", fileServer))
 	mux.Handle("GET /styles.css", http.StripPrefix("/", fileServer))
+	mux.Handle("GET /favicon.png", http.StripPrefix("/", fileServer))
 }
 
 // withLogging 日志中间件
