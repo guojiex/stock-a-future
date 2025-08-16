@@ -25,6 +25,106 @@
             "detail": "启动Go API服务器"
         },
         {
+            "label": "启动 AKTools 服务",
+            "type": "shell",
+            "command": "python",
+            "args": ["-m", "aktools"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "启动AKTools数据服务（基于AKShare的免费开源数据源）"
+        },
+        {
+            "label": "启动 AKTools 服务 (指定端口)",
+            "type": "shell",
+            "command": "python",
+            "args": ["-m", "aktools", "--port", "8080"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "在指定端口8080启动AKTools服务"
+        },
+        {
+            "label": "测试 AKTools 连接",
+            "type": "shell",
+            "command": "curl",
+            "args": ["http://127.0.0.1:8080/api/public/stock_zh_a_info?symbol=000001"],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "测试AKTools服务连接和API响应"
+        },
+        {
+            "label": "使用 AKTools 启动 Stock-A-Future",
+            "type": "shell",
+            "command": "go",
+            "args": ["run", "cmd/server/main.go"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "使用AKTools数据源启动Stock-A-Future服务器（需要先启动AKTools服务）",
+            "dependsOn": "启动 AKTools 服务"
+        },
+        {
+            "label": "一键启动 AKTools + Stock-A-Future",
+            "type": "shell",
+            "command": "start-aktools-server.bat",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "使用批处理脚本一键启动AKTools服务和Stock-A-Future服务器"
+        },
+        {
             "label": "启动服务器 (开发模式)",
             "type": "shell",
             "command": "air",
@@ -78,7 +178,6 @@
                 "showReuseMessage": true,
                 "clear": false
             },
-            "problemMatcher": [],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -149,6 +248,46 @@
             "detail": "检查Go版本和环境"
         },
         {
+            "label": "检查 Python 环境",
+            "type": "shell",
+            "command": "python",
+            "args": ["--version"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "检查Python版本（AKTools需要Python 3.7+）"
+        },
+        {
+            "label": "安装 AKTools",
+            "type": "shell",
+            "command": "pip",
+            "args": ["install", "aktools"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "安装AKTools（基于AKShare的免费开源数据源）"
+        },
+        {
             "label": "更新依赖",
             "type": "shell",
             "command": "go",
@@ -172,7 +311,7 @@
             "label": "测试API",
             "type": "shell",
             "command": "curl",
-            "args": ["http://localhost:8080/api/v1/health"],
+            "args": ["http://localhost:8081/api/v1/health"],
             "group": "test",
             "presentation": {
                 "echo": true,
@@ -187,6 +326,26 @@
                 "cwd": "${workspaceFolder}"
             },
             "detail": "测试API健康检查端点"
+        },
+        {
+            "label": "测试 Stock-A-Future API (AKTools)",
+            "type": "shell",
+            "command": "curl",
+            "args": ["http://localhost:8081/api/v1/health"],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "测试使用AKTools数据源的Stock-A-Future API（端口8081）"
         }
     ]
 }
