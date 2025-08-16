@@ -569,16 +569,11 @@ func (h *StockHandler) GetHealthStatus(w http.ResponseWriter, r *http.Request) {
 	// 如果数据源不健康，设置整体状态为不健康
 	if dataSourceStatus == "unhealthy" {
 		healthStatus["status"] = "degraded"
-		w.WriteHeader(http.StatusServiceUnavailable)
+		// 使用503状态码表示服务降级
+		h.writeSuccessResponseWithStatus(w, healthStatus, http.StatusServiceUnavailable)
 	} else {
-		w.WriteHeader(http.StatusOK)
-	}
-
-	// 返回JSON响应
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(healthStatus); err != nil {
-		log.Printf("编码健康状态响应失败: %v", err)
-		http.Error(w, "内部服务器错误", http.StatusInternalServerError)
+		// 使用标准响应格式返回健康状态
+		h.writeSuccessResponse(w, healthStatus)
 	}
 }
 
@@ -726,6 +721,11 @@ func (h *StockHandler) CheckFavorite(w http.ResponseWriter, r *http.Request) {
 
 // writeSuccessResponse 写入成功响应
 func (h *StockHandler) writeSuccessResponse(w http.ResponseWriter, data interface{}) {
+	h.writeSuccessResponseWithStatus(w, data, http.StatusOK)
+}
+
+// writeSuccessResponseWithStatus 写入成功响应（带状态码）
+func (h *StockHandler) writeSuccessResponseWithStatus(w http.ResponseWriter, data interface{}, statusCode int) {
 	response := models.APIResponse{
 		Success: true,
 		Data:    data,
@@ -738,7 +738,7 @@ func (h *StockHandler) writeSuccessResponse(w http.ResponseWriter, data interfac
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(statusCode)
 	if _, err := w.Write(jsonData); err != nil {
 		log.Printf("写入响应失败: %v", err)
 	}

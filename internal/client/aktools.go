@@ -273,9 +273,12 @@ func (c *AKToolsClient) convertToStockDaily(aktoolsData []AKToolsDailyResponse, 
 		// 智能判断市场后缀
 		tsCode := c.DetermineTSCode(symbol)
 
+		// 转换日期格式：将AKTools的日期格式转换为前端期望的YYYYMMDD格式
+		formattedDate := c.formatDateForFrontend(data.Date)
+
 		daily := models.StockDaily{
 			TSCode:    tsCode,
-			TradeDate: data.Date,
+			TradeDate: formattedDate,
 			Open:      models.NewJSONDecimal(decimal.NewFromFloat(data.Open)),
 			High:      models.NewJSONDecimal(decimal.NewFromFloat(data.High)),
 			Low:       models.NewJSONDecimal(decimal.NewFromFloat(data.Low)),
@@ -316,6 +319,62 @@ func (c *AKToolsClient) convertToStockBasic(aktoolsData AKToolsStockBasicRespons
 // GetBaseURL 获取AKTools API基础URL
 func (c *AKToolsClient) GetBaseURL() string {
 	return c.baseURL
+}
+
+// formatDateForFrontend 将AKTools的日期格式转换为前端期望的YYYYMMDD格式
+func (c *AKToolsClient) formatDateForFrontend(dateStr string) string {
+	if dateStr == "" {
+		return ""
+	}
+
+	// 移除可能的空格和换行符
+	dateStr = strings.TrimSpace(dateStr)
+
+	// 处理不同的日期格式
+	if strings.Contains(dateStr, "-") {
+		// 格式可能是 "2025-08-" 或 "2025-08-15"
+		parts := strings.Split(dateStr, "-")
+		if len(parts) >= 2 {
+			year := parts[0]
+			month := parts[1]
+			
+			// 确保月份是两位数
+			if len(month) == 1 {
+				month = "0" + month
+			}
+			
+			// 如果有日期部分，使用它；否则使用"01"
+			day := "01"
+			if len(parts) >= 3 && parts[2] != "" {
+				day = parts[2]
+				// 确保日期是两位数
+				if len(day) == 1 {
+					day = "0" + day
+				}
+			}
+			
+			// 返回YYYYMMDD格式
+			return year + month + day
+		}
+	}
+
+	// 如果已经是8位数字格式，直接返回
+	if len(dateStr) == 8 && isNumeric(dateStr) {
+		return dateStr
+	}
+
+	// 如果无法解析，返回原始字符串
+	return dateStr
+}
+
+// isNumeric 检查字符串是否为纯数字
+func isNumeric(s string) bool {
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // TestConnection 测试AKTools连接
