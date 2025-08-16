@@ -16,7 +16,7 @@ type MockDataSourceClient struct {
 	baseURL    string
 }
 
-func (m *MockDataSourceClient) GetDailyData(symbol, startDate, endDate string) ([]models.StockDaily, error) {
+func (m *MockDataSourceClient) GetDailyData(symbol, startDate, endDate, adjust string) ([]models.StockDaily, error) {
 	return nil, nil
 }
 
