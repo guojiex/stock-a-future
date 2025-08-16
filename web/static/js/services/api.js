@@ -12,17 +12,53 @@ class ApiService {
      * 获取股票基本信息
      */
     async getStockBasic(stockCode) {
+        const endpoint = `/api/v1/stocks/${stockCode}/basic`;
+        
+        // 记录请求详情
+        console.log(`[API] 获取股票基本信息请求:`, {
+            stockCode,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
         try {
-            const endpoint = `/api/v1/stocks/${stockCode}/basic`;
             const response = await this.client.makeRequest(endpoint);
+            
+            // 记录响应详情
+            console.log(`[API] 股票基本信息响应:`, {
+                success: response.success,
+                hasData: !!response.data,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
             
             if (response.success && response.data) {
                 return response.data;
             } else {
+                // 详细记录错误信息
+                const errorDetails = {
+                    message: response.error || '获取股票基本信息失败',
+                    stockCode,
+                    response: response,
+                    timestamp: new Date().toISOString()
+                };
+                
+                console.error(`[API] 获取股票基本信息失败 - 详细信息:`, errorDetails);
                 throw new Error(response.error || '获取股票基本信息失败');
             }
         } catch (error) {
-            console.warn(`获取股票基本信息失败: ${error.message}`);
+            // 详细记录异常信息
+            const errorDetails = {
+                message: error.message,
+                stockCode,
+                endpoint,
+                errorType: error.constructor.name,
+                stack: error.stack,
+                timestamp: new Date().toISOString()
+            };
+            
+            console.error(`[API] 获取股票基本信息异常 - 详细信息:`, errorDetails);
+            
             // 返回默认信息，使用常见股票的本地映射
             const stockName = this.getStockNameFromLocal(stockCode);
             return {
@@ -38,12 +74,59 @@ class ApiService {
      */
     async getDailyData(stockCode, startDate, endDate) {
         const endpoint = `/api/v1/stocks/${stockCode}/daily?start_date=${startDate}&end_date=${endDate}`;
-        const response = await this.client.makeRequest(endpoint);
         
-        if (response.success && response.data) {
-            return response.data;
-        } else {
-            throw new Error(response.error || '获取日线数据失败');
+        // 记录请求详情
+        console.log(`[API] 获取日线数据请求:`, {
+            stockCode,
+            startDate,
+            endDate,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint);
+            
+            // 记录响应详情
+            console.log(`[API] 日线数据响应:`, {
+                success: response.success,
+                hasData: !!response.data,
+                dataLength: response.data ? response.data.length : 0,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            if (response.success && response.data) {
+                return response.data;
+            } else {
+                // 详细记录错误信息
+                const errorDetails = {
+                    message: response.error || '获取日线数据失败',
+                    stockCode,
+                    startDate,
+                    endDate,
+                    response: response,
+                    timestamp: new Date().toISOString()
+                };
+                
+                console.error(`[API] 获取日线数据失败 - 详细信息:`, errorDetails);
+                throw new Error(response.error || '获取日线数据失败');
+            }
+        } catch (error) {
+            // 详细记录异常信息
+            const errorDetails = {
+                message: error.message,
+                stockCode,
+                startDate,
+                endDate,
+                endpoint,
+                errorType: error.constructor.name,
+                stack: error.stack,
+                timestamp: new Date().toISOString()
+            };
+            
+            console.error(`[API] 获取日线数据异常 - 详细信息:`, errorDetails);
+            throw error;
         }
     }
 
@@ -52,12 +135,52 @@ class ApiService {
      */
     async getIndicators(stockCode) {
         const endpoint = `/api/v1/stocks/${stockCode}/indicators`;
-        const response = await this.client.makeRequest(endpoint);
         
-        if (response.success && response.data) {
-            return response.data;
-        } else {
-            throw new Error(response.error || '获取技术指标失败');
+        // 记录请求详情
+        console.log(`[API] 获取技术指标请求:`, {
+            stockCode,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint);
+            
+            // 记录响应详情
+            console.log(`[API] 技术指标响应:`, {
+                success: response.success,
+                hasData: !!response.data,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            if (response.success && response.data) {
+                return response.data;
+            } else {
+                // 详细记录错误信息
+                const errorDetails = {
+                    message: response.error || '获取技术指标失败',
+                    stockCode,
+                    response: response,
+                    timestamp: new Date().toISOString()
+                };
+                
+                console.error(`[API] 获取技术指标失败 - 详细信息:`, errorDetails);
+                throw new Error(response.error || '获取技术指标失败');
+            }
+        } catch (error) {
+            // 详细记录异常信息
+            const errorDetails = {
+                message: error.message,
+                stockCode,
+                endpoint,
+                errorType: error.constructor.name,
+                stack: error.stack,
+                timestamp: new Date().toISOString()
+            };
+            
+            console.error(`[API] 获取技术指标异常 - 详细信息:`, errorDetails);
+            throw error;
         }
     }
 
@@ -66,12 +189,52 @@ class ApiService {
      */
     async getPredictions(stockCode) {
         const endpoint = `/api/v1/stocks/${stockCode}/predictions`;
-        const response = await this.client.makeRequest(endpoint);
         
-        if (response.success && response.data) {
-            return response.data;
-        } else {
-            throw new Error(response.error || '获取预测数据失败');
+        // 记录请求详情
+        console.log(`[API] 获取买卖预测请求:`, {
+            stockCode,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint);
+            
+            // 记录响应详情
+            console.log(`[API] 买卖预测响应:`, {
+                success: response.success,
+                hasData: !!response.data,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            if (response.success && response.data) {
+                return response.data;
+            } else {
+                // 详细记录错误信息
+                const errorDetails = {
+                    message: response.error || '获取预测数据失败',
+                    stockCode,
+                    response: response,
+                    timestamp: new Date().toISOString()
+                };
+                
+                console.error(`[API] 获取买卖预测失败 - 详细信息:`, errorDetails);
+                throw new Error(response.error || '获取预测数据失败');
+            }
+        } catch (error) {
+            // 详细记录异常信息
+            const errorDetails = {
+                message: error.message,
+                stockCode,
+                endpoint,
+                errorType: error.constructor.name,
+                stack: error.stack,
+                timestamp: new Date().toISOString()
+            };
+            
+            console.error(`[API] 获取买卖预测异常 - 详细信息:`, errorDetails);
+            throw error;
         }
     }
 
@@ -80,12 +243,57 @@ class ApiService {
      */
     async searchStocks(keyword, limit = 10) {
         const endpoint = `/api/v1/stocks/search?q=${encodeURIComponent(keyword)}&limit=${limit}`;
-        const response = await this.client.makeRequest(endpoint);
         
-        if (response.success && response.data.stocks) {
-            return response.data.stocks;
-        } else {
-            throw new Error(response.error || '搜索股票失败');
+        // 记录请求详情
+        console.log(`[API] 搜索股票请求:`, {
+            keyword,
+            limit,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint);
+            
+            // 记录响应详情
+            console.log(`[API] 搜索股票响应:`, {
+                success: response.success,
+                hasData: !!response.data,
+                hasStocks: !!(response.data && response.data.stocks),
+                stocksCount: response.data && response.data.stocks ? response.data.stocks.length : 0,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            if (response.success && response.data.stocks) {
+                return response.data.stocks;
+            } else {
+                // 详细记录错误信息
+                const errorDetails = {
+                    message: response.error || '搜索股票失败',
+                    keyword,
+                    limit,
+                    response: response,
+                    timestamp: new Date().toISOString()
+                };
+                
+                console.error(`[API] 搜索股票失败 - 详细信息:`, errorDetails);
+                throw new Error(response.error || '搜索股票失败');
+            }
+        } catch (error) {
+            // 详细记录异常信息
+            const errorDetails = {
+                message: error.message,
+                keyword,
+                limit,
+                endpoint,
+                errorType: error.constructor.name,
+                stack: error.stack,
+                timestamp: new Date().toISOString()
+            };
+            
+            console.error(`[API] 搜索股票异常 - 详细信息:`, errorDetails);
+            throw error;
         }
     }
 

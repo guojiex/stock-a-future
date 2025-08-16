@@ -106,6 +106,12 @@ class EventsModule {
      * 处理日线数据查询
      */
     async handleDailyQuery() {
+        const requestId = Math.random().toString(36).substr(2, 9);
+        
+        console.log(`[Events] 开始处理日线数据查询 - ID: ${requestId}`, {
+            timestamp: new Date().toISOString()
+        });
+        
         try {
             this.client.setLoading(true);
             this.client.hideAllResultSections();
@@ -113,18 +119,46 @@ class EventsModule {
             const stockCode = this.client.getStockCode();
             const { startDate, endDate } = this.client.getDateRange();
             
+            console.log(`[Events] 日线数据查询参数 - ID: ${requestId}`, {
+                stockCode,
+                startDate,
+                endDate,
+                timestamp: new Date().toISOString()
+            });
+            
             // 并行获取股票基本信息和日线数据
             const [stockBasic, dailyData] = await Promise.all([
                 this.apiService.getStockBasic(stockCode),
                 this.apiService.getDailyData(stockCode, startDate, endDate)
             ]);
             
+            console.log(`[Events] 日线数据查询成功 - ID: ${requestId}`, {
+                stockCode,
+                hasStockBasic: !!stockBasic,
+                hasDailyData: !!dailyData,
+                dailyDataLength: dailyData ? dailyData.length : 0,
+                timestamp: new Date().toISOString()
+            });
+            
             this.displayModule.displayDailyData(dailyData, stockCode, stockBasic);
             
         } catch (error) {
+            // 详细记录错误信息
+            const errorDetails = {
+                requestId,
+                message: error.message,
+                errorType: error.constructor.name,
+                stack: error.stack,
+                timestamp: new Date().toISOString()
+            };
+            
+            console.error(`[Events] 日线数据查询失败 - ID: ${requestId}`, errorDetails);
             this.client.showError(`获取日线数据失败: ${error.message}`);
         } finally {
             this.client.setLoading(false);
+            console.log(`[Events] 日线数据查询完成 - ID: ${requestId}`, {
+                timestamp: new Date().toISOString()
+            });
         }
     }
 

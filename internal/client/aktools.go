@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strings"
 	"time"
 
 	"stock-a-future/internal/models"
@@ -60,11 +61,52 @@ func NewAKToolsClient(baseURL string) *AKToolsClient {
 	}
 }
 
+// CleanStockSymbol 清理股票代码，移除市场后缀
+func (c *AKToolsClient) CleanStockSymbol(symbol string) string {
+	// 移除常见的市场后缀
+	suffixes := []string{".SH", ".SZ", ".BJ", ".sh", ".sz", ".bj"}
+	for _, suffix := range suffixes {
+		if len(symbol) > len(suffix) && strings.HasSuffix(symbol, suffix) {
+			return symbol[:len(symbol)-len(suffix)]
+		}
+	}
+	return symbol
+}
+
+// DetermineTSCode 智能判断股票代码的市场后缀
+func (c *AKToolsClient) DetermineTSCode(symbol string) string {
+	// 如果symbol已经包含市场后缀，直接返回
+	if strings.Contains(symbol, ".") {
+		return symbol
+	}
+
+	// 根据股票代码规则判断市场
+	// 600xxx, 601xxx, 603xxx, 688xxx -> 上海
+	// 000xxx, 002xxx, 300xxx -> 深圳
+	// 430xxx, 830xxx, 870xxx -> 北京
+	if strings.HasPrefix(symbol, "600") || strings.HasPrefix(symbol, "601") ||
+		strings.HasPrefix(symbol, "603") || strings.HasPrefix(symbol, "688") {
+		return symbol + ".SH"
+	} else if strings.HasPrefix(symbol, "000") || strings.HasPrefix(symbol, "002") ||
+		strings.HasPrefix(symbol, "300") {
+		return symbol + ".SZ"
+	} else if strings.HasPrefix(symbol, "430") || strings.HasPrefix(symbol, "830") ||
+		strings.HasPrefix(symbol, "870") {
+		return symbol + ".BJ"
+	}
+
+	// 默认返回上海市场
+	return symbol + ".SH"
+}
+
 // GetDailyData 获取股票日线数据
 func (c *AKToolsClient) GetDailyData(symbol, startDate, endDate string) ([]models.StockDaily, error) {
+	// 清理股票代码，移除市场后缀
+	cleanSymbol := c.CleanStockSymbol(symbol)
+
 	// 构建查询参数
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", cleanSymbol)
 	if startDate != "" {
 		params.Set("start_date", startDate)
 	}
@@ -118,9 +160,12 @@ func (c *AKToolsClient) GetDailyDataByDate(tradeDate string) ([]models.StockDail
 
 // GetStockBasic 获取股票基本信息
 func (c *AKToolsClient) GetStockBasic(symbol string) (*models.StockBasic, error) {
+	// 清理股票代码，移除市场后缀
+	cleanSymbol := c.CleanStockSymbol(symbol)
+
 	// 构建查询参数
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", cleanSymbol)
 
 	// 构建完整URL - 使用股票基本信息API
 	apiURL := fmt.Sprintf("%s/api/public/stock_zh_a_info?%s", c.baseURL, params.Encode())
@@ -225,8 +270,11 @@ func (c *AKToolsClient) convertToStockDaily(aktoolsData []AKToolsDailyResponse, 
 	var result []models.StockDaily
 
 	for _, data := range aktoolsData {
+		// 智能判断市场后缀
+		tsCode := c.DetermineTSCode(symbol)
+
 		daily := models.StockDaily{
-			TSCode:    symbol + ".SH", // 默认上海，实际应该根据代码判断
+			TSCode:    tsCode,
 			TradeDate: data.Date,
 			Open:      models.NewJSONDecimal(decimal.NewFromFloat(data.Open)),
 			High:      models.NewJSONDecimal(decimal.NewFromFloat(data.High)),
@@ -251,8 +299,11 @@ func (c *AKToolsClient) convertToStockDaily(aktoolsData []AKToolsDailyResponse, 
 
 // convertToStockBasic 将AKTools股票基本信息转换为内部模型
 func (c *AKToolsClient) convertToStockBasic(aktoolsData AKToolsStockBasicResponse, symbol string) *models.StockBasic {
+	// 智能判断市场后缀
+	tsCode := c.DetermineTSCode(symbol)
+
 	return &models.StockBasic{
-		TSCode:   symbol + ".SH", // 默认上海，实际应该根据代码判断
+		TSCode:   tsCode,
 		Symbol:   aktoolsData.Code,
 		Name:     aktoolsData.Name,
 		Area:     aktoolsData.Area,

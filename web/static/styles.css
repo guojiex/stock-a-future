@@ -340,7 +340,7 @@ body {
     margin-top: var(--spacing-md);
 }
 
-.date-shortcuts label {
+.shortcuts-title {
     font-weight: 500;
     color: var(--text-primary);
     font-size: 0.875rem;

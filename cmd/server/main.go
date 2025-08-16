@@ -10,6 +10,7 @@ import (
 	"stock-a-future/internal/handler"
 	"stock-a-future/internal/service"
 	"sync/atomic"
+	"time"
 )
 
 // 健康检查请求计数器，用于抽样记录日志
@@ -28,7 +29,8 @@ func main() {
 	var dataSourceClient client.DataSourceClient
 	var err error
 
-	if cfg.DataSourceType == "tushare" {
+	switch cfg.DataSourceType {
+	case "tushare":
 		log.Printf("Tushare API: %s", cfg.TushareBaseURL)
 
 		config := map[string]string{
@@ -46,7 +48,7 @@ func main() {
 			log.Fatalf("Tushare API连接测试失败: %v", err)
 		}
 		log.Printf("✓ Tushare API连接测试成功")
-	} else if cfg.DataSourceType == "aktools" {
+	case "aktools":
 		log.Printf("AKTools API: %s", cfg.AKToolsBaseURL)
 
 		config := map[string]string{
@@ -63,7 +65,7 @@ func main() {
 			log.Fatalf("AKTools API连接测试失败: %v", err)
 		}
 		log.Printf("✓ AKTools API连接测试成功")
-	} else {
+	default:
 		log.Fatalf("不支持的数据源类型: %s", cfg.DataSourceType)
 	}
 
@@ -227,18 +229,52 @@ func registerStaticRoutes(mux *http.ServeMux) {
 // withLogging 日志中间件
 func withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		startTime := time.Now()
+
 		// 对health接口进行抽样记录，每100次请求只记录1次
 		if r.URL.Path == "/api/v1/health" {
 			count := atomic.AddInt64(&healthCheckCounter, 1)
 			if count%100 == 1 { // 第1次、第101次、第201次...记录日志
-				log.Printf("%s %s %s (健康检查 #%d)", r.Method, r.URL.Path, r.RemoteAddr, count)
+				log.Printf("[Middleware] %s %s %s (健康检查 #%d) - 开始时间: %v",
+					r.Method, r.URL.Path, r.RemoteAddr, count, startTime.Format("15:04:05.000"))
 			}
 		} else {
 			// 非health接口正常记录日志
-			log.Printf("%s %s %s", r.Method, r.URL.Path, r.RemoteAddr)
+			log.Printf("[Middleware] %s %s %s - 开始时间: %v, 用户代理: %s",
+				r.Method, r.URL.Path, r.RemoteAddr, startTime.Format("15:04:05.000"), r.UserAgent())
 		}
-		next.ServeHTTP(w, r)
+
+		// 包装ResponseWriter以捕获状态码
+		wrappedWriter := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+
+		next.ServeHTTP(wrappedWriter, r)
+
+		// 计算响应时间
+		responseTime := time.Since(startTime)
+
+		// 记录响应信息
+		if r.URL.Path == "/api/v1/health" {
+			count := atomic.LoadInt64(&healthCheckCounter)
+			if count%100 == 1 { // 只记录抽样请求的响应
+				log.Printf("[Middleware] %s %s %s (健康检查 #%d) - 状态码: %d, 响应时间: %v",
+					r.Method, r.URL.Path, r.RemoteAddr, count, wrappedWriter.statusCode, responseTime)
+			}
+		} else {
+			log.Printf("[Middleware] %s %s %s - 状态码: %d, 响应时间: %v",
+				r.Method, r.URL.Path, r.RemoteAddr, wrappedWriter.statusCode, responseTime)
+		}
 	})
+}
+
+// responseWriter 包装ResponseWriter以捕获状态码
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
 }
 
 // withCORS CORS中间件

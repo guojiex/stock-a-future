@@ -45,10 +45,17 @@ func (h *StockHandler) GetDailyData(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
+	// 记录请求开始
+	startTime := time.Now()
+	log.Printf("[GetDailyData] 开始处理请求 - 路径: %s, 方法: %s, 用户代理: %s",
+		r.URL.Path, r.Method, r.UserAgent())
+
 	// 解析路径参数
 	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 	if len(pathParts) < 4 {
-		h.writeErrorResponse(w, http.StatusBadRequest, "无效的股票代码")
+		errorMsg := "无效的股票代码"
+		log.Printf("[GetDailyData] 参数解析失败 - 路径: %s, 错误: %s", r.URL.Path, errorMsg)
+		h.writeErrorResponse(w, http.StatusBadRequest, errorMsg)
 		return
 	}
 
@@ -67,34 +74,67 @@ func (h *StockHandler) GetDailyData(w http.ResponseWriter, r *http.Request) {
 		endDate = time.Now().Format("20060102")
 	}
 
+	// 记录请求参数
+	log.Printf("[GetDailyData] 请求参数 - 股票代码: %s, 开始日期: %s, 结束日期: %s",
+		stockCode, startDate, endDate)
+
 	// 尝试从缓存获取数据
 	var data []models.StockDaily
 	var err error
 
 	if h.dailyCacheService != nil {
+		log.Printf("[GetDailyData] 尝试从缓存获取数据 - 股票代码: %s", stockCode)
 		if cachedData, found := h.dailyCacheService.Get(stockCode, startDate, endDate); found {
+			log.Printf("[GetDailyData] 缓存命中 - 股票代码: %s, 数据条数: %d", stockCode, len(cachedData))
 			data = cachedData
 		} else {
+			log.Printf("[GetDailyData] 缓存未命中 - 股票代码: %s, 从API获取数据", stockCode)
 			// 缓存未命中，从API获取数据
 			data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate)
 			if err != nil {
-				log.Printf("获取股票数据失败: %v", err)
+				// 详细记录错误信息
+				log.Printf("[GetDailyData] 获取股票数据失败 - 股票代码: %s, 开始日期: %s, 结束日期: %s, 错误: %v",
+					stockCode, startDate, endDate, err)
+				log.Printf("[GetDailyData] 错误详情 - 类型: %T, 消息: %s", err, err.Error())
+
+				// 记录请求上下文信息
+				log.Printf("[GetDailyData] 请求上下文 - 远程地址: %s, 用户代理: %s, 引用页: %s",
+					r.RemoteAddr, r.UserAgent(), r.Referer())
+
 				h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
 				return
 			}
 
+			log.Printf("[GetDailyData] 从API获取数据成功 - 股票代码: %s, 数据条数: %d", stockCode, len(data))
 			// 将数据存入缓存
 			h.dailyCacheService.Set(stockCode, startDate, endDate, data)
+			log.Printf("[GetDailyData] 数据已存入缓存 - 股票代码: %s", stockCode)
 		}
 	} else {
+		log.Printf("[GetDailyData] 缓存服务未启用 - 股票代码: %s, 直接从API获取", stockCode)
 		// 如果缓存服务未启用，直接从API获取
 		data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate)
 		if err != nil {
-			log.Printf("获取股票数据失败: %v", err)
+			// 详细记录错误信息
+			log.Printf("[GetDailyData] 获取股票数据失败 - 股票代码: %s, 开始日期: %s, 结束日期: %s, 错误: %v",
+				stockCode, startDate, endDate, err)
+			log.Printf("[GetDailyData] 错误详情 - 类型: %T, 消息: %s", err, err.Error())
+
+			// 记录请求上下文信息
+			log.Printf("[GetDailyData] 请求上下文 - 远程地址: %s, 用户代理: %s, 引用页: %s",
+				r.RemoteAddr, r.UserAgent(), r.Referer())
+
 			h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
 			return
 		}
+
+		log.Printf("[GetDailyData] 从API获取数据成功 - 股票代码: %s, 数据条数: %d", stockCode, len(data))
 	}
+
+	// 记录响应信息
+	responseTime := time.Since(startTime)
+	log.Printf("[GetDailyData] 请求处理完成 - 股票代码: %s, 响应时间: %v, 数据条数: %d",
+		stockCode, responseTime, len(data))
 
 	// 返回成功响应
 	h.writeSuccessResponse(w, data)
@@ -105,10 +145,17 @@ func (h *StockHandler) GetIndicators(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
+	// 记录请求开始
+	startTime := time.Now()
+	log.Printf("[GetIndicators] 开始处理请求 - 路径: %s, 方法: %s, 用户代理: %s",
+		r.URL.Path, r.Method, r.UserAgent())
+
 	// 解析路径参数
 	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 	if len(pathParts) < 4 {
-		h.writeErrorResponse(w, http.StatusBadRequest, "无效的股票代码")
+		errorMsg := "无效的股票代码"
+		log.Printf("[GetIndicators] 参数解析失败 - 路径: %s, 错误: %s", r.URL.Path, errorMsg)
+		h.writeErrorResponse(w, http.StatusBadRequest, errorMsg)
 		return
 	}
 
@@ -127,39 +174,72 @@ func (h *StockHandler) GetIndicators(w http.ResponseWriter, r *http.Request) {
 		endDate = time.Now().Format("20060102")
 	}
 
+	// 记录请求参数
+	log.Printf("[GetIndicators] 请求参数 - 股票代码: %s, 开始日期: %s, 结束日期: %s",
+		stockCode, startDate, endDate)
+
 	// 获取股票数据（优先使用缓存）
 	var data []models.StockDaily
 	var err error
 
 	if h.dailyCacheService != nil {
+		log.Printf("[GetIndicators] 尝试从缓存获取数据 - 股票代码: %s", stockCode)
 		if cachedData, found := h.dailyCacheService.Get(stockCode, startDate, endDate); found {
+			log.Printf("[GetIndicators] 缓存命中 - 股票代码: %s, 数据条数: %d", stockCode, len(cachedData))
 			data = cachedData
 		} else {
+			log.Printf("[GetIndicators] 缓存未命中 - 股票代码: %s, 从API获取数据", stockCode)
 			// 缓存未命中，从API获取数据
 			data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate)
 			if err != nil {
-				log.Printf("获取股票数据失败: %v", err)
+				// 详细记录错误信息
+				log.Printf("[GetIndicators] 获取股票数据失败 - 股票代码: %s, 开始日期: %s, 结束日期: %s, 错误: %v",
+					stockCode, startDate, endDate, err)
+				log.Printf("[GetIndicators] 错误详情 - 类型: %T, 消息: %s", err, err.Error())
+
+				// 记录请求上下文信息
+				log.Printf("[GetIndicators] 请求上下文 - 远程地址: %s, 用户代理: %s, 引用页: %s",
+					r.RemoteAddr, r.UserAgent(), r.Referer())
+
 				h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
 				return
 			}
 
+			log.Printf("[GetIndicators] 从API获取数据成功 - 股票代码: %s, 数据条数: %d", stockCode, len(data))
 			// 将数据存入缓存
 			h.dailyCacheService.Set(stockCode, startDate, endDate, data)
+			log.Printf("[GetIndicators] 数据已存入缓存 - 股票代码: %s", stockCode)
 		}
 	} else {
+		log.Printf("[GetIndicators] 缓存服务未启用 - 股票代码: %s, 直接从API获取", stockCode)
 		// 如果缓存服务未启用，直接从API获取
 		data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate)
 		if err != nil {
-			log.Printf("获取股票数据失败: %v", err)
+			// 详细记录错误信息
+			log.Printf("[GetIndicators] 获取股票数据失败 - 股票代码: %s, 开始日期: %s, 结束日期: %s, 错误: %v",
+				stockCode, startDate, endDate, err)
+			log.Printf("[GetIndicators] 错误详情 - 类型: %T, 消息: %s", err, err.Error())
+
+			// 记录请求上下文信息
+			log.Printf("[GetIndicators] 请求上下文 - 远程地址: %s, 用户代理: %s, 引用页: %s",
+				r.RemoteAddr, r.UserAgent(), r.Referer())
+
 			h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
 			return
 		}
+
+		log.Printf("[GetIndicators] 从API获取数据成功 - 股票代码: %s, 数据条数: %d", stockCode, len(data))
 	}
 
 	if len(data) == 0 {
-		h.writeErrorResponse(w, http.StatusNotFound, "未找到股票数据")
+		errorMsg := "未找到股票数据"
+		log.Printf("[GetIndicators] 数据为空 - 股票代码: %s, 开始日期: %s, 结束日期: %s",
+			stockCode, startDate, endDate)
+		h.writeErrorResponse(w, http.StatusNotFound, errorMsg)
 		return
 	}
+
+	log.Printf("[GetIndicators] 开始计算技术指标 - 股票代码: %s, 数据条数: %d", stockCode, len(data))
 
 	// 计算技术指标
 	latestData := data[len(data)-1]
@@ -172,55 +252,47 @@ func (h *StockHandler) GetIndicators(w http.ResponseWriter, r *http.Request) {
 	macdResults := h.calculator.CalculateMACD(data)
 	if len(macdResults) > 0 {
 		indicators.MACD = &macdResults[len(macdResults)-1]
+		log.Printf("[GetIndicators] MACD计算完成 - 股票代码: %s, 最新值: %v", stockCode, indicators.MACD)
 	}
 
 	// 计算RSI
 	rsiResults := h.calculator.CalculateRSI(data, 14)
 	if len(rsiResults) > 0 {
 		indicators.RSI = &rsiResults[len(rsiResults)-1]
+		log.Printf("[GetIndicators] RSI计算完成 - 股票代码: %s, 最新值: %v", stockCode, indicators.RSI)
 	}
 
 	// 计算布林带
-	bollResults := h.calculator.CalculateBollingerBands(data, 20, 2.0)
-	if len(bollResults) > 0 {
-		indicators.BOLL = &bollResults[len(bollResults)-1]
+	bollingerResults := h.calculator.CalculateBollingerBands(data, 20, 2)
+	if len(bollingerResults) > 0 {
+		indicators.BOLL = &bollingerResults[len(bollingerResults)-1]
+		log.Printf("[GetIndicators] 布林带计算完成 - 股票代码: %s, 最新值: %v", stockCode, indicators.BOLL)
 	}
 
-	// 计算移动平均线
-	ma5 := h.calculator.CalculateMA(data, 5)
-	ma10 := h.calculator.CalculateMA(data, 10)
-	ma20 := h.calculator.CalculateMA(data, 20)
-	ma60 := h.calculator.CalculateMA(data, 60)
-
-	if len(ma5) > 0 && len(ma10) > 0 && len(ma20) > 0 {
-		indicators.MA = &models.MovingAverageIndicator{
-			MA5:  models.NewJSONDecimal(ma5[len(ma5)-1]),
-			MA10: models.NewJSONDecimal(ma10[len(ma10)-1]),
-			MA20: models.NewJSONDecimal(ma20[len(ma20)-1]),
-		}
-		if len(ma60) > 0 {
-			indicators.MA.MA60 = models.NewJSONDecimal(ma60[len(ma60)-1])
-		}
-	}
-
-	// 计算KDJ
-	kdjResults := h.calculator.CalculateKDJ(data, 9)
-	if len(kdjResults) > 0 {
-		indicators.KDJ = &kdjResults[len(kdjResults)-1]
-	}
+	// 记录响应信息
+	responseTime := time.Since(startTime)
+	log.Printf("[GetIndicators] 请求处理完成 - 股票代码: %s, 响应时间: %v, 指标数量: %d",
+		stockCode, responseTime, 3) // MACD, RSI, 布林带
 
 	h.writeSuccessResponse(w, indicators)
 }
 
-// GetPredictions 获取买卖点预测
+// GetPredictions 获取买卖预测
 func (h *StockHandler) GetPredictions(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
+	// 记录请求开始
+	startTime := time.Now()
+	log.Printf("[GetPredictions] 开始处理请求 - 路径: %s, 方法: %s, 用户代理: %s",
+		r.URL.Path, r.Method, r.UserAgent())
+
 	// 解析路径参数
 	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 	if len(pathParts) < 4 {
-		h.writeErrorResponse(w, http.StatusBadRequest, "无效的股票代码")
+		errorMsg := "无效的股票代码"
+		log.Printf("[GetPredictions] 参数解析失败 - 路径: %s, 错误: %s", r.URL.Path, errorMsg)
+		h.writeErrorResponse(w, http.StatusBadRequest, errorMsg)
 		return
 	}
 
@@ -230,47 +302,92 @@ func (h *StockHandler) GetPredictions(w http.ResponseWriter, r *http.Request) {
 	startDate := time.Now().AddDate(0, 0, -120).Format("20060102")
 	endDate := time.Now().Format("20060102")
 
+	// 记录请求参数
+	log.Printf("[GetPredictions] 请求参数 - 股票代码: %s, 开始日期: %s, 结束日期: %s",
+		stockCode, startDate, endDate)
+
 	// 获取股票数据（优先使用缓存）
 	var data []models.StockDaily
 	var err error
 
 	if h.dailyCacheService != nil {
+		log.Printf("[GetPredictions] 尝试从缓存获取数据 - 股票代码: %s", stockCode)
 		if cachedData, found := h.dailyCacheService.Get(stockCode, startDate, endDate); found {
+			log.Printf("[GetPredictions] 缓存命中 - 股票代码: %s, 数据条数: %d", stockCode, len(cachedData))
 			data = cachedData
 		} else {
+			log.Printf("[GetPredictions] 缓存未命中 - 股票代码: %s, 从API获取数据", stockCode)
 			// 缓存未命中，从API获取数据
 			data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate)
 			if err != nil {
-				log.Printf("获取股票数据失败: %v", err)
+				// 详细记录错误信息
+				log.Printf("[GetPredictions] 获取股票数据失败 - 股票代码: %s, 开始日期: %s, 结束日期: %s, 错误: %v",
+					stockCode, startDate, endDate, err)
+				log.Printf("[GetPredictions] 错误详情 - 类型: %T, 消息: %s", err, err.Error())
+
+				// 记录请求上下文信息
+				log.Printf("[GetPredictions] 请求上下文 - 远程地址: %s, 用户代理: %s, 引用页: %s",
+					r.RemoteAddr, r.UserAgent(), r.Referer())
+
 				h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
 				return
 			}
 
+			log.Printf("[GetPredictions] 从API获取数据成功 - 股票代码: %s, 数据条数: %d", stockCode, len(data))
 			// 将数据存入缓存
 			h.dailyCacheService.Set(stockCode, startDate, endDate, data)
+			log.Printf("[GetPredictions] 数据已存入缓存 - 股票代码: %s", stockCode)
 		}
 	} else {
+		log.Printf("[GetPredictions] 缓存服务未启用 - 股票代码: %s, 直接从API获取", stockCode)
 		// 如果缓存服务未启用，直接从API获取
 		data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate)
 		if err != nil {
-			log.Printf("获取股票数据失败: %v", err)
+			// 详细记录错误信息
+			log.Printf("[GetPredictions] 获取股票数据失败 - 股票代码: %s, 开始日期: %s, 结束日期: %s, 错误: %v",
+				stockCode, startDate, endDate, err)
+			log.Printf("[GetPredictions] 错误详情 - 类型: %T, 消息: %s", err, err.Error())
+
+			// 记录请求上下文信息
+			log.Printf("[GetPredictions] 请求上下文 - 远程地址: %s, 用户代理: %s, 引用页: %s",
+				r.RemoteAddr, r.UserAgent(), r.Referer())
+
 			h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
 			return
 		}
+
+		log.Printf("[GetPredictions] 从API获取数据成功 - 股票代码: %s, 数据条数: %d", stockCode, len(data))
 	}
 
 	if len(data) == 0 {
-		h.writeErrorResponse(w, http.StatusNotFound, "未找到股票数据")
+		errorMsg := "未找到股票数据"
+		log.Printf("[GetPredictions] 数据为空 - 股票代码: %s, 开始日期: %s, 结束日期: %s",
+			stockCode, startDate, endDate)
+		h.writeErrorResponse(w, http.StatusNotFound, errorMsg)
 		return
 	}
+
+	log.Printf("[GetPredictions] 开始生成预测 - 股票代码: %s, 数据条数: %d", stockCode, len(data))
 
 	// 生成预测
 	prediction, err := h.predictionService.PredictTradingPoints(data)
 	if err != nil {
-		log.Printf("预测失败: %v", err)
+		// 详细记录错误信息
+		log.Printf("[GetPredictions] 预测失败 - 股票代码: %s, 错误: %v", stockCode, err)
+		log.Printf("[GetPredictions] 错误详情 - 类型: %T, 消息: %s", err, err.Error())
+
+		// 记录请求上下文信息
+		log.Printf("[GetPredictions] 请求上下文 - 远程地址: %s, 用户代理: %s, 引用页: %s",
+			r.RemoteAddr, r.UserAgent(), r.Referer())
+
 		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("预测失败: %v", err))
 		return
 	}
+
+	// 记录响应信息
+	responseTime := time.Since(startTime)
+	log.Printf("[GetPredictions] 请求处理完成 - 股票代码: %s, 响应时间: %v, 预测数量: %d",
+		stockCode, responseTime, len(prediction.Predictions))
 
 	h.writeSuccessResponse(w, prediction)
 }

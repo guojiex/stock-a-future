@@ -149,8 +149,16 @@ class StockAFutureClient {
      */
     async makeRequest(endpoint, options = {}) {
         const url = `${this.baseURL}${endpoint}`;
-        console.log(`发起API请求: ${url}`);
-        console.log(`当前baseURL: ${this.baseURL}`);
+        const requestId = Math.random().toString(36).substr(2, 9);
+        
+        // 记录请求详情
+        console.log(`[Client] 发起API请求 - ID: ${requestId}`, {
+            url,
+            baseURL: this.baseURL,
+            endpoint,
+            options,
+            timestamp: new Date().toISOString()
+        });
         
         const defaultOptions = {
             method: 'GET',
@@ -163,15 +171,61 @@ class StockAFutureClient {
         try {
             const response = await fetch(url, defaultOptions);
             
+            // 记录响应状态
+            console.log(`[Client] API响应状态 - ID: ${requestId}`, {
+                url,
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok,
+                headers: Object.fromEntries(response.headers.entries()),
+                timestamp: new Date().toISOString()
+            });
+            
             if (!response.ok) {
+                // 详细记录HTTP错误
+                const errorDetails = {
+                    requestId,
+                    url,
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries(response.headers.entries()),
+                    timestamp: new Date().toISOString()
+                };
+                
+                console.error(`[Client] HTTP错误 - ID: ${requestId}`, errorDetails);
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
             const data = await response.json();
+            
+            // 记录响应数据
+            console.log(`[Client] API响应数据 - ID: ${requestId}`, {
+                url,
+                success: data.success,
+                hasData: !!data.data,
+                dataType: data.data ? typeof data.data : 'undefined',
+                dataLength: data.data && Array.isArray(data.data) ? data.data.length : 'N/A',
+                error: data.error || null,
+                message: data.message || null,
+                timestamp: new Date().toISOString()
+            });
+            
             return data;
         } catch (error) {
-            console.error('API请求失败:', error);
-            console.error(`请求URL: ${url}`);
+            // 详细记录异常信息
+            const errorDetails = {
+                requestId,
+                url,
+                baseURL: this.baseURL,
+                endpoint,
+                options: defaultOptions,
+                errorType: error.constructor.name,
+                message: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString()
+            };
+            
+            console.error(`[Client] API请求异常 - ID: ${requestId}`, errorDetails);
             throw error;
         }
     }
