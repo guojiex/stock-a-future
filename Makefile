@@ -17,7 +17,7 @@ STOCKLIST_PATH=./bin/$(STOCKLIST_BINARY)
 STOCKLIST_MAIN_PATH=./cmd/stocklist
 
 # 默认目标
-.PHONY: all build clean test deps run help stocklist fetch-stocks fetch-sse dev fmt vet tools lint env stop kill status restart test-tushare test-aktools aktools-test curl db-tools migrate
+.PHONY: all build clean test deps run help stocklist fetch-stocks fetch-sse dev fmt vet tools lint env stop kill status restart test-tushare test-aktools aktools-test curl db-tools migrate echarts
 
 all: clean deps build
 
@@ -197,7 +197,20 @@ status:
 restart: stop dev
 	@echo "服务器已重启"
 
-
+# 下载ECharts到本地
+echarts:
+	@echo "下载ECharts到本地..."
+	@mkdir -p web/static/js/lib/echarts
+	@if command -v curl >/dev/null 2>&1; then \
+		curl -L "https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js" -o "web/static/js/lib/echarts/echarts.min.js"; \
+	elif command -v wget >/dev/null 2>&1; then \
+		wget "https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js" -O "web/static/js/lib/echarts/echarts.min.js"; \
+	else \
+		echo "错误: 需要安装curl或wget来下载文件"; \
+		exit 1; \
+	fi
+	@echo "ECharts下载完成: web/static/js/lib/echarts/echarts.min.js"
+	@echo "文件大小: $$(ls -lh web/static/js/lib/echarts/echarts.min.js | awk '{print $$5}')"
 
 # 显示帮助信息
 help:
@@ -222,6 +235,7 @@ help:
 	@echo "  make curl         - 构建内置Curl工具"
 	@echo "  make db-tools     - 构建数据库管理工具"
 	@echo "  make migrate      - 构建数据迁移工具"
+	@echo "  make echarts      - 下载ECharts到本地"
 	@echo ""
 	@echo "服务器管理:"
 	@echo "  make stop        - 停止运行中的服务器"
