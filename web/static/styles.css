@@ -2349,6 +2349,45 @@ body {
     border-radius: var(--radius-sm);
 }
 
+/* 置信度标签样式 */
+.confidence-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.confidence-label::before {
+    content: '🎯';
+    font-size: 0.75rem;
+}
+
+.confidence-label.high-confidence {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+.confidence-label.medium-confidence {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+}
+
+.confidence-label.low-confidence {
+    background: linear-gradient(135deg, #6b7280, #4b5563);
+    color: white;
+    box-shadow: 0 2px 4px rgba(107, 114, 128, 0.3);
+}
+
+.signal-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
 .signal-reason {
     font-size: 0.875rem;
     color: var(--text-secondary);
@@ -2356,11 +2395,6 @@ body {
     background: var(--bg-secondary);
     padding: var(--spacing-sm);
     border-radius: var(--radius-sm);
-}
-
-.signal-actions {
-    display: flex;
-    gap: var(--spacing-sm);
 }
 
 /* 信号加载和错误状态 */

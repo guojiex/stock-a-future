@@ -1195,37 +1195,67 @@ class FavoritesModule {
             }
         });
 
+        // 按置信度排序函数
+        const sortByConfidence = (signals) => {
+            return signals.sort((a, b) => {
+                // 获取最高置信度
+                const getMaxConfidence = (signal) => {
+                    if (signal.predictions && signal.predictions.predictions) {
+                        const confidences = signal.predictions.predictions
+                            .map(p => parseFloat(p.probability) || 0)
+                            .filter(conf => !isNaN(conf));
+                        return confidences.length > 0 ? Math.max(...confidences) : 0;
+                    }
+                    return 0;
+                };
+
+                const confidenceA = getMaxConfidence(a);
+                const confidenceB = getMaxConfidence(b);
+                
+                // 置信度高的排在前面（降序）
+                return confidenceB - confidenceA;
+            });
+        };
+
+        // 对每个信号组按置信度排序
+        const sortedBuySignals = sortByConfidence(buySignals);
+        const sortedSellSignals = sortByConfidence(sellSignals);
+        const sortedHoldSignals = sortByConfidence(holdSignals);
+
         // 渲染买入信号
-        if (buySignals.length > 0) {
+        if (sortedBuySignals.length > 0) {
             signalsHTML += `
                 <div class="signal-group buy-signals">
-                    <h3 class="signal-group-title buy">🟢 买入信号 (${buySignals.length})</h3>
-                    ${this.renderSignalGroup(buySignals, 'buy')}
+                    <h3 class="signal-group-title buy">🟢 买入信号 (${sortedBuySignals.length})</h3>
+                    ${this.renderSignalGroup(sortedBuySignals, 'buy')}
                 </div>
             `;
         }
 
         // 渲染卖出信号
-        if (sellSignals.length > 0) {
+        if (sortedSellSignals.length > 0) {
             signalsHTML += `
                 <div class="signal-group sell-signals">
-                    <h3 class="signal-group-title sell">🔴 卖出信号 (${sellSignals.length})</h3>
-                    ${this.renderSignalGroup(sellSignals, 'sell')}
+                    <h3 class="signal-group-title sell">🔴 卖出信号 (${sortedSellSignals.length})</h3>
+                    ${this.renderSignalGroup(sortedSellSignals, 'sell')}
                 </div>
             `;
         }
 
         // 渲染持有信号
-        if (holdSignals.length > 0) {
+        if (sortedHoldSignals.length > 0) {
             signalsHTML += `
                 <div class="signal-group hold-signals">
-                    <h3 class="signal-group-title hold">🟡 持有信号 (${holdSignals.length})</h3>
-                    ${this.renderSignalGroup(holdSignals, 'hold')}
+                    <h3 class="signal-group-title hold">🟡 持有信号 (${sortedHoldSignals.length})</h3>
+                    ${this.renderSignalGroup(sortedHoldSignals, 'hold')}
                 </div>
             `;
         }
 
         signalsList.innerHTML = signalsHTML;
+        
+        // 设置信号项的事件监听器
+        this.setupSignalItemEvents();
     }
 
     /**
@@ -1237,19 +1267,35 @@ class FavoritesModule {
             const tradeDate = signal.trade_date || 'N/A';
             const updatedAt = signal.updated_at || 'N/A';
             
-            // 获取主要信号
+            // 获取主要信号和置信度
             let mainSignal = 'HOLD';
             let signalReason = '';
             let signalProbability = '';
+            let maxConfidence = 0;
             
             if (signal.predictions && signal.predictions.predictions) {
-                const prediction = signal.predictions.predictions[0]; // 取第一个预测
-                if (prediction) {
-                    mainSignal = prediction.type;
-                    signalReason = prediction.reason;
-                    signalProbability = prediction.probability;
+                // 找到置信度最高的预测
+                const predictions = signal.predictions.predictions;
+                const bestPrediction = predictions.reduce((best, current) => {
+                    const currentConfidence = parseFloat(current.probability) || 0;
+                    const bestConfidence = parseFloat(best.probability) || 0;
+                    return currentConfidence > bestConfidence ? current : best;
+                }, predictions[0]);
+                
+                if (bestPrediction) {
+                    mainSignal = bestPrediction.type;
+                    signalReason = bestPrediction.reason;
+                    signalProbability = bestPrediction.probability;
+                    maxConfidence = parseFloat(bestPrediction.probability) || 0;
                 }
             }
+
+            // 置信度标签样式
+            const confidenceClass = maxConfidence >= 80 ? 'high-confidence' : 
+                                  maxConfidence >= 60 ? 'medium-confidence' : 'low-confidence';
+            
+            const confidenceLabel = maxConfidence > 0 ? 
+                `<span class="confidence-label ${confidenceClass}">置信度: ${maxConfidence.toFixed(1)}%</span>` : '';
 
             return `
                 <div class="signal-item ${type}-signal" data-stock-code="${signal.ts_code}">
@@ -1266,7 +1312,7 @@ class FavoritesModule {
                     <div class="signal-details">
                         <div class="signal-main">
                             <span class="signal-type ${mainSignal.toLowerCase()}">${this.getSignalText(mainSignal)}</span>
-                            ${signalProbability ? `<span class="signal-probability">置信度: ${signalProbability}</span>` : ''}
+                            ${confidenceLabel}
                         </div>
                         ${signalReason ? `<div class="signal-reason">${signalReason}</div>` : ''}
                     </div>
@@ -1293,6 +1339,132 @@ class FavoritesModule {
             'HOLD': '持有'
         };
         return signalMap[signal] || signal;
+    }
+
+    /**
+     * 设置信号项的事件监听器
+     */
+    setupSignalItemEvents() {
+        const signalsList = document.getElementById('signalsList');
+        if (!signalsList) return;
+
+        // 查看图表按钮
+        signalsList.querySelectorAll('.view-chart-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const signalItem = e.target.closest('.signal-item');
+                this.handleViewChartClick(signalItem);
+            });
+        });
+
+        // 查看详情按钮
+        signalsList.querySelectorAll('.view-details-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const signalItem = e.target.closest('.signal-item');
+                this.handleViewDetailsClick(signalItem);
+            });
+        });
+    }
+
+    /**
+     * 处理查看图表按钮点击
+     */
+    handleViewChartClick(signalItem) {
+        const stockCode = signalItem.dataset.stockCode;
+        if (!stockCode) {
+            console.error('无法获取股票代码');
+            return;
+        }
+
+        console.log(`[Favorites] 查看图表按钮点击，股票代码: ${stockCode}`);
+
+        // 设置股票代码到输入框
+        const stockCodeInput = document.getElementById('stockCode');
+        if (stockCodeInput) {
+            stockCodeInput.value = stockCode;
+            
+            // 触发input事件以更新收藏按钮状态
+            stockCodeInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        // 直接跳转到日K线图区域，提供更好的用户体验
+        const dailyChartSection = document.getElementById('daily-chart-section');
+        if (dailyChartSection) {
+            // 先滚动到日K线图区域
+            dailyChartSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            // 等待滚动完成后自动触发日线数据查询
+            setTimeout(() => {
+                const queryDailyBtn = document.getElementById('queryDaily');
+                if (queryDailyBtn) {
+                    queryDailyBtn.click();
+                }
+            }, 300); // 减少延迟时间，让滚动和查询更连贯
+        } else {
+            // 如果找不到日K线图区域，则回退到搜索区域
+            const searchSection = document.querySelector('.search-section');
+            if (searchSection) {
+                searchSection.scrollIntoView({ behavior: 'smooth' });
+                
+                setTimeout(() => {
+                    const queryDailyBtn = document.getElementById('queryDaily');
+                    if (queryDailyBtn) {
+                        queryDailyBtn.click();
+                    }
+                }, 500);
+            }
+        }
+    }
+
+    /**
+     * 处理查看详情按钮点击
+     */
+    handleViewDetailsClick(signalItem) {
+        const stockCode = signalItem.dataset.stockCode;
+        if (!stockCode) {
+            console.error('无法获取股票代码');
+            return;
+        }
+
+        console.log(`[Favorites] 查看详情按钮点击，股票代码: ${stockCode}`);
+
+        // 设置股票代码到输入框
+        const stockCodeInput = document.getElementById('stockCode');
+        if (stockCodeInput) {
+            stockCodeInput.value = stockCode;
+            
+            // 触发input事件以更新收藏按钮状态
+            stockCodeInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        // 直接跳转到日K线图区域，然后切换到买卖预测tab
+        const dailyChartSection = document.getElementById('daily-chart-section');
+        if (dailyChartSection) {
+            // 先滚动到日K线图区域
+            dailyChartSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            // 等待滚动完成后自动触发买卖预测查询
+            setTimeout(() => {
+                const queryPredictionsBtn = document.getElementById('queryPredictions');
+                if (queryPredictionsBtn) {
+                    queryPredictionsBtn.click();
+                }
+            }, 300);
+        } else {
+            // 如果找不到日K线图区域，则回退到搜索区域
+            const searchSection = document.querySelector('.search-section');
+            if (searchSection) {
+                searchSection.scrollIntoView({ behavior: 'smooth' });
+                
+                setTimeout(() => {
+                    const queryPredictionsBtn = document.getElementById('queryPredictions');
+                    if (queryPredictionsBtn) {
+                        queryPredictionsBtn.click();
+                    }
+                }, 500);
+            }
+        }
     }
 }
 
