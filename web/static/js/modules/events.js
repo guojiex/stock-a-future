@@ -221,6 +221,9 @@ class EventsModule {
             // 调试：检查tab状态
             this.debugTabState(tabName);
             
+            // 确保标题显示当前股票信息
+            this.ensureStockTitleDisplayed();
+            
             console.log(`[Events] Tab切换完成: ${tabName}`);
             
         } catch (error) {
@@ -732,6 +735,25 @@ class EventsModule {
         } finally {
             if (displayResult) {
                 this.client.setLoading(false);
+            }
+        }
+    }
+
+    /**
+     * 确保股票标题正确显示
+     */
+    ensureStockTitleDisplayed() {
+        const stockCode = this.client.getStockCode();
+        if (!stockCode) return;
+        
+        // 从缓存获取股票基本信息
+        const cacheKey = `${stockCode}_daily-data`;
+        const cachedData = this.dataCache.get(cacheKey);
+        
+        if (cachedData && cachedData.stockBasic) {
+            // 使用displayModule更新标题
+            if (this.displayModule && this.displayModule.updateStockAnalysisTitle) {
+                this.displayModule.updateStockAnalysisTitle(stockCode, cachedData.stockBasic);
             }
         }
     }

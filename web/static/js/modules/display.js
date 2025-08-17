@@ -28,6 +28,9 @@ class DisplayModule {
         section.style.display = 'block';
         section.classList.add('fade-in');
         
+        // 更新股票分析标题
+        this.updateStockAnalysisTitle(stockCode, stockBasic);
+        
         // 切换到日线数据tab（不触发数据加载）
         this.switchToTabWithoutDataLoad('daily-data');
         
@@ -119,6 +122,9 @@ class DisplayModule {
         section.style.display = 'block';
         section.classList.add('fade-in');
         
+        // 更新股票分析标题
+        this.updateStockAnalysisTitle(stockCode, stockBasic);
+        
         // 切换到技术指标tab（不触发数据加载）
         this.switchToTabWithoutDataLoad('indicators');
         
@@ -177,6 +183,9 @@ class DisplayModule {
         // 显示section
         section.style.display = 'block';
         section.classList.add('fade-in');
+        
+        // 更新股票分析标题
+        this.updateStockAnalysisTitle(stockCode, stockBasic);
         
         // 切换到买卖预测tab（不触发数据加载）
         console.log(`[Display] 准备切换到predictions tab`);
@@ -357,6 +366,25 @@ class DisplayModule {
         }
         
         return indicatorsHTML;
+    }
+
+    /**
+     * 更新股票分析标题
+     */
+    updateStockAnalysisTitle(stockCode, stockBasic) {
+        const titleElement = document.getElementById('stockAnalysisTitle');
+        if (!titleElement) {
+            console.warn('[Display] 找不到股票分析标题元素');
+            return;
+        }
+        
+        let stockName = stockCode;
+        if (stockBasic && stockBasic.name) {
+            stockName = `${stockBasic.name} (${stockCode})`;
+        }
+        
+        titleElement.textContent = `📊 ${stockName} - 股票数据分析`;
+        console.log(`[Display] 更新股票分析标题: ${stockName}`);
     }
 
     /**
