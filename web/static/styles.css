@@ -613,13 +613,28 @@ body {
 }
 
 .prediction-item {
-    padding: var(--spacing-lg);
     background: var(--bg-secondary);
     border-radius: var(--radius-md);
     border-left: 4px solid transparent;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-lg);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.prediction-item.collapsed .prediction-details {
+    max-height: 0;
+    opacity: 0;
+    padding: 0;
+    margin: 0;
+}
+
+.prediction-item.collapsed .collapse-icon {
+    /* 折叠状态：🔽保持向下，表示"点击展开" */
+    transform: rotate(0deg);
+}
+
+.prediction-item:not(.collapsed) .collapse-icon {
+    /* 展开状态：🔼保持向上，表示"点击折叠" */
+    transform: rotate(0deg);
 }
 
 .prediction-item.buy {
@@ -628,6 +643,19 @@ body {
 
 .prediction-item.sell {
     border-left-color: var(--error-color);
+}
+
+.prediction-header {
+    padding: var(--spacing-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.prediction-header:hover {
+    background-color: var(--bg-hover);
 }
 
 .prediction-icon {
@@ -654,28 +682,148 @@ body {
     flex: 1;
 }
 
+.prediction-details {
+    padding: 0 var(--spacing-lg) var(--spacing-lg) var(--spacing-lg);
+    max-height: 200px;
+    opacity: 1;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
 .prediction-type {
     font-size: 1.125rem;
     font-weight: 600;
     margin-bottom: var(--spacing-xs);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
 }
 
 .prediction-price {
     font-size: 1.5rem;
     font-weight: 700;
     margin-bottom: var(--spacing-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
 }
 
 .prediction-probability {
     font-size: 0.875rem;
     color: var(--text-secondary);
     margin-bottom: var(--spacing-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.prediction-signal-date {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
 }
 
 .prediction-reason {
     font-size: 0.875rem;
     color: var(--text-secondary);
     font-style: italic;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.collapse-toggle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xs);
+    min-width: 60px;
+}
+
+.collapse-icon {
+    font-size: 1.25rem;
+    transition: transform 0.3s ease;
+    cursor: pointer;
+}
+
+.strength-badge {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.strength-badge.strong {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.strength-badge.medium {
+    background-color: var(--warning-color);
+    color: white;
+}
+
+.strength-badge.weak {
+    background-color: var(--text-muted);
+    color: white;
+}
+
+/* 提示图标样式 */
+.info-icon {
+    cursor: help;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+    position: relative;
+}
+
+.info-icon:hover {
+    opacity: 1;
+}
+
+/* 工具提示样式 */
+.info-icon[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text-primary);
+    color: white;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 1000;
+    box-shadow: var(--shadow-md);
+    margin-bottom: var(--spacing-xs);
+}
+
+.info-icon[title]:hover::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-top-color: var(--text-primary);
+    margin-bottom: calc(var(--spacing-xs) - 4px);
+    z-index: 1000;
+}
+
+.prediction-signal-date {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    margin-top: var(--spacing-xs);
+    padding: 2px 6px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: var(--radius-sm);
+    display: inline-block;
 }
 
 /* 错误卡片 */
@@ -751,7 +899,7 @@ body {
     z-index: 9999;
 }
 
-.loading-spinner {
+.loading-content {
     background: var(--bg-primary);
     padding: var(--spacing-xl);
     border-radius: var(--radius-lg);
@@ -759,24 +907,43 @@ body {
     box-shadow: var(--shadow-lg);
 }
 
-.spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid var(--border-color);
-    border-top: 4px solid var(--primary-color);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto var(--spacing-md);
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.loading-spinner p {
+.loading-content p {
     color: var(--text-secondary);
     font-weight: 500;
+    margin-bottom: var(--spacing-md);
+}
+
+.loading-dots {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+}
+
+.loading-dots span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    animation: loadingDots 1.4s ease-in-out infinite both;
+}
+
+.loading-dots span:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.loading-dots span:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+@keyframes loadingDots {
+    0%, 80%, 100% {
+        transform: scale(0);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
 /* 响应式设计 */
@@ -1912,26 +2079,20 @@ body {
     backdrop-filter: blur(2px);
 }
 
-.tab-loading .loading-spinner {
+.tab-loading .loading-content {
     text-align: center;
     color: var(--text-secondary);
 }
 
-.tab-loading .spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid var(--bg-tertiary);
-    border-top: 3px solid var(--primary-color);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto var(--spacing-md);
+.tab-loading .loading-content p {
+    margin-bottom: var(--spacing-md);
+    font-weight: 500;
 }
 
 .tab-loading .loading-dots {
     display: flex;
     justify-content: center;
     gap: 4px;
-    margin-top: var(--spacing-sm);
 }
 
 .tab-loading .loading-dots span {
@@ -1959,11 +2120,6 @@ body {
         transform: scale(1);
         opacity: 1;
     }
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
 }
 
 /* Tab切换指示器 */

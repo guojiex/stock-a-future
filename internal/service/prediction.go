@@ -2,8 +2,11 @@ package service
 
 import (
 	"fmt"
+	"regexp"
+	"sort"
 	"stock-a-future/internal/indicators"
 	"stock-a-future/internal/models"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -11,13 +14,15 @@ import (
 
 // PredictionService 预测服务
 type PredictionService struct {
-	calculator *indicators.Calculator
+	calculator        *indicators.Calculator
+	patternRecognizer *indicators.PatternRecognizer
 }
 
 // NewPredictionService 创建预测服务
 func NewPredictionService() *PredictionService {
 	return &PredictionService{
-		calculator: indicators.NewCalculator(),
+		calculator:        indicators.NewCalculator(),
+		patternRecognizer: indicators.NewPatternRecognizer(),
 	}
 }
 
@@ -108,51 +113,60 @@ func (s *PredictionService) calculateAllIndicators(data []models.StockDaily) *mo
 	return indicators
 }
 
-// generatePredictions 基于技术指标生成预测
+// generatePredictions 基于技术指标和图形模式生成预测
 func (s *PredictionService) generatePredictions(data []models.StockDaily, indicators *models.TechnicalIndicators) []models.TradingPointPrediction {
 	var predictions []models.TradingPointPrediction
 	currentPrice := data[len(data)-1].Close.Decimal
+	signalDate := data[len(data)-1].TradeDate // 信号基于最新数据的日期
 
 	// 基于MACD的预测
 	if indicators.MACD != nil {
-		if prediction := s.predictFromMACD(indicators.MACD, currentPrice); prediction != nil {
+		if prediction := s.predictFromMACD(indicators.MACD, currentPrice, signalDate); prediction != nil {
 			predictions = append(predictions, *prediction)
 		}
 	}
 
 	// 基于RSI的预测
 	if indicators.RSI != nil {
-		if prediction := s.predictFromRSI(indicators.RSI, currentPrice); prediction != nil {
+		if prediction := s.predictFromRSI(indicators.RSI, currentPrice, signalDate); prediction != nil {
 			predictions = append(predictions, *prediction)
 		}
 	}
 
 	// 基于布林带的预测
 	if indicators.BOLL != nil {
-		if prediction := s.predictFromBollingerBands(indicators.BOLL, currentPrice); prediction != nil {
+		if prediction := s.predictFromBollingerBands(indicators.BOLL, currentPrice, signalDate); prediction != nil {
 			predictions = append(predictions, *prediction)
 		}
 	}
 
 	// 基于KDJ的预测
 	if indicators.KDJ != nil {
-		if prediction := s.predictFromKDJ(indicators.KDJ, currentPrice); prediction != nil {
+		if prediction := s.predictFromKDJ(indicators.KDJ, currentPrice, signalDate); prediction != nil {
 			predictions = append(predictions, *prediction)
 		}
 	}
 
 	// 基于移动平均线的预测
 	if indicators.MA != nil {
-		if prediction := s.predictFromMA(indicators.MA, currentPrice); prediction != nil {
+		if prediction := s.predictFromMA(indicators.MA, currentPrice, signalDate); prediction != nil {
 			predictions = append(predictions, *prediction)
 		}
 	}
+
+	// 基于图形模式的预测（新增）
+	if patternPredictions := s.predictFromPatterns(data, currentPrice); len(patternPredictions) > 0 {
+		predictions = append(predictions, patternPredictions...)
+	}
+
+	// 对预测结果进行排序：置信度和强度最高的排在前面
+	s.sortPredictionsByConfidenceAndStrength(predictions)
 
 	return predictions
 }
 
 // predictFromMACD 基于MACD指标预测
-func (s *PredictionService) predictFromMACD(macd *models.MACDIndicator, currentPrice decimal.Decimal) *models.TradingPointPrediction {
+func (s *PredictionService) predictFromMACD(macd *models.MACDIndicator, currentPrice decimal.Decimal, signalDate string) *models.TradingPointPrediction {
 	if macd.Signal == "HOLD" {
 		return nil
 	}
@@ -187,11 +201,12 @@ func (s *PredictionService) predictFromMACD(macd *models.MACDIndicator, currentP
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
 		Indicators:  []string{"MACD"},
+		SignalDate:  signalDate, // 信号基于传入的日期
 	}
 }
 
 // predictFromRSI 基于RSI指标预测
-func (s *PredictionService) predictFromRSI(rsi *models.RSIIndicator, currentPrice decimal.Decimal) *models.TradingPointPrediction {
+func (s *PredictionService) predictFromRSI(rsi *models.RSIIndicator, currentPrice decimal.Decimal, signalDate string) *models.TradingPointPrediction {
 	if rsi.Signal == "HOLD" {
 		return nil
 	}
@@ -220,11 +235,12 @@ func (s *PredictionService) predictFromRSI(rsi *models.RSIIndicator, currentPric
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
 		Indicators:  []string{"RSI"},
+		SignalDate:  signalDate, // 信号基于传入的日期
 	}
 }
 
 // predictFromBollingerBands 基于布林带预测
-func (s *PredictionService) predictFromBollingerBands(boll *models.BollingerBandsIndicator, currentPrice decimal.Decimal) *models.TradingPointPrediction {
+func (s *PredictionService) predictFromBollingerBands(boll *models.BollingerBandsIndicator, currentPrice decimal.Decimal, signalDate string) *models.TradingPointPrediction {
 	if boll.Signal == "HOLD" {
 		return nil
 	}
@@ -253,11 +269,12 @@ func (s *PredictionService) predictFromBollingerBands(boll *models.BollingerBand
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
 		Indicators:  []string{"BOLL"},
+		SignalDate:  signalDate, // 信号基于传入的日期
 	}
 }
 
 // predictFromKDJ 基于KDJ指标预测
-func (s *PredictionService) predictFromKDJ(kdj *models.KDJIndicator, currentPrice decimal.Decimal) *models.TradingPointPrediction {
+func (s *PredictionService) predictFromKDJ(kdj *models.KDJIndicator, currentPrice decimal.Decimal, signalDate string) *models.TradingPointPrediction {
 	if kdj.Signal == "HOLD" {
 		return nil
 	}
@@ -286,11 +303,12 @@ func (s *PredictionService) predictFromKDJ(kdj *models.KDJIndicator, currentPric
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
 		Indicators:  []string{"KDJ"},
+		SignalDate:  signalDate, // 信号基于传入的日期
 	}
 }
 
 // predictFromMA 基于移动平均线预测
-func (s *PredictionService) predictFromMA(ma *models.MovingAverageIndicator, currentPrice decimal.Decimal) *models.TradingPointPrediction {
+func (s *PredictionService) predictFromMA(ma *models.MovingAverageIndicator, currentPrice decimal.Decimal, signalDate string) *models.TradingPointPrediction {
 	// 判断均线多头/空头排列
 	var predictType string
 	var probability decimal.Decimal
@@ -325,6 +343,7 @@ func (s *PredictionService) predictFromMA(ma *models.MovingAverageIndicator, cur
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
 		Indicators:  []string{"MA"},
+		SignalDate:  signalDate, // 信号基于传入的日期
 	}
 }
 
@@ -368,4 +387,245 @@ func (s *PredictionService) calculateOverallConfidence(predictions []models.Trad
 	}
 
 	return models.NewJSONDecimal(confidence)
+}
+
+// predictFromPatterns 基于图形模式生成预测
+func (s *PredictionService) predictFromPatterns(data []models.StockDaily, currentPrice decimal.Decimal) []models.TradingPointPrediction {
+	var predictions []models.TradingPointPrediction
+
+	// 识别所有图形模式
+	patterns := s.patternRecognizer.RecognizeAllPatterns(data)
+
+	// 用于去重的映射：模式类型 -> 最佳预测
+	patternMap := make(map[string]*models.TradingPointPrediction)
+
+	// 遍历识别到的模式，生成预测
+	for _, pattern := range patterns {
+		// 处理蜡烛图模式
+		for _, candlestick := range pattern.Candlestick {
+			if prediction := s.predictFromCandlestickPattern(candlestick, currentPrice); prediction != nil {
+				// 生成模式标识符（类型+指标）
+				patternKey := fmt.Sprintf("candlestick:%s", candlestick.Pattern)
+
+				// 如果已存在相同模式，比较置信度，保留最高的
+				if existing, exists := patternMap[patternKey]; exists {
+					if prediction.Probability.Decimal.GreaterThan(existing.Probability.Decimal) {
+						patternMap[patternKey] = prediction
+					}
+				} else {
+					patternMap[patternKey] = prediction
+				}
+			}
+		}
+
+		// 处理量价模式
+		for _, volumePrice := range pattern.VolumePrice {
+			if prediction := s.predictFromVolumePricePattern(volumePrice, currentPrice); prediction != nil {
+				// 生成模式标识符（类型+指标）
+				patternKey := fmt.Sprintf("volume_price:%s", volumePrice.Pattern)
+
+				// 如果已存在相同模式，比较置信度，保留最高的
+				if existing, exists := patternMap[patternKey]; exists {
+					if prediction.Probability.Decimal.GreaterThan(existing.Probability.Decimal) {
+						patternMap[patternKey] = prediction
+					}
+				} else {
+					patternMap[patternKey] = prediction
+				}
+			}
+		}
+	}
+
+	// 将去重后的预测添加到结果中
+	for _, prediction := range patternMap {
+		predictions = append(predictions, *prediction)
+	}
+
+	return predictions
+}
+
+// predictFromCandlestickPattern 基于蜡烛图模式生成预测
+func (s *PredictionService) predictFromCandlestickPattern(pattern models.CandlestickPattern, currentPrice decimal.Decimal) *models.TradingPointPrediction {
+	var predictType string
+	var probability decimal.Decimal
+	var reason string
+
+	switch pattern.Pattern {
+	case "双响炮":
+		predictType = "BUY"
+		probability = decimal.NewFromFloat(0.75) // 双响炮是强势买入信号
+		reason = fmt.Sprintf("识别到双响炮模式，置信度：%s，强度：%s",
+			pattern.Confidence.Decimal.String(), pattern.Strength)
+	case "红三兵":
+		predictType = "BUY"
+		probability = decimal.NewFromFloat(0.70)
+		reason = fmt.Sprintf("识别到红三兵模式，置信度：%s，强度：%s",
+			pattern.Confidence.Decimal.String(), pattern.Strength)
+	case "乌云盖顶":
+		predictType = "SELL"
+		probability = decimal.NewFromFloat(0.65)
+		reason = fmt.Sprintf("识别到乌云盖顶模式，置信度：%s，强度：%s",
+			pattern.Confidence.Decimal.String(), pattern.Strength)
+	case "锤子线":
+		predictType = "BUY"
+		probability = decimal.NewFromFloat(0.60)
+		reason = fmt.Sprintf("识别到锤子线模式，置信度：%s，强度：%s",
+			pattern.Confidence.Decimal.String(), pattern.Strength)
+	case "启明星":
+		predictType = "BUY"
+		probability = decimal.NewFromFloat(0.70)
+		reason = fmt.Sprintf("识别到启明星模式，置信度：%s，强度：%s",
+			pattern.Confidence.Decimal.String(), pattern.Strength)
+	case "黄昏星":
+		predictType = "SELL"
+		probability = decimal.NewFromFloat(0.65)
+		reason = fmt.Sprintf("识别到黄昏星模式，置信度：%s，强度：%s",
+			pattern.Confidence.Decimal.String(), pattern.Strength)
+	default:
+		return nil
+	}
+
+	// 根据置信度调整概率
+	if pattern.Confidence.Decimal.GreaterThan(decimal.Zero) {
+		confidenceFactor := pattern.Confidence.Decimal.Mul(decimal.NewFromFloat(0.2))
+		probability = probability.Add(confidenceFactor)
+		// 限制概率不超过0.95
+		if probability.GreaterThan(decimal.NewFromFloat(0.95)) {
+			probability = decimal.NewFromFloat(0.95)
+		}
+	}
+
+	return &models.TradingPointPrediction{
+		Type:        predictType,
+		Price:       models.NewJSONDecimal(currentPrice),
+		Date:        time.Now().AddDate(0, 0, 1).Format("20060102"), // 图形模式预测明天
+		Probability: models.NewJSONDecimal(probability),
+		Reason:      reason,
+		Indicators:  []string{fmt.Sprintf("图形模式:%s", pattern.Pattern)},
+		SignalDate:  pattern.TradeDate, // 信号基于识别到模式的日期
+	}
+}
+
+// predictFromVolumePricePattern 基于量价模式生成预测
+func (s *PredictionService) predictFromVolumePricePattern(pattern models.VolumePricePattern, currentPrice decimal.Decimal) *models.TradingPointPrediction {
+	var predictType string
+	var probability decimal.Decimal
+	var reason string
+
+	switch pattern.Pattern {
+	case "量价齐升":
+		predictType = "BUY"
+		probability = decimal.NewFromFloat(0.65)
+		reason = fmt.Sprintf("识别到量价齐升模式，置信度：%s，强度：%s",
+			pattern.Confidence.Decimal.String(), pattern.Strength)
+	case "量价背离":
+		predictType = "SELL"
+		probability = decimal.NewFromFloat(0.60)
+		reason = fmt.Sprintf("识别到量价背离模式，置信度：%s，强度：%s",
+			pattern.Confidence.Decimal.String(), pattern.Strength)
+	case "放量突破":
+		predictType = "BUY"
+		probability = decimal.NewFromFloat(0.70)
+		reason = fmt.Sprintf("识别到放量突破模式，置信度：%s，强度：%s",
+			pattern.Confidence.Decimal.String(), pattern.Strength)
+	default:
+		return nil
+	}
+
+	// 根据置信度调整概率
+	if pattern.Confidence.Decimal.GreaterThan(decimal.Zero) {
+		confidenceFactor := pattern.Confidence.Decimal.Mul(decimal.NewFromFloat(0.15))
+		probability = probability.Add(confidenceFactor)
+		// 限制概率不超过0.90
+		if probability.GreaterThan(decimal.NewFromFloat(0.90)) {
+			probability = decimal.NewFromFloat(0.90)
+		}
+	}
+
+	return &models.TradingPointPrediction{
+		Type:        predictType,
+		Price:       models.NewJSONDecimal(currentPrice),
+		Date:        time.Now().AddDate(0, 0, 1).Format("20060102"), // 量价模式预测明天
+		Probability: models.NewJSONDecimal(probability),
+		Reason:      reason,
+		Indicators:  []string{fmt.Sprintf("量价模式:%s", pattern.Pattern)},
+		SignalDate:  pattern.TradeDate, // 信号基于识别到模式的日期
+	}
+}
+
+// sortPredictionsByConfidenceAndStrength 对预测结果进行排序
+// 排序规则：1. 信号日期（最新的在前） 2. 强度等级（STRONG > MEDIUM > WEAK） 3. 置信度（高到低） 4. 概率（高到低）
+func (s *PredictionService) sortPredictionsByConfidenceAndStrength(predictions []models.TradingPointPrediction) {
+	// 定义强度等级权重
+	strengthWeight := map[string]int{
+		"STRONG": 3,
+		"MEDIUM": 2,
+		"WEAK":   1,
+	}
+
+	// 使用sort.Slice进行排序
+	sort.Slice(predictions, func(i, j int) bool {
+		pred1 := predictions[i]
+		pred2 := predictions[j]
+
+		// 首先按信号日期排序（最新的在前）
+		if pred1.SignalDate != pred2.SignalDate {
+			return pred1.SignalDate > pred2.SignalDate
+		}
+
+		// 日期相同时，按强度等级排序
+		strength1 := s.extractStrengthFromReason(pred1.Reason)
+		strength2 := s.extractStrengthFromReason(pred2.Reason)
+
+		if strengthWeight[strength1] != strengthWeight[strength2] {
+			return strengthWeight[strength1] > strengthWeight[strength2]
+		}
+
+		// 强度等级相同时，按置信度排序
+		confidence1 := s.extractConfidenceFromReason(pred1.Reason)
+		confidence2 := s.extractConfidenceFromReason(pred2.Reason)
+
+		if !confidence1.Equal(confidence2) {
+			return confidence1.GreaterThan(confidence2)
+		}
+
+		// 置信度相同时，按概率排序
+		return pred1.Probability.Decimal.GreaterThan(pred2.Probability.Decimal)
+	})
+}
+
+// extractStrengthFromReason 从reason字段中提取强度等级
+func (s *PredictionService) extractStrengthFromReason(reason string) string {
+	if reason == "" {
+		return "WEAK"
+	}
+
+	// 查找强度等级
+	if strings.Contains(reason, "强度：STRONG") {
+		return "STRONG"
+	} else if strings.Contains(reason, "强度：MEDIUM") {
+		return "MEDIUM"
+	} else if strings.Contains(reason, "强度：WEAK") {
+		return "WEAK"
+	}
+
+	return "WEAK" // 默认值
+}
+
+// extractConfidenceFromReason 从reason字段中提取置信度
+func (s *PredictionService) extractConfidenceFromReason(reason string) decimal.Decimal {
+	if reason == "" {
+		return decimal.Zero
+	}
+
+	// 查找置信度值
+	confidencePattern := regexp.MustCompile(`置信度：([\d.]+)`)
+	matches := confidencePattern.FindStringSubmatch(reason)
+	if len(matches) > 1 {
+		if confidence, err := decimal.NewFromString(matches[1]); err == nil {
+			return confidence
+		}
+	}
+
+	return decimal.Zero
 }

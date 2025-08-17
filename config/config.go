@@ -33,6 +33,9 @@ type Config struct {
 	CacheMaxAge          time.Duration // 最大缓存时间
 	CacheCleanupInterval time.Duration // 清理间隔
 	CacheEnabled         bool          // 是否启用缓存
+
+	// 模式预测配置
+	PatternPredictionDays int // 模式预测的时间窗口（天数），默认14天（两周）
 }
 
 // Load 加载配置
@@ -56,6 +59,9 @@ func Load() *Config {
 		CacheMaxAge:          getDurationEnv("CACHE_MAX_AGE", 24*time.Hour),            // 最大24小时
 		CacheCleanupInterval: getDurationEnv("CACHE_CLEANUP_INTERVAL", 10*time.Minute), // 每10分钟清理
 		CacheEnabled:         getBoolEnv("CACHE_ENABLED", true),                        // 默认启用缓存
+
+		// 模式预测配置 - 默认值
+		PatternPredictionDays: getIntEnv("PATTERN_PREDICTION_DAYS", 14), // 默认14天
 	}
 
 	// 验证必要配置
@@ -71,6 +77,7 @@ func Load() *Config {
 	if config.DataSourceType == "tushare" {
 		log.Printf("Tushare Token: %s", maskToken(config.TushareToken))
 	}
+	log.Printf("模式预测时间窗口: %d天", config.PatternPredictionDays)
 	log.Printf("=====================")
 
 	return config
@@ -102,6 +109,17 @@ func getDurationEnv(key string, defaultValue time.Duration) time.Duration {
 			return parsed
 		}
 		log.Printf("警告: 无法解析环境变量 %s=%s 为时间间隔，使用默认值 %v", key, value, defaultValue)
+	}
+	return defaultValue
+}
+
+// getIntEnv 获取整数类型环境变量
+func getIntEnv(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if parsed, err := strconv.Atoi(value); err == nil {
+			return parsed
+		}
+		log.Printf("警告: 无法解析环境变量 %s=%s 为整数，使用默认值 %d", key, value, defaultValue)
 	}
 	return defaultValue
 }

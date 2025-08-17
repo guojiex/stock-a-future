@@ -388,6 +388,32 @@ class DisplayModule {
     }
 
     /**
+     * 格式化日期
+     */
+    formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        
+        try {
+            // 处理 YYYYMMDD 格式
+            if (dateString.length === 8) {
+                const year = dateString.substring(0, 4);
+                const month = dateString.substring(4, 6);
+                const day = dateString.substring(6, 8);
+                return `${year}-${month}-${day}`;
+            }
+            
+            // 处理其他格式，尝试直接解析
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return dateString;
+            
+            return date.toLocaleDateString('zh-CN');
+        } catch (error) {
+            console.warn('[Display] 日期格式化失败:', dateString, error);
+            return dateString;
+        }
+    }
+
+    /**
      * 创建预测数据显示
      */
     createPredictionsDisplay(data) {
@@ -406,19 +432,50 @@ class DisplayModule {
         if (data.predictions && data.predictions.length > 0) {
             predictionsHTML += '<div class="predictions-list">';
             
-            data.predictions.forEach(prediction => {
+            data.predictions.forEach((prediction, index) => {
                 const typeClass = prediction.type.toLowerCase();
                 const icon = prediction.type.toLowerCase() === 'buy' ? '📈' : '📉';
                 const typeText = prediction.type.toLowerCase() === 'buy' ? '买入' : '卖出';
                 
+                // 提取强度等级
+                const strength = this.extractStrengthFromReason(prediction.reason);
+                const isWeak = strength === 'WEAK';
+                const isCollapsed = isWeak ? 'collapsed' : '';
+                // 修复图标逻辑：🔽表示折叠状态，🔼表示展开状态
+                const collapseIcon = isWeak ? '🔽' : '🔼';
+                
                 predictionsHTML += `
-                    <div class="prediction-item ${typeClass} slide-in">
-                        <div class="prediction-icon">${icon}</div>
-                        <div class="prediction-content">
-                            <div class="prediction-type">${typeText}信号</div>
-                            <div class="prediction-price">¥${prediction.price?.toFixed(2) || 'N/A'}</div>
-                            <div class="prediction-probability">概率: ${(prediction.probability * 100).toFixed(1)}%</div>
-                            <div class="prediction-reason">${prediction.reason || '基于技术指标分析'}</div>
+                    <div class="prediction-item ${typeClass} slide-in ${isCollapsed}" data-index="${index}">
+                        <div class="prediction-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                            <div class="prediction-icon">${icon}</div>
+                            <div class="prediction-content">
+                                <div class="prediction-type">
+                                    ${typeText}信号
+                                    <span class="info-icon" title="买卖信号类型：BUY=买入，SELL=卖出">ℹ️</span>
+                                </div>
+                                <div class="prediction-price">
+                                    ¥${prediction.price?.toFixed(2) || 'N/A'}
+                                    <span class="info-icon" title="预测的目标价格">ℹ️</span>
+                                </div>
+                                <div class="prediction-signal-date">
+                                    📅 ${this.formatDate(prediction.signal_date) || 'N/A'}
+                                    <span class="info-icon" title="信号产生的日期">ℹ️</span>
+                                </div>
+                            </div>
+                            <div class="collapse-toggle">
+                                <span class="collapse-icon">${collapseIcon}</span>
+                                <span class="strength-badge ${strength.toLowerCase()}">${strength}</span>
+                            </div>
+                        </div>
+                        <div class="prediction-details">
+                            <div class="prediction-probability">
+                                概率: ${(prediction.probability * 100).toFixed(1)}%
+                                <span class="info-icon" title="预测成功的概率，基于技术指标置信度和历史表现">ℹ️</span>
+                            </div>
+                            <div class="prediction-reason">
+                                ${prediction.reason || '基于技术指标分析'}
+                                <span class="info-icon" title="预测依据：包含识别的技术模式、置信度和强度等级">ℹ️</span>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -437,6 +494,23 @@ class DisplayModule {
         }
         
         return predictionsHTML;
+    }
+
+    /**
+     * 从预测理由中提取强度等级
+     */
+    extractStrengthFromReason(reason) {
+        if (!reason) return 'WEAK';
+        
+        if (reason.includes('强度：STRONG')) {
+            return 'STRONG';
+        } else if (reason.includes('强度：MEDIUM')) {
+            return 'MEDIUM';
+        } else if (reason.includes('强度：WEAK')) {
+            return 'WEAK';
+        }
+        
+        return 'WEAK'; // 默认值
     }
 }
 

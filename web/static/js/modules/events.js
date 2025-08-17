@@ -479,8 +479,7 @@ class EventsModule {
                 const loadingDiv = document.createElement('div');
                 loadingDiv.className = 'tab-loading';
                 loadingDiv.innerHTML = `
-                    <div class="loading-spinner">
-                        <div class="spinner"></div>
+                    <div class="loading-content">
                         <p>正在加载${this.getTabDisplayName(tabName)}数据...</p>
                         <div class="loading-dots">
                             <span></span>

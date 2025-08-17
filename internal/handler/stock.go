@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"stock-a-future/config"
 	"stock-a-future/internal/client"
 	"stock-a-future/internal/indicators"
 	"stock-a-future/internal/models"
@@ -27,6 +28,7 @@ type StockHandler struct {
 	localStockService *service.LocalStockService
 	dailyCacheService *service.DailyCacheService
 	favoriteService   *service.FavoriteService
+	config            *config.Config // 添加配置字段
 }
 
 // NewStockHandler 创建股票处理器
@@ -38,6 +40,7 @@ func NewStockHandler(dataSourceClient client.DataSourceClient, cacheService *ser
 		localStockService: service.NewLocalStockService("data"),
 		dailyCacheService: cacheService,
 		favoriteService:   favoriteService,
+		config:            config.Load(), // 初始化配置
 	}
 }
 
@@ -255,7 +258,6 @@ func (h *StockHandler) GetIndicators(w http.ResponseWriter, r *http.Request) {
 	macdResults := h.calculator.CalculateMACD(data)
 	if len(macdResults) > 0 {
 		indicators.MACD = &macdResults[len(macdResults)-1]
-		log.Printf("[GetIndicators] MACD计算完成 - 股票代码: %s, 最新值: %v", stockCode, indicators.MACD)
 	}
 
 	// 计算RSI
@@ -301,8 +303,8 @@ func (h *StockHandler) GetPredictions(w http.ResponseWriter, r *http.Request) {
 
 	stockCode := pathParts[3] // /api/v1/stocks/{code}/predictions
 
-	// 获取足够的历史数据用于预测（120天）
-	startDate := time.Now().AddDate(0, 0, -120).Format("20060102")
+	// 获取足够的历史数据用于预测（使用配置的时间窗口）
+	startDate := time.Now().AddDate(0, 0, -h.config.PatternPredictionDays).Format("20060102")
 	endDate := time.Now().Format("20060102")
 
 	// 记录请求参数

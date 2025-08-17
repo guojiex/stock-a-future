@@ -9,6 +9,7 @@ import (
 	"stock-a-future/internal/client"
 	"stock-a-future/internal/handler"
 	"stock-a-future/internal/service"
+	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -89,14 +90,18 @@ func main() {
 		log.Fatalf("创建收藏服务失败: %v", err)
 	}
 
+	// 创建图形识别服务
+	patternService := service.NewPatternService(dataSourceClient)
+
 	// 创建处理器
 	stockHandler := handler.NewStockHandler(dataSourceClient, cacheService, favoriteService)
+	patternHandler := handler.NewPatternHandler(patternService)
 
 	// 创建路由器
 	mux := http.NewServeMux()
 
 	// 注册路由
-	registerRoutes(mux, stockHandler)
+	registerRoutes(mux, stockHandler, patternHandler)
 
 	// 添加静态文件服务
 	registerStaticRoutes(mux)
@@ -120,6 +125,12 @@ func main() {
 	log.Printf("  添加收藏: POST http://%s/api/v1/favorites", addr)
 	log.Printf("  删除收藏: DELETE http://%s/api/v1/favorites/{id}", addr)
 	log.Printf("  检查收藏: GET http://%s/api/v1/favorites/check/{code}", addr)
+	log.Printf("  图形识别: GET http://%s/api/v1/patterns/recognize?ts_code=000001.SZ", addr)
+	log.Printf("  图形搜索: POST http://%s/api/v1/patterns/search", addr)
+	log.Printf("  图形摘要: GET http://%s/api/v1/patterns/summary?ts_code=000001.SZ", addr)
+	log.Printf("  最近信号: GET http://%s/api/v1/patterns/recent?ts_code=000001.SZ", addr)
+	log.Printf("  可用图形: GET http://%s/api/v1/patterns/available", addr)
+	log.Printf("  图形统计: GET http://%s/api/v1/patterns/statistics?ts_code=000001.SZ", addr)
 	if cfg.CacheEnabled {
 		log.Printf("  缓存统计: GET http://%s/api/v1/cache/stats", addr)
 		log.Printf("  清空缓存: DELETE http://%s/api/v1/cache", addr)
@@ -133,7 +144,7 @@ func main() {
 }
 
 // registerRoutes 注册路由
-func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler) {
+func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patternHandler *handler.PatternHandler) {
 	// 健康检查
 	mux.HandleFunc("GET /api/v1/health", stockHandler.GetHealthStatus)
 
@@ -166,6 +177,14 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler) {
 	mux.HandleFunc("POST /api/v1/groups", stockHandler.CreateGroup)
 	mux.HandleFunc("PUT /api/v1/groups/{id}", stockHandler.UpdateGroup)
 	mux.HandleFunc("DELETE /api/v1/groups/{id}", stockHandler.DeleteGroup)
+
+	// 图形识别API
+	mux.HandleFunc("GET /api/v1/patterns/recognize", patternHandler.RecognizePatterns)
+	mux.HandleFunc("POST /api/v1/patterns/search", patternHandler.SearchPatterns)
+	mux.HandleFunc("GET /api/v1/patterns/summary", patternHandler.GetPatternSummary)
+	mux.HandleFunc("GET /api/v1/patterns/recent", patternHandler.GetRecentSignals)
+	mux.HandleFunc("GET /api/v1/patterns/available", patternHandler.GetAvailablePatterns)
+	mux.HandleFunc("GET /api/v1/patterns/statistics", patternHandler.GetPatternStatistics)
 
 }
 
@@ -246,6 +265,12 @@ func withLogging(next http.Handler) http.Handler {
 			return
 		}
 
+		// 跳过静态资源请求的日志记录
+		if isStaticResource(r.URL.Path) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		// 记录请求开始
 		log.Printf("[Middleware] %s %s %s - 开始时间: %v",
 			r.Method, r.URL.Path, r.RemoteAddr, startTime.Format("15:04:05.000"))
@@ -267,6 +292,36 @@ func withLogging(next http.Handler) http.Handler {
 		log.Printf("[Middleware] %s %s %s - 状态码: %d, 响应时间: %v",
 			r.Method, r.URL.Path, r.RemoteAddr, wrappedWriter.statusCode, responseTime)
 	})
+}
+
+// isStaticResource 判断是否为静态资源请求
+func isStaticResource(path string) bool {
+	// 静态资源文件扩展名
+	staticExtensions := []string{
+		".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".ico", ".svg",
+		".woff", ".woff2", ".ttf", ".eot", ".pdf", ".txt", ".xml",
+	}
+
+	// 检查路径是否包含静态资源扩展名
+	for _, ext := range staticExtensions {
+		if strings.HasSuffix(path, ext) {
+			return true
+		}
+	}
+
+	// 检查是否为常见的静态资源路径
+	staticPaths := []string{
+		"/js/", "/css/", "/images/", "/fonts/", "/static/", "/assets/",
+		"/favicon.ico", "/robots.txt", "/sitemap.xml",
+	}
+
+	for _, staticPath := range staticPaths {
+		if strings.HasPrefix(path, staticPath) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // responseWriter 包装ResponseWriter以捕获状态码

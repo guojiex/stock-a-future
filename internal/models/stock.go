@@ -136,6 +136,7 @@ type TradingPointPrediction struct {
 	Probability JSONDecimal `json:"probability"` // 概率
 	Reason      string      `json:"reason"`      // 预测理由
 	Indicators  []string    `json:"indicators"`  // 相关指标
+	SignalDate  string      `json:"signal_date"` // 信号产生的日期（基于哪一天的数据）
 }
 
 // APIResponse 通用API响应结构
@@ -248,4 +249,80 @@ type FavoriteSignal struct {
 type FavoritesSignalsResponse struct {
 	Total   int              `json:"total"`
 	Signals []FavoriteSignal `json:"signals"`
+}
+
+// CandlestickPattern 蜡烛图模式识别结果
+type CandlestickPattern struct {
+	TSCode      string      `json:"ts_code"`      // 股票代码
+	TradeDate   string      `json:"trade_date"`   // 交易日期
+	Pattern     string      `json:"pattern"`      // 图形名称
+	Signal      string      `json:"signal"`       // 买卖信号
+	Confidence  JSONDecimal `json:"confidence"`   // 置信度
+	Description string      `json:"description"`  // 图形描述
+	Strength    string      `json:"strength"`     // 信号强度 (STRONG, MEDIUM, WEAK)
+	Volume      JSONDecimal `json:"volume"`       // 成交量
+	PriceChange JSONDecimal `json:"price_change"` // 价格变化
+}
+
+// VolumePricePattern 量价图形识别结果
+type VolumePricePattern struct {
+	TSCode      string      `json:"ts_code"`      // 股票代码
+	TradeDate   string      `json:"trade_date"`   // 交易日期
+	Pattern     string      `json:"pattern"`      // 图形名称
+	Signal      string      `json:"signal"`       // 买卖信号
+	Confidence  JSONDecimal `json:"confidence"`   // 置信度
+	Description string      `json:"description"`  // 图形描述
+	Strength    string      `json:"strength"`     // 信号强度
+	Volume      JSONDecimal `json:"volume"`       // 成交量
+	PriceChange JSONDecimal `json:"price_change"` // 价格变化
+	VolumeRatio JSONDecimal `json:"volume_ratio"` // 量比
+}
+
+// PatternRecognitionResult 图形识别结果
+type PatternRecognitionResult struct {
+	TSCode            string               `json:"ts_code"`            // 股票代码
+	TradeDate         string               `json:"trade_date"`         // 交易日期
+	Candlestick       []CandlestickPattern `json:"candlestick"`        // 蜡烛图模式
+	VolumePrice       []VolumePricePattern `json:"volume_price"`       // 量价图形
+	CombinedSignal    string               `json:"combined_signal"`    // 综合信号
+	OverallConfidence JSONDecimal          `json:"overall_confidence"` // 综合置信度
+	RiskLevel         string               `json:"risk_level"`         // 风险等级
+}
+
+// PatternSearchRequest 图形搜索请求
+type PatternSearchRequest struct {
+	TSCode        string   `json:"ts_code"`        // 股票代码
+	StartDate     string   `json:"start_date"`     // 开始日期
+	EndDate       string   `json:"end_date"`       // 结束日期
+	Patterns      []string `json:"patterns"`       // 要搜索的图形类型
+	MinConfidence float64  `json:"min_confidence"` // 最小置信度
+}
+
+// PatternSearchResponse 图形搜索响应
+type PatternSearchResponse struct {
+	Total   int                        `json:"total"`
+	Results []PatternRecognitionResult `json:"results"`
+}
+
+// PatternSummary 图形模式摘要
+type PatternSummary struct {
+	TSCode    string         `json:"ts_code"`    // 股票代码
+	Period    int            `json:"period"`     // 统计周期（天数）
+	StartDate string         `json:"start_date"` // 开始日期
+	EndDate   string         `json:"end_date"`   // 结束日期
+	Patterns  map[string]int `json:"patterns"`   // 各种图形模式统计
+	Signals   map[string]int `json:"signals"`    // 各种信号统计
+	UpdatedAt time.Time      `json:"updated_at"` // 更新时间
+}
+
+// RecentSignal 最近的图形信号
+type RecentSignal struct {
+	TSCode      string      `json:"ts_code"`     // 股票代码
+	TradeDate   string      `json:"trade_date"`  // 交易日期
+	Pattern     string      `json:"pattern"`     // 图形名称
+	Signal      string      `json:"signal"`      // 买卖信号
+	Confidence  JSONDecimal `json:"confidence"`  // 置信度
+	Description string      `json:"description"` // 图形描述
+	Strength    string      `json:"strength"`    // 信号强度
+	Type        string      `json:"type"`        // 信号类型
 }
