@@ -237,18 +237,18 @@ func withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
 
-		// 对health接口进行抽样记录，每100次请求只记录1次
+		// 健康检查请求不记录日志
 		if r.URL.Path == "/api/v1/health" {
-			count := atomic.AddInt64(&healthCheckCounter, 1)
-			if count%100 == 1 { // 第1次、第101次、第201次...记录日志
-				log.Printf("[Middleware] %s %s %s (健康检查 #%d) - 开始时间: %v",
-					r.Method, r.URL.Path, r.RemoteAddr, count, startTime.Format("15:04:05.000"))
-			}
-		} else {
-			// 非health接口正常记录日志
-			log.Printf("[Middleware] %s %s %s - 开始时间: %v",
-				r.Method, r.URL.Path, r.RemoteAddr, startTime.Format("15:04:05.000"))
+			atomic.AddInt64(&healthCheckCounter, 1)
+			// 包装ResponseWriter以捕获状态码
+			wrappedWriter := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+			next.ServeHTTP(wrappedWriter, r)
+			return
 		}
+
+		// 记录请求开始
+		log.Printf("[Middleware] %s %s %s - 开始时间: %v",
+			r.Method, r.URL.Path, r.RemoteAddr, startTime.Format("15:04:05.000"))
 
 		// 包装ResponseWriter以捕获状态码
 		wrappedWriter := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
@@ -258,17 +258,14 @@ func withLogging(next http.Handler) http.Handler {
 		// 计算响应时间
 		responseTime := time.Since(startTime)
 
-		// 记录响应信息
-		if r.URL.Path == "/api/v1/health" {
-			count := atomic.LoadInt64(&healthCheckCounter)
-			if count%100 == 1 { // 只记录抽样请求的响应
-				log.Printf("[Middleware] %s %s %s (健康检查 #%d) - 状态码: %d, 响应时间: %v",
-					r.Method, r.URL.Path, r.RemoteAddr, count, wrappedWriter.statusCode, responseTime)
-			}
-		} else {
-			log.Printf("[Middleware] %s %s %s - 状态码: %d, 响应时间: %v",
-				r.Method, r.URL.Path, r.RemoteAddr, wrappedWriter.statusCode, responseTime)
+		// 对于304状态码不记录日志
+		if wrappedWriter.statusCode == http.StatusNotModified {
+			return
 		}
+
+		// 记录响应信息
+		log.Printf("[Middleware] %s %s %s - 状态码: %d, 响应时间: %v",
+			r.Method, r.URL.Path, r.RemoteAddr, wrappedWriter.statusCode, responseTime)
 	})
 }
 
