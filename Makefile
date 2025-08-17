@@ -17,7 +17,7 @@ STOCKLIST_PATH=./bin/$(STOCKLIST_BINARY)
 STOCKLIST_MAIN_PATH=./cmd/stocklist
 
 # 默认目标
-.PHONY: all build clean test deps run help stocklist fetch-stocks fetch-sse dev fmt vet tools lint env stop kill status restart test-tushare test-aktools aktools-test curl
+.PHONY: all build clean test deps run help stocklist fetch-stocks fetch-sse dev fmt vet tools lint env stop kill status restart test-tushare test-aktools aktools-test curl db-tools migrate
 
 all: clean deps build
 
@@ -60,6 +60,20 @@ curl:
 	@mkdir -p bin
 	$(GOBUILD) -o ./bin/curl ./cmd/curl
 	@echo "Curl工具构建完成: ./bin/curl"
+
+# 构建数据库工具
+db-tools:
+	@echo "构建数据库工具..."
+	@mkdir -p bin
+	$(GOBUILD) -o ./bin/db-tools ./cmd/db-tools
+	@echo "数据库工具构建完成: ./bin/db-tools"
+
+# 构建数据迁移工具
+migrate:
+	@echo "构建数据迁移工具..."
+	@mkdir -p bin
+	$(GOBUILD) -o ./bin/migrate ./cmd/migrate
+	@echo "数据迁移工具构建完成: ./bin/migrate"
 
 # 清理构建文件
 clean:
@@ -206,6 +220,8 @@ help:
 	@echo "  make test-aktools - 测试AKTools API连接"
 	@echo "  make aktools-test - 构建AKTools测试工具"
 	@echo "  make curl         - 构建内置Curl工具"
+	@echo "  make db-tools     - 构建数据库管理工具"
+	@echo "  make migrate      - 构建数据迁移工具"
 	@echo ""
 	@echo "服务器管理:"
 	@echo "  make stop        - 停止运行中的服务器"

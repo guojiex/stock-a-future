@@ -84,7 +84,10 @@ func main() {
 	}
 
 	// 创建收藏服务
-	favoriteService := service.NewFavoriteService("data")
+	favoriteService, err := service.NewFavoriteService("data")
+	if err != nil {
+		log.Fatalf("创建收藏服务失败: %v", err)
+	}
 
 	// 创建处理器
 	stockHandler := handler.NewStockHandler(dataSourceClient, cacheService, favoriteService)

@@ -1,0 +1,295 @@
+package service
+
+import (
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"stock-a-future/internal/models"
+	"time"
+
+	_ "modernc.org/sqlite"
+)
+
+// DatabaseService 数据库服务
+type DatabaseService struct {
+	db *sql.DB
+}
+
+// NewDatabaseService 创建数据库服务
+func NewDatabaseService(dataDir string) (*DatabaseService, error) {
+	// 确保数据目录存在
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		return nil, fmt.Errorf("创建数据目录失败: %v", err)
+	}
+
+	// 数据库文件路径
+	dbPath := filepath.Join(dataDir, "stock_future.db")
+
+	// 连接数据库
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("连接数据库失败: %v", err)
+	}
+
+	// 测试连接
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("数据库连接测试失败: %v", err)
+	}
+
+	// 设置连接池参数
+	db.SetMaxOpenConns(1) // SQLite只支持一个连接
+	db.SetMaxIdleConns(1)
+	db.SetConnMaxLifetime(time.Hour)
+
+	service := &DatabaseService{db: db}
+
+	// 初始化数据库表
+	if err := service.initTables(); err != nil {
+		return nil, fmt.Errorf("初始化数据库表失败: %v", err)
+	}
+
+	return service, nil
+}
+
+// Close 关闭数据库连接
+func (s *DatabaseService) Close() error {
+	if s.db != nil {
+		return s.db.Close()
+	}
+	return nil
+}
+
+// GetDB 获取数据库连接
+func (s *DatabaseService) GetDB() *sql.DB {
+	return s.db
+}
+
+// initTables 初始化数据库表
+func (s *DatabaseService) initTables() error {
+	// 创建收藏分组表
+	createGroupsTable := `
+	CREATE TABLE IF NOT EXISTS favorite_groups (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL,
+		color TEXT NOT NULL,
+		sort_order INTEGER DEFAULT 0,
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL
+	);`
+
+	// 创建收藏股票表
+	createStocksTable := `
+	CREATE TABLE IF NOT EXISTS favorite_stocks (
+		id TEXT PRIMARY KEY,
+		ts_code TEXT NOT NULL,
+		name TEXT NOT NULL,
+		start_date TEXT,
+		end_date TEXT,
+		group_id TEXT NOT NULL,
+		sort_order INTEGER DEFAULT 0,
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL,
+		FOREIGN KEY (group_id) REFERENCES favorite_groups(id)
+	);`
+
+	// 创建索引
+	createIndexes := []string{
+		"CREATE INDEX IF NOT EXISTS idx_favorite_stocks_ts_code ON favorite_stocks(ts_code);",
+		"CREATE INDEX IF NOT EXISTS idx_favorite_stocks_group_id ON favorite_stocks(group_id);",
+		"CREATE INDEX IF NOT EXISTS idx_favorite_stocks_sort_order ON favorite_stocks(group_id, sort_order);",
+		"CREATE INDEX IF NOT EXISTS idx_favorite_groups_sort_order ON favorite_groups(sort_order);",
+	}
+
+	// 执行建表语句
+	statements := append([]string{createGroupsTable, createStocksTable}, createIndexes...)
+
+	for _, stmt := range statements {
+		if _, err := s.db.Exec(stmt); err != nil {
+			return fmt.Errorf("执行SQL语句失败: %v\nSQL: %s", err, stmt)
+		}
+	}
+
+	return nil
+}
+
+// MigrateFromJSON 从JSON文件迁移数据到数据库
+func (s *DatabaseService) MigrateFromJSON(favoritesPath, groupsPath string) error {
+	// 检查是否需要迁移
+	if err := s.checkMigrationNeeded(); err != nil {
+		return err
+	}
+
+	// 迁移分组数据
+	if err := s.migrateGroups(groupsPath); err != nil {
+		return fmt.Errorf("迁移分组数据失败: %v", err)
+	}
+
+	// 迁移收藏数据
+	if err := s.migrateFavorites(favoritesPath); err != nil {
+		return fmt.Errorf("迁移收藏数据失败: %v", err)
+	}
+
+	// 标记迁移完成
+	if err := s.markMigrationComplete(); err != nil {
+		return fmt.Errorf("标记迁移完成失败: %v", err)
+	}
+
+	return nil
+}
+
+// checkMigrationNeeded 检查是否需要迁移
+func (s *DatabaseService) checkMigrationNeeded() error {
+	// 检查数据库中是否已有数据
+	var count int
+	err := s.db.QueryRow("SELECT COUNT(*) FROM favorite_stocks").Scan(&count)
+	if err != nil {
+		return fmt.Errorf("检查数据库状态失败: %v", err)
+	}
+
+	if count > 0 {
+		// 数据库中已有数据，不需要迁移
+		return nil
+	}
+
+	return nil
+}
+
+// migrateGroups 迁移分组数据
+func (s *DatabaseService) migrateGroups(groupsPath string) error {
+	// 检查JSON文件是否存在
+	if _, err := os.Stat(groupsPath); os.IsNotExist(err) {
+		// 文件不存在，创建默认分组
+		return s.createDefaultGroup()
+	}
+
+	// 读取JSON文件
+	data, err := os.ReadFile(groupsPath)
+	if err != nil {
+		return fmt.Errorf("读取分组文件失败: %v", err)
+	}
+
+	// 解析JSON数据
+	var groups []*models.FavoriteGroup
+	if err := json.Unmarshal(data, &groups); err != nil {
+		return fmt.Errorf("解析分组数据失败: %v", err)
+	}
+
+	// 插入到数据库
+	for _, group := range groups {
+		if err := s.insertGroup(group); err != nil {
+			return fmt.Errorf("插入分组失败: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// migrateFavorites 迁移收藏数据
+func (s *DatabaseService) migrateFavorites(favoritesPath string) error {
+	// 检查JSON文件是否存在
+	if _, err := os.Stat(favoritesPath); os.IsNotExist(err) {
+		// 文件不存在，无需迁移
+		return nil
+	}
+
+	// 读取JSON文件
+	data, err := os.ReadFile(favoritesPath)
+	if err != nil {
+		return fmt.Errorf("读取收藏文件失败: %v", err)
+	}
+
+	// 解析JSON数据
+	var favorites []*models.FavoriteStock
+	if err := json.Unmarshal(data, &favorites); err != nil {
+		return fmt.Errorf("解析收藏数据失败: %v", err)
+	}
+
+	// 插入到数据库
+	for _, favorite := range favorites {
+		if err := s.insertFavorite(favorite); err != nil {
+			return fmt.Errorf("插入收藏失败: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// createDefaultGroup 创建默认分组
+func (s *DatabaseService) createDefaultGroup() error {
+	defaultGroup := &models.FavoriteGroup{
+		ID:        "default",
+		Name:      "默认分组",
+		Color:     "#3b82f6",
+		SortOrder: 0,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	return s.insertGroup(defaultGroup)
+}
+
+// insertGroup 插入分组到数据库
+func (s *DatabaseService) insertGroup(group *models.FavoriteGroup) error {
+	stmt := `
+		INSERT OR REPLACE INTO favorite_groups 
+		(id, name, color, sort_order, created_at, updated_at) 
+		VALUES (?, ?, ?, ?, ?, ?)
+	`
+
+	_, err := s.db.Exec(stmt,
+		group.ID,
+		group.Name,
+		group.Color,
+		group.SortOrder,
+		group.CreatedAt,
+		group.UpdatedAt,
+	)
+
+	return err
+}
+
+// insertFavorite 插入收藏到数据库
+func (s *DatabaseService) insertFavorite(favorite *models.FavoriteStock) error {
+	stmt := `
+		INSERT OR REPLACE INTO favorite_stocks 
+		(id, ts_code, name, start_date, end_date, group_id, sort_order, created_at, updated_at) 
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+
+	_, err := s.db.Exec(stmt,
+		favorite.ID,
+		favorite.TSCode,
+		favorite.Name,
+		favorite.StartDate,
+		favorite.EndDate,
+		favorite.GroupID,
+		favorite.SortOrder,
+		favorite.CreatedAt,
+		favorite.UpdatedAt,
+	)
+
+	return err
+}
+
+// markMigrationComplete 标记迁移完成
+func (s *DatabaseService) markMigrationComplete() error {
+	// 创建迁移记录表
+	createMigrationTable := `
+	CREATE TABLE IF NOT EXISTS migrations (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		executed_at DATETIME NOT NULL
+	);`
+
+	if _, err := s.db.Exec(createMigrationTable); err != nil {
+		return fmt.Errorf("创建迁移记录表失败: %v", err)
+	}
+
+	// 记录迁移完成
+	stmt := `INSERT INTO migrations (name, executed_at) VALUES (?, ?)`
+	_, err := s.db.Exec(stmt, "json_to_sqlite_migration", time.Now())
+
+	return err
+}

@@ -3,9 +3,7 @@ package service
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"stock-a-future/internal/models"
 	"sync"
@@ -14,9 +12,7 @@ import (
 
 // FavoriteService 收藏股票服务
 type FavoriteService struct {
-	dataDir        string
-	filePath       string
-	groupsPath     string
+	db             *DatabaseService
 	favorites      map[string]*models.FavoriteStock
 	groups         map[string]*models.FavoriteGroup
 	mutex          sync.RWMutex
@@ -24,30 +20,45 @@ type FavoriteService struct {
 }
 
 // NewFavoriteService 创建收藏股票服务
-func NewFavoriteService(dataDir string) *FavoriteService {
-	// 在 data 目录下创建 favorites 子目录
-	favoritesDir := filepath.Join(dataDir, "favorites")
+func NewFavoriteService(dataDir string) (*FavoriteService, error) {
+	// 创建数据库服务
+	dbService, err := NewDatabaseService(dataDir)
+	if err != nil {
+		return nil, fmt.Errorf("创建数据库服务失败: %v", err)
+	}
 
 	service := &FavoriteService{
-		dataDir:        favoritesDir,
-		filePath:       filepath.Join(favoritesDir, "favorites.json"),
-		groupsPath:     filepath.Join(favoritesDir, "groups.json"),
+		db:             dbService,
 		favorites:      make(map[string]*models.FavoriteStock),
 		groups:         make(map[string]*models.FavoriteGroup),
 		defaultGroupID: "default",
 	}
 
-	// 确保收藏数据目录存在
-	if err := os.MkdirAll(favoritesDir, 0755); err != nil {
-		fmt.Printf("创建收藏数据目录失败: %v\n", err)
+	// 从JSON文件迁移数据到数据库
+	favoritesPath := filepath.Join(dataDir, "favorites", "favorites.json")
+	groupsPath := filepath.Join(dataDir, "favorites", "groups.json")
+	
+	if err := service.db.MigrateFromJSON(favoritesPath, groupsPath); err != nil {
+		return nil, fmt.Errorf("数据迁移失败: %v", err)
 	}
 
-	// 加载现有数据
-	service.loadFavorites()
-	service.loadGroups()
+	// 从数据库加载数据到内存
+	if err := service.loadFavoritesFromDB(); err != nil {
+		return nil, fmt.Errorf("从数据库加载收藏数据失败: %v", err)
+	}
+	if err := service.loadGroupsFromDB(); err != nil {
+		return nil, fmt.Errorf("从数据库加载分组数据失败: %v", err)
+	}
+
+	// 确保默认分组存在
 	service.ensureDefaultGroup()
 
-	return service
+	return service, nil
+}
+
+// Close 关闭服务
+func (s *FavoriteService) Close() error {
+	return s.db.Close()
 }
 
 // generateID 生成唯一ID
@@ -108,15 +119,13 @@ func (s *FavoriteService) AddFavorite(request *models.FavoriteStockRequest) (*mo
 		UpdatedAt: time.Now(),
 	}
 
+	// 保存到数据库
+	if err := s.saveFavoriteToDB(favorite); err != nil {
+		return nil, fmt.Errorf("保存收藏到数据库失败: %v", err)
+	}
+
 	// 添加到内存中
 	s.favorites[favorite.ID] = favorite
-
-	// 保存到文件
-	if err := s.saveFavorites(); err != nil {
-		// 如果保存失败，从内存中移除
-		delete(s.favorites, favorite.ID)
-		return nil, fmt.Errorf("保存收藏失败: %v", err)
-	}
 
 	fmt.Printf("成功添加收藏: ID=%s, 股票=%s, 分组=%s\n", favorite.ID, favorite.TSCode, favorite.GroupID)
 	return favorite, nil
@@ -165,11 +174,17 @@ func (s *FavoriteService) UpdateFavorite(id string, request *models.UpdateFavori
 	if request.EndDate != "" {
 		favorite.EndDate = request.EndDate
 	}
+	if request.GroupID != "" {
+		favorite.GroupID = request.GroupID
+	}
+	if request.SortOrder > 0 {
+		favorite.SortOrder = request.SortOrder
+	}
 	favorite.UpdatedAt = time.Now()
 
-	// 保存到文件
-	if err := s.saveFavorites(); err != nil {
-		return nil, fmt.Errorf("保存收藏更新失败: %v", err)
+	// 保存到数据库
+	if err := s.updateFavoriteInDB(favorite); err != nil {
+		return nil, fmt.Errorf("更新数据库失败: %v", err)
 	}
 
 	return favorite, nil
@@ -184,13 +199,13 @@ func (s *FavoriteService) DeleteFavorite(id string) error {
 		return fmt.Errorf("收藏记录不存在")
 	}
 
+	// 从数据库中删除
+	if err := s.deleteFavoriteFromDB(id); err != nil {
+		return fmt.Errorf("从数据库删除失败: %v", err)
+	}
+
 	// 从内存中删除
 	delete(s.favorites, id)
-
-	// 保存到文件
-	if err := s.saveFavorites(); err != nil {
-		return fmt.Errorf("保存删除操作失败: %v", err)
-	}
 
 	return nil
 }
@@ -221,67 +236,94 @@ func (s *FavoriteService) GetFavoriteCount() int {
 	return len(s.favorites)
 }
 
-// loadFavorites 从文件加载收藏数据
-func (s *FavoriteService) loadFavorites() error {
-	// 检查文件是否存在
-	if _, err := os.Stat(s.filePath); os.IsNotExist(err) {
-		return nil // 文件不存在是正常的，表示还没有收藏数据
-	}
+// === 数据库操作方法 ===
 
-	// 读取文件内容
-	data, err := os.ReadFile(s.filePath)
+// loadFavoritesFromDB 从数据库加载收藏数据
+func (s *FavoriteService) loadFavoritesFromDB() error {
+	query := `
+		SELECT id, ts_code, name, start_date, end_date, group_id, sort_order, created_at, updated_at
+		FROM favorite_stocks
+		ORDER BY group_id, sort_order
+	`
+
+	rows, err := s.db.GetDB().Query(query)
 	if err != nil {
-		return fmt.Errorf("读取收藏文件失败: %v", err)
+		return fmt.Errorf("查询收藏数据失败: %v", err)
 	}
+	defer rows.Close()
 
-	// 如果文件为空，直接返回
-	if len(data) == 0 {
-		return nil
-	}
-
-	// 解析JSON数据
-	var favoritesList []*models.FavoriteStock
-	if err := json.Unmarshal(data, &favoritesList); err != nil {
-		return fmt.Errorf("解析收藏数据失败: %v", err)
-	}
-
-	// 加载到内存中，并为旧数据设置默认值
 	s.favorites = make(map[string]*models.FavoriteStock)
-	for _, favorite := range favoritesList {
-		// 为旧数据设置默认分组和排序
-		if favorite.GroupID == "" {
-			favorite.GroupID = s.defaultGroupID
+	for rows.Next() {
+		var favorite models.FavoriteStock
+		err := rows.Scan(
+			&favorite.ID,
+			&favorite.TSCode,
+			&favorite.Name,
+			&favorite.StartDate,
+			&favorite.EndDate,
+			&favorite.GroupID,
+			&favorite.SortOrder,
+			&favorite.CreatedAt,
+			&favorite.UpdatedAt,
+		)
+		if err != nil {
+			return fmt.Errorf("扫描收藏数据失败: %v", err)
 		}
-		if favorite.SortOrder == 0 {
-			favorite.SortOrder = s.getNextSortOrderInGroup(favorite.GroupID)
-		}
-		s.favorites[favorite.ID] = favorite
+		s.favorites[favorite.ID] = &favorite
 	}
 
-	fmt.Printf("成功加载 %d 个收藏股票\n", len(s.favorites))
+	fmt.Printf("成功从数据库加载 %d 个收藏股票\n", len(s.favorites))
 	return nil
 }
 
-// saveFavorites 保存收藏数据到文件
-func (s *FavoriteService) saveFavorites() error {
-	// 转换为切片
-	favoritesList := make([]*models.FavoriteStock, 0, len(s.favorites))
-	for _, favorite := range s.favorites {
-		favoritesList = append(favoritesList, favorite)
-	}
+// saveFavoriteToDB 保存收藏到数据库
+func (s *FavoriteService) saveFavoriteToDB(favorite *models.FavoriteStock) error {
+	stmt := `
+		INSERT INTO favorite_stocks 
+		(id, ts_code, name, start_date, end_date, group_id, sort_order, created_at, updated_at) 
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
 
-	// 序列化为JSON
-	data, err := json.MarshalIndent(favoritesList, "", "  ")
-	if err != nil {
-		return fmt.Errorf("序列化收藏数据失败: %v", err)
-	}
+	_, err := s.db.GetDB().Exec(stmt,
+		favorite.ID,
+		favorite.TSCode,
+		favorite.Name,
+		favorite.StartDate,
+		favorite.EndDate,
+		favorite.GroupID,
+		favorite.SortOrder,
+		favorite.CreatedAt,
+		favorite.UpdatedAt,
+	)
 
-	// 写入文件
-	if err := os.WriteFile(s.filePath, data, 0644); err != nil {
-		return fmt.Errorf("写入收藏文件失败: %v", err)
-	}
+	return err
+}
 
-	return nil
+// updateFavoriteInDB 更新数据库中的收藏
+func (s *FavoriteService) updateFavoriteInDB(favorite *models.FavoriteStock) error {
+	stmt := `
+		UPDATE favorite_stocks 
+		SET start_date = ?, end_date = ?, group_id = ?, sort_order = ?, updated_at = ?
+		WHERE id = ?
+	`
+
+	_, err := s.db.GetDB().Exec(stmt,
+		favorite.StartDate,
+		favorite.EndDate,
+		favorite.GroupID,
+		favorite.SortOrder,
+		favorite.UpdatedAt,
+		favorite.ID,
+	)
+
+	return err
+}
+
+// deleteFavoriteFromDB 从数据库删除收藏
+func (s *FavoriteService) deleteFavoriteFromDB(id string) error {
+	stmt := `DELETE FROM favorite_stocks WHERE id = ?`
+	_, err := s.db.GetDB().Exec(stmt, id)
+	return err
 }
 
 // === 分组相关方法 ===
@@ -298,7 +340,7 @@ func (s *FavoriteService) ensureDefaultGroup() {
 			UpdatedAt: time.Now(),
 		}
 		s.groups[s.defaultGroupID] = defaultGroup
-		s.saveGroups()
+		s.saveGroupToDB(defaultGroup)
 	}
 }
 
@@ -348,15 +390,13 @@ func (s *FavoriteService) CreateGroup(request *models.CreateGroupRequest) (*mode
 		UpdatedAt: time.Now(),
 	}
 
+	// 保存到数据库
+	if err := s.saveGroupToDB(group); err != nil {
+		return nil, fmt.Errorf("保存分组到数据库失败: %v", err)
+	}
+
 	// 添加到内存中
 	s.groups[group.ID] = group
-
-	// 保存到文件
-	if err := s.saveGroups(); err != nil {
-		// 如果保存失败，从内存中移除
-		delete(s.groups, group.ID)
-		return nil, fmt.Errorf("保存分组失败: %v", err)
-	}
 
 	return group, nil
 }
@@ -410,9 +450,9 @@ func (s *FavoriteService) UpdateGroup(id string, request *models.UpdateGroupRequ
 	}
 	group.UpdatedAt = time.Now()
 
-	// 保存到文件
-	if err := s.saveGroups(); err != nil {
-		return nil, fmt.Errorf("保存分组更新失败: %v", err)
+	// 保存到数据库
+	if err := s.updateGroupInDB(group); err != nil {
+		return nil, fmt.Errorf("更新数据库失败: %v", err)
 	}
 
 	return group, nil
@@ -437,19 +477,21 @@ func (s *FavoriteService) DeleteGroup(id string) error {
 		if favorite.GroupID == id {
 			favorite.GroupID = s.defaultGroupID
 			favorite.UpdatedAt = time.Now()
+			
+			// 更新数据库
+			if err := s.updateFavoriteInDB(favorite); err != nil {
+				return fmt.Errorf("更新收藏分组失败: %v", err)
+			}
 		}
+	}
+
+	// 从数据库中删除分组
+	if err := s.deleteGroupFromDB(id); err != nil {
+		return fmt.Errorf("从数据库删除分组失败: %v", err)
 	}
 
 	// 从内存中删除分组
 	delete(s.groups, id)
-
-	// 保存分组和收藏数据
-	if err := s.saveGroups(); err != nil {
-		return fmt.Errorf("保存分组删除操作失败: %v", err)
-	}
-	if err := s.saveFavorites(); err != nil {
-		return fmt.Errorf("保存收藏数据失败: %v", err)
-	}
 
 	return nil
 }
@@ -465,61 +507,94 @@ func (s *FavoriteService) UpdateFavoritesOrder(request *models.UpdateFavoritesOr
 			favorite.GroupID = orderItem.GroupID
 			favorite.SortOrder = orderItem.SortOrder
 			favorite.UpdatedAt = time.Now()
+			
+			// 更新数据库
+			if err := s.updateFavoriteInDB(favorite); err != nil {
+				return fmt.Errorf("更新收藏排序失败: %v", err)
+			}
 		}
 	}
 
-	// 保存到文件
-	if err := s.saveFavorites(); err != nil {
-		return fmt.Errorf("保存排序更新失败: %v", err)
-	}
-
 	return nil
 }
 
-// loadGroups 从文件加载分组数据
-func (s *FavoriteService) loadGroups() error {
-	if _, err := os.Stat(s.groupsPath); os.IsNotExist(err) {
-		fmt.Printf("分组文件不存在，将创建默认分组: %s\n", s.groupsPath)
-		return nil
-	}
+// loadGroupsFromDB 从数据库加载分组数据
+func (s *FavoriteService) loadGroupsFromDB() error {
+	query := `
+		SELECT id, name, color, sort_order, created_at, updated_at
+		FROM favorite_groups
+		ORDER BY sort_order
+	`
 
-	data, err := os.ReadFile(s.groupsPath)
+	rows, err := s.db.GetDB().Query(query)
 	if err != nil {
-		return fmt.Errorf("读取分组文件失败: %v", err)
+		return fmt.Errorf("查询分组数据失败: %v", err)
+	}
+	defer rows.Close()
+
+	s.groups = make(map[string]*models.FavoriteGroup)
+	for rows.Next() {
+		var group models.FavoriteGroup
+		err := rows.Scan(
+			&group.ID,
+			&group.Name,
+			&group.Color,
+			&group.SortOrder,
+			&group.CreatedAt,
+			&group.UpdatedAt,
+		)
+		if err != nil {
+			return fmt.Errorf("扫描分组数据失败: %v", err)
+		}
+		s.groups[group.ID] = &group
 	}
 
-	var groupsList []*models.FavoriteGroup
-	if err := json.Unmarshal(data, &groupsList); err != nil {
-		return fmt.Errorf("解析分组数据失败: %v", err)
-	}
-
-	// 加载到内存
-	for _, group := range groupsList {
-		s.groups[group.ID] = group
-	}
-
-	fmt.Printf("成功加载 %d 个分组\n", len(s.groups))
+	fmt.Printf("成功从数据库加载 %d 个分组\n", len(s.groups))
 	return nil
 }
 
-// saveGroups 保存分组数据到文件
-func (s *FavoriteService) saveGroups() error {
-	// 转换为切片
-	groupsList := make([]*models.FavoriteGroup, 0, len(s.groups))
-	for _, group := range s.groups {
-		groupsList = append(groupsList, group)
-	}
+// saveGroupToDB 保存分组到数据库
+func (s *FavoriteService) saveGroupToDB(group *models.FavoriteGroup) error {
+	stmt := `
+		INSERT OR REPLACE INTO favorite_groups 
+		(id, name, color, sort_order, created_at, updated_at) 
+		VALUES (?, ?, ?, ?, ?, ?)
+	`
 
-	// 序列化为JSON
-	data, err := json.MarshalIndent(groupsList, "", "  ")
-	if err != nil {
-		return fmt.Errorf("序列化分组数据失败: %v", err)
-	}
+	_, err := s.db.GetDB().Exec(stmt,
+		group.ID,
+		group.Name,
+		group.Color,
+		group.SortOrder,
+		group.CreatedAt,
+		group.UpdatedAt,
+	)
 
-	// 写入文件
-	if err := os.WriteFile(s.groupsPath, data, 0644); err != nil {
-		return fmt.Errorf("写入分组文件失败: %v", err)
-	}
+	return err
+}
 
-	return nil
+// updateGroupInDB 更新数据库中的分组
+func (s *FavoriteService) updateGroupInDB(group *models.FavoriteGroup) error {
+	stmt := `
+		UPDATE favorite_groups 
+		SET name = ?, color = ?, sort_order = ?, updated_at = ?
+		WHERE id = ?
+	`
+
+	_, err := s.db.GetDB().Exec(stmt,
+		group.Name,
+		group.Color,
+		group.SortOrder,
+		group.UpdatedAt,
+		group.ID,
+	)
+
+	return err
+}
+
+// deleteGroupFromDB 从数据库删除分组
+func (s *FavoriteService) deleteGroupFromDB(id string) error {
+	stmt := `DELETE FROM favorite_groups WHERE id = ?`
+	_, err := s.db.GetDB().Exec(stmt, id)
+	return err
 }
