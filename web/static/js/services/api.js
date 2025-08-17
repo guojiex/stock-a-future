@@ -239,6 +239,59 @@ class ApiService {
     }
 
     /**
+     * 获取收藏股票信号汇总
+     */
+    async getFavoritesSignals() {
+        const endpoint = `/api/v1/favorites/signals`;
+        
+        // 记录请求详情
+        console.log(`[API] 获取收藏股票信号汇总请求:`, {
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint);
+            
+            // 记录响应详情
+            console.log(`[API] 收藏股票信号汇总响应:`, {
+                success: response.success,
+                hasData: !!response.data,
+                hasSignals: !!(response.data && response.data.signals),
+                signalsCount: response.data && response.data.signals ? response.data.signals.length : 0,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            if (response.success && response.data) {
+                return response.data;
+            } else {
+                // 详细记录错误信息
+                const errorDetails = {
+                    message: response.error || '获取信号汇总失败',
+                    response: response,
+                    timestamp: new Date().toISOString()
+                };
+                
+                console.error(`[API] 获取信号汇总失败 - 详细信息:`, errorDetails);
+                throw new Error(response.error || '获取信号汇总失败');
+            }
+        } catch (error) {
+            // 详细记录异常信息
+            const errorDetails = {
+                message: error.message,
+                endpoint,
+                errorType: error.constructor.name,
+                stack: error.stack,
+                timestamp: new Date().toISOString()
+            };
+            
+            console.error(`[API] 获取信号汇总异常 - 详细信息:`, errorDetails);
+            throw error;
+        }
+    }
+
+    /**
      * 搜索股票
      */
     async searchStocks(keyword, limit = 10) {

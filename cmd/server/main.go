@@ -159,6 +159,7 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler) {
 	mux.HandleFunc("PUT /api/v1/favorites/{id}", stockHandler.UpdateFavorite)
 	mux.HandleFunc("GET /api/v1/favorites/check/{code}", stockHandler.CheckFavorite)
 	mux.HandleFunc("PUT /api/v1/favorites/order", stockHandler.UpdateFavoritesOrder)
+	mux.HandleFunc("GET /api/v1/favorites/signals", stockHandler.GetFavoritesSignals)
 
 	// 分组管理API
 	mux.HandleFunc("GET /api/v1/groups", stockHandler.GetGroups)
@@ -209,7 +210,9 @@ func registerStaticRoutes(mux *http.ServeMux) {
 					"indicators": "GET /api/v1/stocks/{code}/indicators", 
 					"predictions": "GET /api/v1/stocks/{code}/predictions",
 					"stocks": "GET /api/v1/stocks",
-					"refresh": "POST /api/v1/stocks/refresh"
+					"refresh": "POST /api/v1/stocks/refresh",
+					"favorites": "GET /api/v1/favorites",
+					"favorites_signals": "GET /api/v1/favorites/signals"
 				},
 				"web_client": "GET /",
 				"example": "curl http://localhost:8080/api/v1/stocks/{code}/daily"
@@ -243,8 +246,8 @@ func withLogging(next http.Handler) http.Handler {
 			}
 		} else {
 			// 非health接口正常记录日志
-			log.Printf("[Middleware] %s %s %s - 开始时间: %v, 用户代理: %s",
-				r.Method, r.URL.Path, r.RemoteAddr, startTime.Format("15:04:05.000"), r.UserAgent())
+			log.Printf("[Middleware] %s %s %s - 开始时间: %v",
+				r.Method, r.URL.Path, r.RemoteAddr, startTime.Format("15:04:05.000"))
 		}
 
 		// 包装ResponseWriter以捕获状态码

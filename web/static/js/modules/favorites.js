@@ -54,15 +54,50 @@ class FavoritesModule {
             favoritesSection.innerHTML = `
                 <div class="card">
                     <h2>⭐ 收藏股票</h2>
-                    <div class="favorites-container">
-                        <div class="favorites-header">
-                            <span class="favorites-count">共 0 支股票</span>
-                            <button id="refreshFavoritesBtn" class="btn btn-outline btn-small">🔄 刷新</button>
+                    
+                    <!-- Tab导航 -->
+                    <div class="favorites-tab-navigation">
+                        <button class="favorites-tab-btn active" data-tab="favorites-list">
+                            <span class="tab-icon">📋</span>
+                            <span class="tab-text">收藏列表</span>
+                        </button>
+                        <button class="favorites-tab-btn" data-tab="signals-summary">
+                            <span class="tab-icon">📊</span>
+                            <span class="tab-text">信号汇总</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Tab内容区域 -->
+                    <div class="favorites-tab-content">
+                        <!-- 收藏列表tab -->
+                        <div class="favorites-tab-pane active" id="favorites-list-tab">
+                            <div class="favorites-container">
+                                <div class="favorites-header">
+                                    <span class="favorites-count">共 0 支股票</span>
+                                    <button id="refreshFavoritesBtn" class="btn btn-outline btn-small">🔄 刷新</button>
+                                </div>
+                                <div class="favorites-list" id="favoritesList">
+                                    <div class="favorites-empty">
+                                        <p>还没有收藏任何股票</p>
+                                        <p>点击上方的"收藏"按钮来添加股票</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="favorites-list" id="favoritesList">
-                            <div class="favorites-empty">
-                                <p>还没有收藏任何股票</p>
-                                <p>点击上方的"收藏"按钮来添加股票</p>
+                        
+                        <!-- 信号汇总tab -->
+                        <div class="favorites-tab-pane" id="signals-summary-tab">
+                            <div class="signals-container">
+                                <div class="signals-header">
+                                    <span class="signals-count">共 0 支股票</span>
+                                    <button id="refreshSignalsBtn" class="btn btn-outline btn-small">🔄 刷新信号</button>
+                                </div>
+                                <div class="signals-list" id="signalsList">
+                                    <div class="signals-empty">
+                                        <p>暂无信号数据</p>
+                                        <p>点击"刷新信号"按钮获取最新信号</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -98,6 +133,22 @@ class FavoritesModule {
                 this.loadFavorites();
             });
         }
+
+        // 刷新信号按钮
+        const refreshSignalsBtn = document.getElementById('refreshSignalsBtn');
+        if (refreshSignalsBtn) {
+            refreshSignalsBtn.addEventListener('click', () => {
+                this.loadSignals();
+            });
+        }
+
+        // Tab切换事件
+        const tabBtns = document.querySelectorAll('.favorites-tab-btn');
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.switchTab(btn.dataset.tab);
+            });
+        });
 
         // 监听股票代码变化，更新收藏按钮状态
         const stockCodeInput = document.getElementById('stockCode');
@@ -1042,6 +1093,206 @@ class FavoritesModule {
      */
     getFavoritesCount() {
         return this.favorites.length;
+    }
+
+    /**
+     * 切换Tab
+     */
+    switchTab(tabName) {
+        // 更新tab按钮状态
+        const tabBtns = document.querySelectorAll('.favorites-tab-btn');
+        tabBtns.forEach(btn => {
+            if (btn.dataset.tab === tabName) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+
+        // 更新tab内容显示
+        const tabPanes = document.querySelectorAll('.favorites-tab-pane');
+        tabPanes.forEach(pane => {
+            if (pane.id === `${tabName}-tab`) {
+                pane.classList.add('active');
+            } else {
+                pane.classList.remove('active');
+            }
+        });
+
+        // 如果切换到信号汇总tab，自动加载信号
+        if (tabName === 'signals-summary') {
+            this.loadSignals();
+        }
+    }
+
+    /**
+     * 加载信号汇总数据
+     */
+    async loadSignals() {
+        try {
+            const signalsList = document.getElementById('signalsList');
+            const signalsCount = document.querySelector('.signals-count');
+            
+            // 显示加载状态
+            signalsList.innerHTML = '<div class="loading">正在加载信号数据...</div>';
+            
+            // 调用API获取信号数据
+            const response = await this.apiService.getFavoritesSignals();
+            
+            if (response && response.signals) {
+                this.renderSignals(response.signals);
+                signalsCount.textContent = `共 ${response.total} 支股票`;
+            } else {
+                signalsList.innerHTML = '<div class="signals-empty"><p>暂无信号数据</p></div>';
+                signalsCount.textContent = '共 0 支股票';
+            }
+        } catch (error) {
+            console.error('加载信号数据失败:', error);
+            const signalsList = document.getElementById('signalsList');
+            signalsList.innerHTML = '<div class="signals-error"><p>加载信号数据失败</p><p>错误信息: ' + error.message + '</p></div>';
+        }
+    }
+
+    /**
+     * 渲染信号汇总列表
+     */
+    renderSignals(signals) {
+        const signalsList = document.getElementById('signalsList');
+        
+        if (!signals || signals.length === 0) {
+            signalsList.innerHTML = '<div class="signals-empty"><p>暂无信号数据</p></div>';
+            return;
+        }
+
+        let signalsHTML = '';
+        
+        // 按信号类型分组
+        const buySignals = [];
+        const sellSignals = [];
+        const holdSignals = [];
+
+        signals.forEach(signal => {
+            // 分析预测信号
+            let hasBuySignal = false;
+            let hasSellSignal = false;
+            
+            if (signal.predictions && signal.predictions.predictions) {
+                signal.predictions.predictions.forEach(prediction => {
+                    if (prediction.type === 'BUY') {
+                        hasBuySignal = true;
+                    } else if (prediction.type === 'SELL') {
+                        hasSellSignal = true;
+                    }
+                });
+            }
+
+            if (hasBuySignal) {
+                buySignals.push(signal);
+            } else if (hasSellSignal) {
+                sellSignals.push(signal);
+            } else {
+                holdSignals.push(signal);
+            }
+        });
+
+        // 渲染买入信号
+        if (buySignals.length > 0) {
+            signalsHTML += `
+                <div class="signal-group buy-signals">
+                    <h3 class="signal-group-title buy">🟢 买入信号 (${buySignals.length})</h3>
+                    ${this.renderSignalGroup(buySignals, 'buy')}
+                </div>
+            `;
+        }
+
+        // 渲染卖出信号
+        if (sellSignals.length > 0) {
+            signalsHTML += `
+                <div class="signal-group sell-signals">
+                    <h3 class="signal-group-title sell">🔴 卖出信号 (${sellSignals.length})</h3>
+                    ${this.renderSignalGroup(sellSignals, 'sell')}
+                </div>
+            `;
+        }
+
+        // 渲染持有信号
+        if (holdSignals.length > 0) {
+            signalsHTML += `
+                <div class="signal-group hold-signals">
+                    <h3 class="signal-group-title hold">🟡 持有信号 (${holdSignals.length})</h3>
+                    ${this.renderSignalGroup(holdSignals, 'hold')}
+                </div>
+            `;
+        }
+
+        signalsList.innerHTML = signalsHTML;
+    }
+
+    /**
+     * 渲染信号组
+     */
+    renderSignalGroup(signals, type) {
+        return signals.map(signal => {
+            const currentPrice = signal.current_price || 'N/A';
+            const tradeDate = signal.trade_date || 'N/A';
+            const updatedAt = signal.updated_at || 'N/A';
+            
+            // 获取主要信号
+            let mainSignal = 'HOLD';
+            let signalReason = '';
+            let signalProbability = '';
+            
+            if (signal.predictions && signal.predictions.predictions) {
+                const prediction = signal.predictions.predictions[0]; // 取第一个预测
+                if (prediction) {
+                    mainSignal = prediction.type;
+                    signalReason = prediction.reason;
+                    signalProbability = prediction.probability;
+                }
+            }
+
+            return `
+                <div class="signal-item ${type}-signal" data-stock-code="${signal.ts_code}">
+                    <div class="signal-header">
+                        <div class="signal-stock-info">
+                            <span class="signal-stock-name">${signal.name}</span>
+                            <span class="signal-stock-code">${signal.ts_code}</span>
+                        </div>
+                        <div class="signal-price">
+                            <span class="current-price">¥${currentPrice}</span>
+                            <span class="trade-date">${tradeDate}</span>
+                        </div>
+                    </div>
+                    <div class="signal-details">
+                        <div class="signal-main">
+                            <span class="signal-type ${mainSignal.toLowerCase()}">${this.getSignalText(mainSignal)}</span>
+                            ${signalProbability ? `<span class="signal-probability">置信度: ${signalProbability}</span>` : ''}
+                        </div>
+                        ${signalReason ? `<div class="signal-reason">${signalReason}</div>` : ''}
+                    </div>
+                    <div class="signal-actions">
+                        <button class="btn btn-outline btn-small view-chart-btn" title="查看K线图">
+                            📈 查看
+                        </button>
+                        <button class="btn btn-outline btn-small view-details-btn" title="查看详细分析">
+                            📊 详情
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    /**
+     * 获取信号文本
+     */
+    getSignalText(signal) {
+        const signalMap = {
+            'BUY': '买入',
+            'SELL': '卖出',
+            'HOLD': '持有'
+        };
+        return signalMap[signal] || signal;
     }
 }
 

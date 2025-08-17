@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 // 记录服务器启动时间，用于健康检查
@@ -47,8 +49,8 @@ func (h *StockHandler) GetDailyData(w http.ResponseWriter, r *http.Request) {
 
 	// 记录请求开始
 	startTime := time.Now()
-	log.Printf("[GetDailyData] 开始处理请求 - 路径: %s, 方法: %s, 用户代理: %s",
-		r.URL.Path, r.Method, r.UserAgent())
+	log.Printf("[GetDailyData] 开始处理请求 - 路径: %s, 方法: %s",
+		r.URL.Path, r.Method)
 
 	// 解析路径参数
 	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
@@ -99,8 +101,8 @@ func (h *StockHandler) GetDailyData(w http.ResponseWriter, r *http.Request) {
 				log.Printf("[GetDailyData] 错误详情 - 类型: %T, 消息: %s", err, err.Error())
 
 				// 记录请求上下文信息
-				log.Printf("[GetDailyData] 请求上下文 - 远程地址: %s, 用户代理: %s, 引用页: %s",
-					r.RemoteAddr, r.UserAgent(), r.Referer())
+				log.Printf("[GetDailyData] 请求上下文 - 远程地址: %s, 引用页: %s",
+					r.RemoteAddr, r.Referer())
 
 				h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
 				return
@@ -122,8 +124,8 @@ func (h *StockHandler) GetDailyData(w http.ResponseWriter, r *http.Request) {
 			log.Printf("[GetDailyData] 错误详情 - 类型: %T, 消息: %s", err, err.Error())
 
 			// 记录请求上下文信息
-			log.Printf("[GetDailyData] 请求上下文 - 远程地址: %s, 用户代理: %s, 引用页: %s",
-				r.RemoteAddr, r.UserAgent(), r.Referer())
+			log.Printf("[GetDailyData] 请求上下文 - 远程地址: %s, 引用页: %s",
+				r.RemoteAddr, r.Referer())
 
 			h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
 			return
@@ -148,8 +150,8 @@ func (h *StockHandler) GetIndicators(w http.ResponseWriter, r *http.Request) {
 
 	// 记录请求开始
 	startTime := time.Now()
-	log.Printf("[GetIndicators] 开始处理请求 - 路径: %s, 方法: %s, 用户代理: %s",
-		r.URL.Path, r.Method, r.UserAgent())
+	log.Printf("[GetIndicators] 开始处理请求 - 路径: %s, 方法: %s",
+		r.URL.Path, r.Method)
 
 	// 解析路径参数
 	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
@@ -199,8 +201,8 @@ func (h *StockHandler) GetIndicators(w http.ResponseWriter, r *http.Request) {
 				log.Printf("[GetIndicators] 错误详情 - 类型: %T, 消息: %s", err, err.Error())
 
 				// 记录请求上下文信息
-				log.Printf("[GetIndicators] 请求上下文 - 远程地址: %s, 用户代理: %s, 引用页: %s",
-					r.RemoteAddr, r.UserAgent(), r.Referer())
+				log.Printf("[GetIndicators] 请求上下文 - 远程地址: %s, 引用页: %s",
+					r.RemoteAddr, r.Referer())
 
 				h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
 				return
@@ -222,8 +224,8 @@ func (h *StockHandler) GetIndicators(w http.ResponseWriter, r *http.Request) {
 			log.Printf("[GetIndicators] 错误详情 - 类型: %T, 消息: %s", err, err.Error())
 
 			// 记录请求上下文信息
-			log.Printf("[GetIndicators] 请求上下文 - 远程地址: %s, 用户代理: %s, 引用页: %s",
-				r.RemoteAddr, r.UserAgent(), r.Referer())
+			log.Printf("[GetIndicators] 请求上下文 - 远程地址: %s, 引用页: %s",
+				r.RemoteAddr, r.Referer())
 
 			h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
 			return
@@ -285,8 +287,8 @@ func (h *StockHandler) GetPredictions(w http.ResponseWriter, r *http.Request) {
 
 	// 记录请求开始
 	startTime := time.Now()
-	log.Printf("[GetPredictions] 开始处理请求 - 路径: %s, 方法: %s, 用户代理: %s",
-		r.URL.Path, r.Method, r.UserAgent())
+	log.Printf("[GetPredictions] 开始处理请求 - 路径: %s, 方法: %s",
+		r.URL.Path, r.Method)
 
 	// 解析路径参数
 	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
@@ -327,8 +329,8 @@ func (h *StockHandler) GetPredictions(w http.ResponseWriter, r *http.Request) {
 				log.Printf("[GetPredictions] 错误详情 - 类型: %T, 消息: %s", err, err.Error())
 
 				// 记录请求上下文信息
-				log.Printf("[GetPredictions] 请求上下文 - 远程地址: %s, 用户代理: %s, 引用页: %s",
-					r.RemoteAddr, r.UserAgent(), r.Referer())
+				log.Printf("[GetPredictions] 请求上下文 - 远程地址: %s, 引用页: %s",
+					r.RemoteAddr, r.Referer())
 
 				h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
 				return
@@ -350,8 +352,8 @@ func (h *StockHandler) GetPredictions(w http.ResponseWriter, r *http.Request) {
 			log.Printf("[GetPredictions] 错误详情 - 类型: %T, 消息: %s", err, err.Error())
 
 			// 记录请求上下文信息
-			log.Printf("[GetPredictions] 请求上下文 - 远程地址: %s, 用户代理: %s, 引用页: %s",
-				r.RemoteAddr, r.UserAgent(), r.Referer())
+			log.Printf("[GetPredictions] 请求上下文 - 远程地址: %s, 引用页: %s",
+				r.RemoteAddr, r.Referer())
 
 			h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取股票数据失败: %v", err))
 			return
@@ -378,8 +380,8 @@ func (h *StockHandler) GetPredictions(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GetPredictions] 错误详情 - 类型: %T, 消息: %s", err, err.Error())
 
 		// 记录请求上下文信息
-		log.Printf("[GetPredictions] 请求上下文 - 远程地址: %s, 用户代理: %s, 引用页: %s",
-			r.RemoteAddr, r.UserAgent(), r.Referer())
+		log.Printf("[GetPredictions] 请求上下文 - 远程地址: %s, 引用页: %s",
+			r.RemoteAddr, r.Referer())
 
 		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("预测失败: %v", err))
 		return
@@ -720,6 +722,117 @@ func (h *StockHandler) CheckFavorite(w http.ResponseWriter, r *http.Request) {
 	h.writeSuccessResponse(w, response)
 }
 
+// GetFavoritesSignals 获取所有收藏股票的信号汇总
+func (h *StockHandler) GetFavoritesSignals(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method != http.MethodGet {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持GET方法")
+		return
+	}
+
+	// 获取所有收藏股票
+	favorites := h.favoriteService.GetFavorites()
+	if len(favorites) == 0 {
+		h.writeSuccessResponse(w, map[string]interface{}{
+			"total":   0,
+			"signals": []interface{}{},
+		})
+		return
+	}
+
+	log.Printf("开始处理 %d 支收藏股票的信号", len(favorites))
+
+	// 批量获取信号数据
+	var signals []models.FavoriteSignal
+	for i, favorite := range favorites {
+		log.Printf("处理第 %d/%d 支股票: %s", i+1, len(favorites), favorite.TSCode)
+
+		// 获取股票的最新数据
+		stockData, err := h.dataSourceClient.GetDailyData(favorite.TSCode, "", "", "")
+		if err != nil {
+			log.Printf("获取股票 %s 数据失败: %v", favorite.TSCode, err)
+			continue
+		}
+
+		if len(stockData) == 0 {
+			log.Printf("股票 %s 没有数据", favorite.TSCode)
+			continue
+		}
+
+		// 计算技术指标 - 使用轻量级计算
+		var indicators models.SimpleIndicator
+		indicatorsChan := make(chan models.SimpleIndicator, 1)
+		go func() {
+			defer close(indicatorsChan)
+			// 限制数据量，只使用最近60天的数据
+			dataLimit := 60
+			if len(stockData) > dataLimit {
+				stockData = stockData[len(stockData)-dataLimit:]
+			}
+
+			// 计算简单的技术指标，避免复杂的MACD计算
+			indicators = h.calculateSimpleIndicators(stockData)
+			indicatorsChan <- indicators
+		}()
+
+		select {
+		case indicators = <-indicatorsChan:
+			log.Printf("股票 %s 技术指标计算完成", favorite.TSCode)
+		case <-time.After(5 * time.Second):
+			log.Printf("股票 %s 技术指标计算超时", favorite.TSCode)
+			indicators = models.SimpleIndicator{MA5: "N/A", MA10: "N/A", MA20: "N/A", Trend: "ERROR"}
+		}
+
+		// 获取预测信号 - 添加超时控制
+		var predictions interface{}
+		predictionsChan := make(chan interface{}, 1)
+		go func() {
+			defer close(predictionsChan)
+			pred, err := h.predictionService.PredictTradingPoints(stockData)
+			if err != nil {
+				predictionsChan <- map[string]interface{}{"error": err.Error()}
+			} else {
+				predictionsChan <- pred
+			}
+		}()
+
+		select {
+		case predictions = <-predictionsChan:
+			log.Printf("股票 %s 预测信号获取完成", favorite.TSCode)
+		case <-time.After(10 * time.Second):
+			log.Printf("股票 %s 预测信号获取超时", favorite.TSCode)
+			predictions = map[string]interface{}{"error": "预测超时"}
+		}
+
+		// 构建信号汇总
+		signal := models.FavoriteSignal{
+			ID:           favorite.ID,
+			TSCode:       favorite.TSCode,
+			Name:         favorite.Name,
+			GroupID:      favorite.GroupID,
+			CurrentPrice: stockData[len(stockData)-1].Close.Decimal.String(),
+			TradeDate:    stockData[len(stockData)-1].TradeDate,
+			Indicators:   indicators,
+			Predictions:  predictions,
+			UpdatedAt:    time.Now().Format("2006-01-02 15:04:05"),
+		}
+
+		signals = append(signals, signal)
+		log.Printf("股票 %s 信号处理完成", favorite.TSCode)
+	}
+
+	log.Printf("所有股票信号处理完成，共 %d 支", len(signals))
+
+	response := models.FavoritesSignalsResponse{
+		Total:   len(signals),
+		Signals: signals,
+	}
+
+	h.writeSuccessResponse(w, response)
+}
+
 // writeSuccessResponse 写入成功响应
 func (h *StockHandler) writeSuccessResponse(w http.ResponseWriter, data interface{}) {
 	h.writeSuccessResponseWithStatus(w, data, http.StatusOK)
@@ -913,4 +1026,58 @@ func (h *StockHandler) UpdateFavoritesOrder(w http.ResponseWriter, r *http.Reque
 	}
 
 	h.writeSuccessResponse(w, response)
+}
+
+// calculateSimpleIndicators 计算简单的技术指标
+func (h *StockHandler) calculateSimpleIndicators(data []models.StockDaily) models.SimpleIndicator {
+	if len(data) < 2 {
+		return models.SimpleIndicator{
+			MA5: "N/A", MA10: "N/A", MA20: "N/A", Trend: "ERROR",
+		}
+	}
+
+	// 计算简单的移动平均线
+	ma5 := h.calculateSimpleMA(data, 5)
+	ma10 := h.calculateSimpleMA(data, 10)
+	ma20 := h.calculateSimpleMA(data, 20)
+
+	// 计算简单的价格变化
+	latestPrice := data[len(data)-1].Close.Decimal
+	prevPrice := data[len(data)-2].Close.Decimal
+	priceChange := latestPrice.Sub(prevPrice)
+	priceChangePercent := priceChange.Div(prevPrice).Mul(decimal.NewFromInt(100))
+
+	// 判断趋势
+	trend := "HOLD"
+	if priceChange.GreaterThan(decimal.Zero) {
+		trend = "UP"
+	} else if priceChange.LessThan(decimal.Zero) {
+		trend = "DOWN"
+	}
+
+	return models.SimpleIndicator{
+		MA5:            ma5,
+		MA10:           ma10,
+		MA20:           ma20,
+		CurrentPrice:   latestPrice.String(),
+		PriceChange:    priceChange.String(),
+		PriceChangePct: priceChangePercent.String(),
+		Trend:          trend,
+		LastUpdate:     time.Now().Format("15:04:05"),
+	}
+}
+
+// calculateSimpleMA 计算简单移动平均线
+func (h *StockHandler) calculateSimpleMA(data []models.StockDaily, period int) string {
+	if len(data) < period {
+		return "N/A"
+	}
+
+	sum := decimal.Zero
+	for i := len(data) - period; i < len(data); i++ {
+		sum = sum.Add(data[i].Close.Decimal)
+	}
+
+	ma := sum.Div(decimal.NewFromInt(int64(period)))
+	return ma.StringFixed(2)
 }

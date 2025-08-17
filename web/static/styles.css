@@ -1031,6 +1031,62 @@ body {
     margin-top: var(--spacing-xl);
 }
 
+/* 收藏Tab导航 */
+.favorites-tab-navigation {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: var(--spacing-md);
+}
+
+.favorites-tab-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.favorites-tab-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--primary-color);
+}
+
+.favorites-tab-btn.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.favorites-tab-btn .tab-icon {
+    font-size: 1rem;
+}
+
+.favorites-tab-btn .tab-text {
+    font-weight: 500;
+}
+
+/* 收藏Tab内容 */
+.favorites-tab-content {
+    position: relative;
+}
+
+.favorites-tab-pane {
+    display: none;
+}
+
+.favorites-tab-pane.active {
+    display: block;
+}
+
 .favorites-container {
     padding: var(--spacing-lg);
 }
@@ -1978,4 +2034,225 @@ body {
 .tab-content {
     position: relative;
     min-height: 400px;
+}
+
+/* 信号汇总样式 */
+.signals-container {
+    padding: var(--spacing-lg);
+}
+
+.signals-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.signals-count {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.signals-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+/* 信号组样式 */
+.signal-group {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.signal-group-title {
+    padding: var(--spacing-md);
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.signal-group-title.buy {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.signal-group-title.sell {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+}
+
+.signal-group-title.hold {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+}
+
+/* 信号项样式 */
+.signal-item {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    transition: all 0.2s ease;
+}
+
+.signal-item:last-child {
+    border-bottom: none;
+}
+
+.signal-item:hover {
+    background: var(--bg-secondary);
+    transform: translateX(4px);
+}
+
+.signal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.signal-stock-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.signal-stock-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.signal-stock-code {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-family: monospace;
+}
+
+.signal-price {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--spacing-xs);
+}
+
+.current-price {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.trade-date {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.signal-details {
+    margin-bottom: var(--spacing-md);
+}
+
+.signal-main {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+}
+
+.signal-type {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.signal-type.buy {
+    background: #10b981;
+    color: white;
+}
+
+.signal-type.sell {
+    background: #ef4444;
+    color: white;
+}
+
+.signal-type.hold {
+    background: #f59e0b;
+    color: white;
+}
+
+.signal-probability {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+}
+
+.signal-reason {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    background: var(--bg-secondary);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-sm);
+}
+
+.signal-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+/* 信号加载和错误状态 */
+.signals-loading,
+.signals-error,
+.signals-empty {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    color: var(--text-secondary);
+}
+
+.signals-loading {
+    color: var(--primary-color);
+}
+
+.signals-error {
+    color: var(--error-color);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .favorites-tab-navigation {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .favorites-tab-btn {
+        text-align: center;
+        justify-content: center;
+    }
+    
+    .signal-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+    }
+    
+    .signal-price {
+        align-items: flex-start;
+    }
+    
+    .signal-main {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+    }
+    
+    .signal-actions {
+        flex-direction: column;
+    }
 }

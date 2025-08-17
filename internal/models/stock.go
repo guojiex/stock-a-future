@@ -218,3 +218,34 @@ type HealthStatus struct {
 	Version   string            `json:"version"`
 	Services  map[string]string `json:"services"`
 }
+
+// SimpleIndicator 简单技术指标
+type SimpleIndicator struct {
+	MA5            string `json:"ma5"`
+	MA10           string `json:"ma10"`
+	MA20           string `json:"ma20"`
+	CurrentPrice   string `json:"current_price"`
+	PriceChange    string `json:"price_change"`
+	PriceChangePct string `json:"price_change_pct"`
+	Trend          string `json:"trend"`
+	LastUpdate     string `json:"last_update"`
+}
+
+// FavoriteSignal 收藏股票信号
+type FavoriteSignal struct {
+	ID           string          `json:"id"`
+	TSCode       string          `json:"ts_code"`
+	Name         string          `json:"name"`
+	GroupID      string          `json:"group_id"`
+	CurrentPrice string          `json:"current_price"`
+	TradeDate    string          `json:"trade_date"`
+	Indicators   SimpleIndicator `json:"indicators"`
+	Predictions  interface{}     `json:"predictions"` // 保持interface{}因为预测结构可能变化
+	UpdatedAt    string          `json:"updated_at"`
+}
+
+// FavoritesSignalsResponse 收藏股票信号响应
+type FavoritesSignalsResponse struct {
+	Total   int              `json:"total"`
+	Signals []FavoriteSignal `json:"signals"`
+}
