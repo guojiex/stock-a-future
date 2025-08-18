@@ -217,63 +217,6 @@ func (c *ExchangeClient) parseSSEAPIResponse(response string) ([]StockListItem, 
 	return stocks, hasMore, nil
 }
 
-// parseSSEStockList 解析上交所股票列表HTML
-func (c *ExchangeClient) parseSSEStockList(html string) []StockListItem {
-	var stocks []StockListItem
-
-	// 上交所的股票代码通常是6位数字，以60、68、90开头
-	// 这里使用正则表达式尝试从HTML中提取股票信息
-	// 由于网页可能是动态加载的，我们先尝试找到可能的数据接口
-
-	// 查找可能的JavaScript数据或API调用
-	jsDataRegex := regexp.MustCompile(`(?i)stock.*?code.*?[:=]\s*["']?(\d{6})["']?.*?name.*?[:=]\s*["']([^"']+)["']?`)
-	matches := jsDataRegex.FindAllStringSubmatch(html, -1)
-
-	for _, match := range matches {
-		if len(match) >= 3 {
-			code := strings.TrimSpace(match[1])
-			name := strings.TrimSpace(match[2])
-
-			// 验证是否是有效的上交所股票代码
-			if c.isValidSSECode(code) {
-				stocks = append(stocks, StockListItem{
-					Code: code + ".SH",
-					Name: name,
-				})
-			}
-		}
-	}
-
-	// 如果没有找到数据，尝试其他正则表达式模式
-	if len(stocks) == 0 {
-		// 尝试查找表格行数据
-		tableRowRegex := regexp.MustCompile(`<tr[^>]*>.*?(\d{6}).*?<[^>]*>([^<]+)</[^>]*>.*?</tr>`)
-		matches = tableRowRegex.FindAllStringSubmatch(html, -1)
-
-		for _, match := range matches {
-			if len(match) >= 3 {
-				code := strings.TrimSpace(match[1])
-				name := strings.TrimSpace(match[2])
-
-				if c.isValidSSECode(code) {
-					stocks = append(stocks, StockListItem{
-						Code: code + ".SH",
-						Name: name,
-					})
-				}
-			}
-		}
-	}
-
-	// 如果仍然没有数据，返回一些示例数据（实际应用中应该调用API）
-	if len(stocks) == 0 {
-		log.Println("警告: 无法从HTML中解析股票数据，返回示例数据")
-		stocks = c.getSSEStockList()
-	}
-
-	return stocks
-}
-
 // isValidSSECode 验证是否是有效的上交所股票代码
 func (c *ExchangeClient) isValidSSECode(code string) bool {
 	if len(code) != 6 {

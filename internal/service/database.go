@@ -94,16 +94,44 @@ func (s *DatabaseService) initTables() error {
 		FOREIGN KEY (group_id) REFERENCES favorite_groups(id)
 	);`
 
+	// 创建股票信号表
+	createSignalsTable := `
+	CREATE TABLE IF NOT EXISTS stock_signals (
+		id TEXT PRIMARY KEY,
+		ts_code TEXT NOT NULL,
+		name TEXT NOT NULL,
+		trade_date TEXT NOT NULL,           -- 信号基于的交易日期
+		signal_date TEXT NOT NULL,          -- 信号计算日期
+		signal_type TEXT NOT NULL,          -- 信号类型: BUY, SELL, HOLD
+		signal_strength TEXT NOT NULL,      -- 信号强度: STRONG, MEDIUM, WEAK
+		confidence REAL NOT NULL,           -- 置信度 0-1
+		patterns TEXT,                      -- 识别到的图形模式(JSON格式)
+		technical_indicators TEXT,          -- 技术指标数据(JSON格式)
+		predictions TEXT,                   -- 预测数据(JSON格式)
+		description TEXT,                   -- 信号描述
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL,
+		UNIQUE(ts_code, trade_date)         -- 每个股票每天只有一个信号记录
+	);`
+
 	// 创建索引
 	createIndexes := []string{
+		// 收藏股票索引
 		"CREATE INDEX IF NOT EXISTS idx_favorite_stocks_ts_code ON favorite_stocks(ts_code);",
 		"CREATE INDEX IF NOT EXISTS idx_favorite_stocks_group_id ON favorite_stocks(group_id);",
 		"CREATE INDEX IF NOT EXISTS idx_favorite_stocks_sort_order ON favorite_stocks(group_id, sort_order);",
 		"CREATE INDEX IF NOT EXISTS idx_favorite_groups_sort_order ON favorite_groups(sort_order);",
+
+		// 股票信号索引
+		"CREATE INDEX IF NOT EXISTS idx_stock_signals_ts_code ON stock_signals(ts_code);",
+		"CREATE INDEX IF NOT EXISTS idx_stock_signals_trade_date ON stock_signals(trade_date);",
+		"CREATE INDEX IF NOT EXISTS idx_stock_signals_signal_date ON stock_signals(signal_date);",
+		"CREATE INDEX IF NOT EXISTS idx_stock_signals_signal_type ON stock_signals(signal_type);",
+		"CREATE INDEX IF NOT EXISTS idx_stock_signals_ts_code_trade_date ON stock_signals(ts_code, trade_date);",
 	}
 
 	// 执行建表语句
-	statements := append([]string{createGroupsTable, createStocksTable}, createIndexes...)
+	statements := append([]string{createGroupsTable, createStocksTable, createSignalsTable}, createIndexes...)
 
 	for _, stmt := range statements {
 		if _, err := s.db.Exec(stmt); err != nil {

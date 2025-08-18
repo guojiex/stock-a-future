@@ -463,7 +463,7 @@ func (c *TushareClient) TestConnection() error {
 	// 发送测试请求
 	resp, err := testClient.Do(httpReq)
 	if err != nil {
-		return fmt.Errorf("Tushare连接测试失败: %w", err)
+		return fmt.Errorf("tushare连接测试失败: %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -473,7 +473,7 @@ func (c *TushareClient) TestConnection() error {
 
 	// 检查HTTP状态码
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Tushare API返回非200状态码: %d", resp.StatusCode)
+		return fmt.Errorf("tushare API返回非200状态码: %d", resp.StatusCode)
 	}
 
 	// 读取响应体
@@ -490,12 +490,12 @@ func (c *TushareClient) TestConnection() error {
 
 	// 检查API响应码
 	if tushareResp.Code != 0 {
-		return fmt.Errorf("Tushare API错误: %s (代码: %d)", tushareResp.Msg, tushareResp.Code)
+		return fmt.Errorf("tushare API错误: %s (代码: %d)", tushareResp.Msg, tushareResp.Code)
 	}
 
 	// 验证返回的数据
 	if tushareResp.Data == nil || len(tushareResp.Data.Items) == 0 {
-		return fmt.Errorf("Tushare API返回空数据")
+		return fmt.Errorf("tushare API返回空数据")
 	}
 
 	log.Printf("Tushare连接测试成功 - 获取到股票数据: %v", tushareResp.Data.Items[0])

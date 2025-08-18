@@ -326,3 +326,55 @@ type RecentSignal struct {
 	Strength    string      `json:"strength"`    // 信号强度
 	Type        string      `json:"type"`        // 信号类型
 }
+
+// StockSignal 股票信号存储结构
+type StockSignal struct {
+	ID                  string                     `json:"id"`                             // 唯一标识
+	TSCode              string                     `json:"ts_code"`                        // 股票代码
+	Name                string                     `json:"name"`                           // 股票名称
+	TradeDate           string                     `json:"trade_date"`                     // 信号基于的交易日期
+	SignalDate          string                     `json:"signal_date"`                    // 信号计算日期
+	SignalType          string                     `json:"signal_type"`                    // 信号类型: BUY, SELL, HOLD
+	SignalStrength      string                     `json:"signal_strength"`                // 信号强度: STRONG, MEDIUM, WEAK
+	Confidence          JSONDecimal                `json:"confidence"`                     // 置信度 0-1
+	Patterns            []PatternRecognitionResult `json:"patterns,omitempty"`             // 识别到的图形模式
+	TechnicalIndicators *TechnicalIndicators       `json:"technical_indicators,omitempty"` // 技术指标数据
+	Predictions         *PredictionResult          `json:"predictions,omitempty"`          // 预测数据
+	Description         string                     `json:"description"`                    // 信号描述
+	CreatedAt           time.Time                  `json:"created_at"`
+	UpdatedAt           time.Time                  `json:"updated_at"`
+}
+
+// SignalCalculationRequest 信号计算请求
+type SignalCalculationRequest struct {
+	TSCode    string `json:"ts_code"`    // 股票代码
+	Name      string `json:"name"`       // 股票名称
+	StartDate string `json:"start_date"` // 开始日期
+	EndDate   string `json:"end_date"`   // 结束日期
+	Force     bool   `json:"force"`      // 是否强制重新计算
+}
+
+// SignalCalculationResponse 信号计算响应
+type SignalCalculationResponse struct {
+	Success bool         `json:"success"`
+	Message string       `json:"message"`
+	Signal  *StockSignal `json:"signal,omitempty"`
+	Error   string       `json:"error,omitempty"`
+}
+
+// BatchSignalRequest 批量信号计算请求
+type BatchSignalRequest struct {
+	TSCodes []string `json:"ts_codes"` // 股票代码列表
+	Force   bool     `json:"force"`    // 是否强制重新计算
+}
+
+// BatchSignalResponse 批量信号计算响应
+type BatchSignalResponse struct {
+	Total     int                         `json:"total"`   // 总数
+	Success   int                         `json:"success"` // 成功数
+	Failed    int                         `json:"failed"`  // 失败数
+	Results   []SignalCalculationResponse `json:"results"` // 详细结果
+	StartTime time.Time                   `json:"start_time"`
+	EndTime   time.Time                   `json:"end_time"`
+	Duration  string                      `json:"duration"`
+}

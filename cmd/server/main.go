@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"path/filepath"
 	"stock-a-future/config"
 	"stock-a-future/internal/client"
@@ -11,6 +13,7 @@ import (
 	"stock-a-future/internal/service"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 )
 
@@ -93,15 +96,32 @@ func main() {
 	// 创建图形识别服务
 	patternService := service.NewPatternService(dataSourceClient)
 
+	// 创建应用上下文
+	app := service.NewApp()
+
+	// 创建信号计算服务
+	signalService, err := service.NewSignalService("data", patternService, dataSourceClient, favoriteService)
+	if err != nil {
+		log.Fatalf("创建信号计算服务失败: %v", err)
+	}
+
+	// 注册信号服务到应用上下文
+	app.RegisterSignalService(signalService)
+
+	// 启动异步信号计算服务
+	signalService.Start()
+	log.Printf("✓ 异步信号计算服务已启动")
+
 	// 创建处理器
-	stockHandler := handler.NewStockHandler(dataSourceClient, cacheService, favoriteService)
+	stockHandler := handler.NewStockHandler(dataSourceClient, cacheService, favoriteService, app)
 	patternHandler := handler.NewPatternHandler(patternService)
+	signalHandler := handler.NewSignalHandler(signalService)
 
 	// 创建路由器
 	mux := http.NewServeMux()
 
 	// 注册路由
-	registerRoutes(mux, stockHandler, patternHandler)
+	registerRoutes(mux, stockHandler, patternHandler, signalHandler)
 
 	// 添加静态文件服务
 	registerStaticRoutes(mux)
@@ -131,6 +151,10 @@ func main() {
 	log.Printf("  最近信号: GET http://%s/api/v1/patterns/recent?ts_code=000001.SZ", addr)
 	log.Printf("  可用图形: GET http://%s/api/v1/patterns/available", addr)
 	log.Printf("  图形统计: GET http://%s/api/v1/patterns/statistics?ts_code=000001.SZ", addr)
+	log.Printf("  计算信号: POST http://%s/api/v1/signals/calculate", addr)
+	log.Printf("  批量计算: POST http://%s/api/v1/signals/batch", addr)
+	log.Printf("  获取信号: GET http://%s/api/v1/signals/{code}?signal_date=20240101", addr)
+	log.Printf("  最新信号: GET http://%s/api/v1/signals?limit=20", addr)
 	if cfg.CacheEnabled {
 		log.Printf("  缓存统计: GET http://%s/api/v1/cache/stats", addr)
 		log.Printf("  清空缓存: DELETE http://%s/api/v1/cache", addr)
@@ -138,13 +162,39 @@ func main() {
 	log.Printf("  Web客户端: http://%s/", addr)
 	log.Printf("示例: curl http://%s/api/v1/stocks/000001.SZ/daily", addr)
 
-	if err := http.ListenAndServe(addr, handler); err != nil {
-		log.Fatalf("服务器启动失败: %v", err)
+	// 设置信号处理，用于优雅关闭
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	// 在单独的goroutine中启动服务器
+	go func() {
+		if err := http.ListenAndServe(addr, handler); err != nil {
+			log.Fatalf("服务器启动失败: %v", err)
+		}
+	}()
+
+	// 等待退出信号
+	<-sigChan
+	log.Printf("收到退出信号，开始优雅关闭...")
+
+	// 停止信号计算服务
+	signalService.Stop()
+
+	// 关闭收藏服务
+	if err := favoriteService.Close(); err != nil {
+		log.Printf("关闭收藏服务失败: %v", err)
 	}
+
+	// 关闭信号服务
+	if err := signalService.Close(); err != nil {
+		log.Printf("关闭信号服务失败: %v", err)
+	}
+
+	log.Printf("服务器已优雅关闭")
 }
 
 // registerRoutes 注册路由
-func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patternHandler *handler.PatternHandler) {
+func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patternHandler *handler.PatternHandler, signalHandler *handler.SignalHandler) {
 	// 健康检查
 	mux.HandleFunc("GET /api/v1/health", stockHandler.GetHealthStatus)
 
@@ -185,6 +235,12 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patt
 	mux.HandleFunc("GET /api/v1/patterns/recent", patternHandler.GetRecentSignals)
 	mux.HandleFunc("GET /api/v1/patterns/available", patternHandler.GetAvailablePatterns)
 	mux.HandleFunc("GET /api/v1/patterns/statistics", patternHandler.GetPatternStatistics)
+
+	// 信号计算API
+	mux.HandleFunc("POST /api/v1/signals/calculate", signalHandler.CalculateSignal)
+	mux.HandleFunc("POST /api/v1/signals/batch", signalHandler.BatchCalculateSignals)
+	mux.HandleFunc("GET /api/v1/signals/{code}", signalHandler.GetSignal)
+	mux.HandleFunc("GET /api/v1/signals", signalHandler.GetLatestSignals)
 
 }
 

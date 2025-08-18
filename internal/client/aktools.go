@@ -128,7 +128,7 @@ func (c *AKToolsClient) GetDailyData(symbol, startDate, endDate, adjust string) 
 	// 发送HTTP请求
 	resp, err := c.client.Get(apiURL)
 	if err != nil {
-		return nil, fmt.Errorf("请求AKTools API失败: %w", err)
+		return nil, fmt.Errorf("请求AKTools API失败: %w, URL: %s, 股票代码: %s", err, apiURL, symbol)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -137,7 +137,8 @@ func (c *AKToolsClient) GetDailyData(symbol, startDate, endDate, adjust string) 
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("AKTools API返回非200状态码: %d", resp.StatusCode)
+		return nil, fmt.Errorf("AKTools API返回非200状态码: %d, URL: %s, 股票代码: %s, 开始日期: %s, 结束日期: %s",
+			resp.StatusCode, apiURL, symbol, startDate, endDate)
 	}
 
 	// 读取响应体
@@ -178,7 +179,7 @@ func (c *AKToolsClient) GetStockBasic(symbol string) (*models.StockBasic, error)
 	// 发送HTTP请求
 	resp, err := c.client.Get(apiURL)
 	if err != nil {
-		return nil, fmt.Errorf("请求AKTools股票信息API失败: %w", err)
+		return nil, fmt.Errorf("请求AKTools股票信息API失败: %w, URL: %s, 股票代码: %s", err, apiURL, symbol)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -187,7 +188,7 @@ func (c *AKToolsClient) GetStockBasic(symbol string) (*models.StockBasic, error)
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("AKTools API返回非200状态码: %d", resp.StatusCode)
+		return nil, fmt.Errorf("AKTools API返回非200状态码: %d, URL: %s, 股票代码: %s", resp.StatusCode, apiURL, symbol)
 	}
 
 	// 读取响应体
@@ -218,7 +219,7 @@ func (c *AKToolsClient) GetStockList() ([]models.StockBasic, error) {
 	// 发送HTTP请求
 	resp, err := c.client.Get(apiURL)
 	if err != nil {
-		return nil, fmt.Errorf("请求AKTools股票列表API失败: %w", err)
+		return nil, fmt.Errorf("请求AKTools股票列表API失败: %w, URL: %s", err, apiURL)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -227,7 +228,7 @@ func (c *AKToolsClient) GetStockList() ([]models.StockBasic, error) {
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("AKTools API返回非200状态码: %d", resp.StatusCode)
+		return nil, fmt.Errorf("AKTools API返回非200状态码: %d, URL: %s", resp.StatusCode, apiURL)
 	}
 
 	// 读取响应体

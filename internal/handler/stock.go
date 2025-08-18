@@ -13,8 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/shopspring/decimal"
 )
 
 // 记录服务器启动时间，用于健康检查
@@ -29,10 +27,11 @@ type StockHandler struct {
 	dailyCacheService *service.DailyCacheService
 	favoriteService   *service.FavoriteService
 	config            *config.Config // 添加配置字段
+	app               *service.App   // 应用上下文，用于获取其他服务
 }
 
 // NewStockHandler 创建股票处理器
-func NewStockHandler(dataSourceClient client.DataSourceClient, cacheService *service.DailyCacheService, favoriteService *service.FavoriteService) *StockHandler {
+func NewStockHandler(dataSourceClient client.DataSourceClient, cacheService *service.DailyCacheService, favoriteService *service.FavoriteService, app *service.App) *StockHandler {
 	return &StockHandler{
 		dataSourceClient:  dataSourceClient,
 		calculator:        indicators.NewCalculator(),
@@ -41,6 +40,7 @@ func NewStockHandler(dataSourceClient client.DataSourceClient, cacheService *ser
 		dailyCacheService: cacheService,
 		favoriteService:   favoriteService,
 		config:            config.Load(), // 初始化配置
+		app:               app,           // 应用上下文
 	}
 }
 
@@ -744,85 +744,67 @@ func (h *StockHandler) GetFavoritesSignals(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	log.Printf("开始处理 %d 支收藏股票的信号", len(favorites))
+	log.Printf("获取 %d 支收藏股票的信号数据", len(favorites))
+
+	// 获取信号服务
+	signalService, ok := h.getSignalService()
+	if !ok {
+		h.writeErrorResponse(w, http.StatusInternalServerError, "信号服务不可用")
+		return
+	}
 
 	// 批量获取信号数据
 	var signals []models.FavoriteSignal
-	for i, favorite := range favorites {
-		log.Printf("处理第 %d/%d 支股票: %s", i+1, len(favorites), favorite.TSCode)
+	today := time.Now().Format("20060102")
 
-		// 获取股票的最新数据
-		stockData, err := h.dataSourceClient.GetDailyData(favorite.TSCode, "", "", "")
+	for _, favorite := range favorites {
+		// 从数据库获取已计算好的信号
+		stockSignal, err := signalService.GetSignal(favorite.TSCode, today)
+
+		// 如果没有找到信号，获取最新的股票数据用于显示基本信息
 		if err != nil {
-			log.Printf("获取股票 %s 数据失败: %v", favorite.TSCode, err)
+			stockData, err := h.dataSourceClient.GetDailyData(favorite.TSCode, "", "", "")
+			if err != nil || len(stockData) == 0 {
+				continue
+			}
+
+			// 构建简单信号（只有基本信息，没有预测）
+			signal := models.FavoriteSignal{
+				ID:           favorite.ID,
+				TSCode:       favorite.TSCode,
+				Name:         favorite.Name,
+				GroupID:      favorite.GroupID,
+				CurrentPrice: stockData[len(stockData)-1].Close.Decimal.String(),
+				TradeDate:    stockData[len(stockData)-1].TradeDate,
+				Indicators: models.SimpleIndicator{
+					MA5: "N/A", MA10: "N/A", MA20: "N/A",
+					CurrentPrice: stockData[len(stockData)-1].Close.Decimal.String(),
+					Trend:        "UNKNOWN",
+					LastUpdate:   "未计算",
+				},
+				Predictions: map[string]interface{}{"message": "信号尚未计算"},
+				UpdatedAt:   "未计算",
+			}
+			signals = append(signals, signal)
 			continue
 		}
 
-		if len(stockData) == 0 {
-			log.Printf("股票 %s 没有数据", favorite.TSCode)
-			continue
-		}
+		// 从已计算的信号构建响应
+		indicators := h.buildIndicatorsFromSignal(stockSignal)
 
-		// 计算技术指标 - 使用轻量级计算
-		var indicators models.SimpleIndicator
-		indicatorsChan := make(chan models.SimpleIndicator, 1)
-		go func() {
-			defer close(indicatorsChan)
-			// 限制数据量，只使用最近60天的数据
-			dataLimit := 60
-			if len(stockData) > dataLimit {
-				stockData = stockData[len(stockData)-dataLimit:]
-			}
-
-			// 计算简单的技术指标，避免复杂的MACD计算
-			indicators = h.calculateSimpleIndicators(stockData)
-			indicatorsChan <- indicators
-		}()
-
-		select {
-		case indicators = <-indicatorsChan:
-			log.Printf("股票 %s 技术指标计算完成", favorite.TSCode)
-		case <-time.After(5 * time.Second):
-			log.Printf("股票 %s 技术指标计算超时", favorite.TSCode)
-			indicators = models.SimpleIndicator{MA5: "N/A", MA10: "N/A", MA20: "N/A", Trend: "ERROR"}
-		}
-
-		// 获取预测信号 - 添加超时控制
-		var predictions interface{}
-		predictionsChan := make(chan interface{}, 1)
-		go func() {
-			defer close(predictionsChan)
-			pred, err := h.predictionService.PredictTradingPoints(stockData)
-			if err != nil {
-				predictionsChan <- map[string]interface{}{"error": err.Error()}
-			} else {
-				predictionsChan <- pred
-			}
-		}()
-
-		select {
-		case predictions = <-predictionsChan:
-			log.Printf("股票 %s 预测信号获取完成", favorite.TSCode)
-		case <-time.After(10 * time.Second):
-			log.Printf("股票 %s 预测信号获取超时", favorite.TSCode)
-			predictions = map[string]interface{}{"error": "预测超时"}
-		}
-
-		// 构建信号汇总
 		signal := models.FavoriteSignal{
 			ID:           favorite.ID,
 			TSCode:       favorite.TSCode,
 			Name:         favorite.Name,
 			GroupID:      favorite.GroupID,
-			CurrentPrice: stockData[len(stockData)-1].Close.Decimal.String(),
-			TradeDate:    stockData[len(stockData)-1].TradeDate,
+			CurrentPrice: indicators.CurrentPrice,
+			TradeDate:    stockSignal.TradeDate,
 			Indicators:   indicators,
-			Predictions:  predictions,
-			UpdatedAt:    time.Now().Format("2006-01-02 15:04:05"),
+			Predictions:  stockSignal.Predictions,
+			UpdatedAt:    stockSignal.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}
 
 		signals = append(signals, signal)
-		log.Printf("股票 %s 信号处理完成", favorite.TSCode)
 	}
 
 	log.Printf("所有股票信号处理完成，共 %d 支", len(signals))
@@ -833,6 +815,54 @@ func (h *StockHandler) GetFavoritesSignals(w http.ResponseWriter, r *http.Reques
 	}
 
 	h.writeSuccessResponse(w, response)
+}
+
+// getSignalService 获取信号服务实例
+func (h *StockHandler) getSignalService() (*service.SignalService, bool) {
+	// 直接从App获取信号服务
+	if h.app != nil && h.app.SignalService != nil {
+		return h.app.SignalService, true
+	}
+
+	// 如果没有注册到App中，则返回失败
+	log.Printf("警告: 信号服务不可用")
+	return nil, false
+}
+
+// buildIndicatorsFromSignal 从信号数据构建技术指标
+func (h *StockHandler) buildIndicatorsFromSignal(signal *models.StockSignal) models.SimpleIndicator {
+	// 如果没有技术指标数据，返回默认值
+	if signal == nil || signal.TechnicalIndicators == nil || signal.TechnicalIndicators.MA == nil {
+		return models.SimpleIndicator{
+			MA5: "N/A", MA10: "N/A", MA20: "N/A",
+			CurrentPrice: "0.00",
+			Trend:        "UNKNOWN",
+			LastUpdate:   "未知",
+		}
+	}
+
+	// 从信号中提取技术指标
+	ma := signal.TechnicalIndicators.MA
+
+	// 判断趋势
+	trend := "HOLD"
+	switch signal.SignalType {
+	case "BUY":
+		trend = "UP"
+	case "SELL":
+		trend = "DOWN"
+	}
+
+	return models.SimpleIndicator{
+		MA5:            ma.MA5.Decimal.StringFixed(2),
+		MA10:           ma.MA10.Decimal.StringFixed(2),
+		MA20:           ma.MA20.Decimal.StringFixed(2),
+		CurrentPrice:   "0.00", // 这个值需要从最新数据获取，信号中可能没有
+		PriceChange:    "0.00", // 同上
+		PriceChangePct: "0.00", // 同上
+		Trend:          trend,
+		LastUpdate:     signal.UpdatedAt.Format("15:04:05"),
+	}
 }
 
 // writeSuccessResponse 写入成功响应
@@ -1028,58 +1058,4 @@ func (h *StockHandler) UpdateFavoritesOrder(w http.ResponseWriter, r *http.Reque
 	}
 
 	h.writeSuccessResponse(w, response)
-}
-
-// calculateSimpleIndicators 计算简单的技术指标
-func (h *StockHandler) calculateSimpleIndicators(data []models.StockDaily) models.SimpleIndicator {
-	if len(data) < 2 {
-		return models.SimpleIndicator{
-			MA5: "N/A", MA10: "N/A", MA20: "N/A", Trend: "ERROR",
-		}
-	}
-
-	// 计算简单的移动平均线
-	ma5 := h.calculateSimpleMA(data, 5)
-	ma10 := h.calculateSimpleMA(data, 10)
-	ma20 := h.calculateSimpleMA(data, 20)
-
-	// 计算简单的价格变化
-	latestPrice := data[len(data)-1].Close.Decimal
-	prevPrice := data[len(data)-2].Close.Decimal
-	priceChange := latestPrice.Sub(prevPrice)
-	priceChangePercent := priceChange.Div(prevPrice).Mul(decimal.NewFromInt(100))
-
-	// 判断趋势
-	trend := "HOLD"
-	if priceChange.GreaterThan(decimal.Zero) {
-		trend = "UP"
-	} else if priceChange.LessThan(decimal.Zero) {
-		trend = "DOWN"
-	}
-
-	return models.SimpleIndicator{
-		MA5:            ma5,
-		MA10:           ma10,
-		MA20:           ma20,
-		CurrentPrice:   latestPrice.String(),
-		PriceChange:    priceChange.String(),
-		PriceChangePct: priceChangePercent.String(),
-		Trend:          trend,
-		LastUpdate:     time.Now().Format("15:04:05"),
-	}
-}
-
-// calculateSimpleMA 计算简单移动平均线
-func (h *StockHandler) calculateSimpleMA(data []models.StockDaily, period int) string {
-	if len(data) < period {
-		return "N/A"
-	}
-
-	sum := decimal.Zero
-	for i := len(data) - period; i < len(data); i++ {
-		sum = sum.Add(data[i].Close.Decimal)
-	}
-
-	ma := sum.Div(decimal.NewFromInt(int64(period)))
-	return ma.StringFixed(2)
 }

@@ -1,7 +1,6 @@
 package indicators
 
 import (
-	"log"
 	"stock-a-future/internal/models"
 
 	"github.com/shopspring/decimal"
@@ -18,11 +17,10 @@ func NewPatternRecognizer() *PatternRecognizer {
 // RecognizeAllPatterns 识别所有图形模式
 func (p *PatternRecognizer) RecognizeAllPatterns(data []models.StockDaily) []models.PatternRecognitionResult {
 	if len(data) < 3 {
-		log.Printf("[模式识别] 数据不足，需要至少3天数据，当前只有 %d 天", len(data))
 		return []models.PatternRecognitionResult{}
 	}
 
-	log.Printf("[模式识别] 开始识别模式，共 %d 天数据", len(data))
+	// log.Printf("[模式识别] 开始识别模式，共 %d 天数据", len(data))
 	var results []models.PatternRecognitionResult
 
 	// 从第3个交易日开始识别（需要至少3天数据）
@@ -32,8 +30,8 @@ func (p *PatternRecognizer) RecognizeAllPatterns(data []models.StockDaily) []mod
 		prev1 := data[i-1]
 		prev2 := data[i-2]
 
-		log.Printf("📅 [模式识别] 分析日期: %s (索引: %d)", current.TradeDate, i)
-		log.Printf("🔍 [模式识别] 开始识别各种技术形态...")
+		// log.Printf("📅 [模式识别] 分析日期: %s (索引: %d)", current.TradeDate, i)
+		// log.Printf("🔍 [模式识别] 开始识别各种技术形态...")
 
 		// 识别蜡烛图模式
 		candlestickPatterns := p.recognizeCandlestickPatterns(current, prev1, prev2, i, data)
@@ -43,9 +41,9 @@ func (p *PatternRecognizer) RecognizeAllPatterns(data []models.StockDaily) []mod
 
 		// 如果有识别到图形，创建结果
 		if len(candlestickPatterns) > 0 || len(volumePricePatterns) > 0 {
-			log.Printf("🎯 [模式识别] 在日期 %s 成功识别到技术形态:", current.TradeDate)
-			log.Printf("   📊 蜡烛图模式: %d 个", len(candlestickPatterns))
-			log.Printf("   📈 量价模式: %d 个", len(volumePricePatterns))
+			// log.Printf("🎯 [模式识别] 在日期 %s 成功识别到技术形态:", current.TradeDate)
+			// log.Printf("   📊 蜡烛图模式: %d 个", len(candlestickPatterns))
+			// log.Printf("   📈 量价模式: %d 个", len(volumePricePatterns))
 
 			// 计算综合信号和置信度
 			combinedSignal, overallConfidence, riskLevel := p.calculateCombinedSignal(
@@ -62,19 +60,17 @@ func (p *PatternRecognizer) RecognizeAllPatterns(data []models.StockDaily) []mod
 			}
 			results = append(results, result)
 		} else {
-			log.Printf("[模式识别] 在日期 %s 未识别到任何模式", current.TradeDate)
+			// log.Printf("[模式识别] 在日期 %s 未识别到任何模式", current.TradeDate)
 		}
 	}
 
-	log.Printf("[模式识别] 识别完成，共找到 %d 个结果", len(results))
+	// log.Printf("[模式识别] 识别完成，共找到 %d 个结果", len(results))
 	return results
 }
 
 // recognizeCandlestickPatterns 识别蜡烛图模式
 func (p *PatternRecognizer) recognizeCandlestickPatterns(current, prev1, prev2 models.StockDaily, index int, data []models.StockDaily) []models.CandlestickPattern {
 	var patterns []models.CandlestickPattern
-
-	log.Printf("[蜡烛图识别] 开始识别蜡烛图模式，日期: %s", current.TradeDate)
 
 	// 双响炮模式 - 连续两根大阳线，成交量放大
 	if pattern := p.recognizeDoubleCannon(current, prev1, prev2); pattern != nil {
@@ -83,35 +79,29 @@ func (p *PatternRecognizer) recognizeCandlestickPatterns(current, prev1, prev2 m
 
 	// 红三兵模式 - 连续三根上涨K线
 	if pattern := p.recognizeRedThreeSoldiers(current, prev1, prev2); pattern != nil {
-		log.Printf("[蜡烛图识别] ✅ 识别到红三兵模式")
 		patterns = append(patterns, *pattern)
 	}
 
 	// 乌云盖顶模式 - 大阳线后跟大阴线
 	if pattern := p.recognizeDarkCloudCover(current, prev1, prev2); pattern != nil {
-		log.Printf("[蜡烛图识别] ✅ 识别到乌云盖顶模式")
 		patterns = append(patterns, *pattern)
 	}
 
 	// 锤子线模式 - 下影线很长的K线
 	if pattern := p.recognizeHammer(current); pattern != nil {
-		log.Printf("[蜡烛图识别] ✅ 识别到锤子线模式")
 		patterns = append(patterns, *pattern)
 	}
 
 	// 启明星模式 - 下跌趋势中的反转信号
 	if pattern := p.recognizeMorningStar(current, prev1, prev2, index, data); pattern != nil {
-		log.Printf("[蜡烛图识别] ✅ 识别到启明星模式")
 		patterns = append(patterns, *pattern)
 	}
 
 	// 黄昏星模式 - 上涨趋势中的反转信号
 	if pattern := p.recognizeEveningStar(current, prev1, prev2, index, data); pattern != nil {
-		log.Printf("[蜡烛图识别] ✅ 识别到黄昏星模式")
 		patterns = append(patterns, *pattern)
 	}
 
-	log.Printf("[蜡烛图识别] 识别完成，共找到 %d 个蜡烛图模式", len(patterns))
 	return patterns
 }
 

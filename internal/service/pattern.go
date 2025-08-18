@@ -27,8 +27,8 @@ func NewPatternService(stockService StockServiceInterface) *PatternService {
 
 // RecognizePatterns 识别指定股票的图形模式
 func (p *PatternService) RecognizePatterns(tsCode, startDate, endDate string) ([]models.PatternRecognitionResult, error) {
-	// 获取股票数据
-	stockData, err := p.stockService.GetDailyData(tsCode, startDate, endDate, "none")
+	// 获取股票数据 - 使用前复权(qfq)而不是none，因为AKTools不支持none参数
+	stockData, err := p.stockService.GetDailyData(tsCode, startDate, endDate, "qfq")
 	if err != nil {
 		return nil, err
 	}
@@ -40,8 +40,8 @@ func (p *PatternService) RecognizePatterns(tsCode, startDate, endDate string) ([
 
 // SearchPatterns 搜索指定图形模式
 func (p *PatternService) SearchPatterns(request models.PatternSearchRequest) (*models.PatternSearchResponse, error) {
-	// 获取股票数据
-	stockData, err := p.stockService.GetDailyData(request.TSCode, request.StartDate, request.EndDate, "none")
+	// 获取股票数据 - 使用前复权(qfq)而不是none，因为AKTools不支持none参数
+	stockData, err := p.stockService.GetDailyData(request.TSCode, request.StartDate, request.EndDate, "qfq")
 	if err != nil {
 		return nil, err
 	}
@@ -102,8 +102,8 @@ func (p *PatternService) GetPatternSummary(tsCode string, days int) (*models.Pat
 	endDate := time.Now().Format("20060102")
 	startDate := time.Now().AddDate(0, 0, -days).Format("20060102")
 
-	// 获取股票数据
-	stockData, err := p.stockService.GetDailyData(tsCode, startDate, endDate, "none")
+	// 获取股票数据 - 使用前复权(qfq)而不是none，因为AKTools不支持none参数
+	stockData, err := p.stockService.GetDailyData(tsCode, startDate, endDate, "qfq")
 	if err != nil {
 		return nil, err
 	}
@@ -146,8 +146,8 @@ func (p *PatternService) GetRecentSignals(tsCode string, limit int) ([]models.Re
 	endDate := time.Now().Format("20060102")
 	startDate := time.Now().AddDate(0, 0, -30).Format("20060102")
 
-	// 获取股票数据
-	stockData, err := p.stockService.GetDailyData(tsCode, startDate, endDate, "none")
+	// 获取股票数据 - 使用前复权(qfq)而不是none，因为AKTools不支持none参数
+	stockData, err := p.stockService.GetDailyData(tsCode, startDate, endDate, "qfq")
 	if err != nil {
 		return nil, err
 	}
