@@ -792,12 +792,22 @@ func (h *StockHandler) GetFavoritesSignals(w http.ResponseWriter, r *http.Reques
 		// 从已计算的信号构建响应
 		indicators := h.buildIndicatorsFromSignal(stockSignal)
 
+		// 获取最新的股票数据以显示当前价格
+		var currentPrice string
+		stockData, err := h.dataSourceClient.GetDailyData(favorite.TSCode, "", "", "")
+		if err == nil && len(stockData) > 0 {
+			currentPrice = stockData[len(stockData)-1].Close.Decimal.String()
+		} else {
+			// 如果获取失败，使用指标中的价格或默认值
+			currentPrice = indicators.CurrentPrice
+		}
+
 		signal := models.FavoriteSignal{
 			ID:           favorite.ID,
 			TSCode:       favorite.TSCode,
 			Name:         favorite.Name,
 			GroupID:      favorite.GroupID,
-			CurrentPrice: indicators.CurrentPrice,
+			CurrentPrice: currentPrice,
 			TradeDate:    stockSignal.TradeDate,
 			Indicators:   indicators,
 			Predictions:  stockSignal.Predictions,

@@ -441,8 +441,8 @@ class DisplayModule {
                 const strength = this.extractStrengthFromReason(prediction.reason);
                 const isWeak = strength === 'WEAK';
                 const isCollapsed = isWeak ? 'collapsed' : '';
-                // 修复图标逻辑：🔽表示折叠状态，🔼表示展开状态
-                const collapseIcon = isWeak ? '🔽' : '🔼';
+                // 使用统一的下拉图标，通过CSS旋转控制方向
+                const collapseIcon = '🔽';
                 
                 predictionsHTML += `
                     <div class="prediction-item ${typeClass} slide-in ${isCollapsed}" data-index="${index}">
