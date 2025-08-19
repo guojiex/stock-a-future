@@ -12,13 +12,20 @@ import (
 	"stock-a-future/internal/handler"
 	"stock-a-future/internal/service"
 	"strings"
-	"sync/atomic"
 	"syscall"
 	"time"
 )
 
-// 健康检查请求计数器，用于抽样记录日志
-var healthCheckCounter int64
+// 日志相关配置
+var (
+	// 不记录日志的路径列表
+	skipLogPaths = []string{
+		"/api/v1/health",
+		"/api/v1/groups",
+		"/api/v1/favorites",
+		"/api/v1/favorites/signals",
+	}
+)
 
 func main() {
 	// 加载配置
@@ -241,6 +248,7 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patt
 	mux.HandleFunc("POST /api/v1/signals/batch", signalHandler.BatchCalculateSignals)
 	mux.HandleFunc("GET /api/v1/signals/{code}", signalHandler.GetSignal)
 	mux.HandleFunc("GET /api/v1/signals", signalHandler.GetLatestSignals)
+	mux.HandleFunc("GET /api/v1/signals/status", signalHandler.GetCalculationStatus)
 
 }
 
@@ -312,13 +320,14 @@ func withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
 
-		// 健康检查请求不记录日志
-		if r.URL.Path == "/api/v1/health" {
-			atomic.AddInt64(&healthCheckCounter, 1)
-			// 包装ResponseWriter以捕获状态码
-			wrappedWriter := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
-			next.ServeHTTP(wrappedWriter, r)
-			return
+		// 检查是否跳过日志记录
+		for _, path := range skipLogPaths {
+			if r.URL.Path == path {
+				// 包装ResponseWriter以捕获状态码
+				wrappedWriter := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+				next.ServeHTTP(wrappedWriter, r)
+				return
+			}
 		}
 
 		// 跳过静态资源请求的日志记录

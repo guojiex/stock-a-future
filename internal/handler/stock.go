@@ -729,8 +729,6 @@ func (h *StockHandler) GetFavoritesSignals(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	log.Printf("获取 %d 支收藏股票的信号数据", len(favorites))
-
 	// 获取信号服务
 	signalService, ok := h.getSignalService()
 	if !ok {
@@ -738,12 +736,20 @@ func (h *StockHandler) GetFavoritesSignals(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// 获取计算状态
+	calcStatus := signalService.GetCalculationStatus()
+
 	// 批量获取信号数据
 	var signals []models.FavoriteSignal
 	today := time.Now().Format("20060102")
 
+	// 如果当前正在计算中，显示计算状态
+	if calcStatus.IsCalculating {
+		log.Printf("信号正在计算中，已完成: %d/%d", calcStatus.Completed, calcStatus.Total)
+	}
+
 	for _, favorite := range favorites {
-		// 从数据库获取已计算好的信号
+		// 从数据库获取已计算好的信号（不触发计算）
 		stockSignal, err := signalService.GetSignal(favorite.TSCode, today)
 
 		// 如果没有找到信号，获取最新的股票数据用于显示基本信息
@@ -767,8 +773,8 @@ func (h *StockHandler) GetFavoritesSignals(w http.ResponseWriter, r *http.Reques
 					Trend:        "UNKNOWN",
 					LastUpdate:   "未计算",
 				},
-				Predictions: map[string]interface{}{"message": "信号尚未计算"},
-				UpdatedAt:   "未计算",
+				Predictions: getCalculationMessage(calcStatus),
+				UpdatedAt:   getCalculationStatus(calcStatus),
 			}
 			signals = append(signals, signal)
 			continue
@@ -777,14 +783,12 @@ func (h *StockHandler) GetFavoritesSignals(w http.ResponseWriter, r *http.Reques
 		// 从已计算的信号构建响应
 		indicators := h.buildIndicatorsFromSignal(stockSignal)
 
-		// 获取最新的股票数据以显示当前价格
+		// 使用信号中的价格信息，避免重新请求数据
 		var currentPrice string
-		stockData, err := h.dataSourceClient.GetDailyData(favorite.TSCode, "", "", "")
-		if err == nil && len(stockData) > 0 {
-			currentPrice = stockData[len(stockData)-1].Close.Decimal.String()
+		if stockSignal.TechnicalIndicators != nil && stockSignal.TechnicalIndicators.MA != nil {
+			currentPrice = stockSignal.TechnicalIndicators.MA.MA5.Decimal.String()
 		} else {
-			// 如果获取失败，使用指标中的价格或默认值
-			currentPrice = indicators.CurrentPrice
+			currentPrice = "0.00"
 		}
 
 		signal := models.FavoriteSignal{
@@ -802,11 +806,13 @@ func (h *StockHandler) GetFavoritesSignals(w http.ResponseWriter, r *http.Reques
 		signals = append(signals, signal)
 	}
 
-	log.Printf("所有股票信号处理完成，共 %d 支", len(signals))
+	// 不再需要日志
 
 	response := models.FavoritesSignalsResponse{
-		Total:   len(signals),
-		Signals: signals,
+		Total:             len(signals),
+		Signals:           signals,
+		Calculating:       calcStatus.IsCalculating,
+		CalculationStatus: calcStatus,
 	}
 
 	h.writeSuccessResponse(w, response)
@@ -822,6 +828,25 @@ func (h *StockHandler) getSignalService() (*service.SignalService, bool) {
 	// 如果没有注册到App中，则返回失败
 	log.Printf("警告: 信号服务不可用")
 	return nil, false
+}
+
+// getCalculationMessage 根据计算状态返回消息
+func getCalculationMessage(calcStatus *service.CalculationStatus) map[string]interface{} {
+	message := "信号尚未计算"
+	if calcStatus.IsCalculating {
+		message = fmt.Sprintf("信号计算中 (%d/%d)", calcStatus.Completed, calcStatus.Total)
+	}
+	return map[string]interface{}{
+		"message": message,
+	}
+}
+
+// getCalculationStatus 根据计算状态返回状态文本
+func getCalculationStatus(calcStatus *service.CalculationStatus) string {
+	if calcStatus.IsCalculating {
+		return "计算中..."
+	}
+	return "未计算"
 }
 
 // buildIndicatorsFromSignal 从信号数据构建技术指标

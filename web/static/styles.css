@@ -2425,14 +2425,116 @@ body {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-lg);
+    position: relative;
+    min-height: 200px;
 }
 
-/* 信号组样式 */
+/* 信号刷新加载覆盖层 */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: var(--radius-md);
+    backdrop-filter: blur(2px);
+}
+
+.loading-overlay .loading {
+    background: var(--bg-primary);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    text-align: center;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* 信号内容平滑过渡 */
+.signals-content-new {
+    transition: opacity 0.4s ease-in-out;
+    will-change: opacity;
+}
+
+/* 信号组淡入动画 */
 .signal-group {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     overflow: hidden;
+    animation: fadeInUp 0.5s ease-out;
+    will-change: transform, opacity;
 }
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 信号项淡入动画 */
+.signal-item {
+    animation: fadeIn 0.3s ease-out;
+    animation-fill-mode: both;
+}
+
+.signal-item:nth-child(1) { animation-delay: 0.1s; }
+.signal-item:nth-child(2) { animation-delay: 0.15s; }
+.signal-item:nth-child(3) { animation-delay: 0.2s; }
+.signal-item:nth-child(4) { animation-delay: 0.25s; }
+.signal-item:nth-child(5) { animation-delay: 0.3s; }
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* 刷新按钮状态 */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transition: opacity 0.2s ease-in-out;
+}
+
+/* 错误信息样式 */
+.signals-error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-md);
+    text-align: center;
+    animation: slideInDown 0.3s ease-out;
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 信号组样式 */
 
 .signal-group-title {
     padding: var(--spacing-md);

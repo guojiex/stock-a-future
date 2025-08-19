@@ -23,6 +23,10 @@ type SignalService struct {
 	mutex           sync.RWMutex
 	running         bool
 	stopChan        chan struct{}
+
+	// 信号计算状态
+	statusMutex       sync.RWMutex
+	calculationStatus *CalculationStatus
 }
 
 // NewSignalService 创建信号计算服务
@@ -40,6 +44,14 @@ func NewSignalService(dataDir string, patternService *PatternService, stockServi
 		favoriteService: favoriteService,
 		running:         false,
 		stopChan:        make(chan struct{}),
+		calculationStatus: &CalculationStatus{
+			IsCalculating: false,
+			Total:         0,
+			Completed:     0,
+			Failed:        0,
+			StartTime:     time.Time{},
+			EndTime:       time.Time{},
+		},
 	}
 
 	return service, nil
@@ -86,25 +98,45 @@ func (s *SignalService) Close() error {
 func (s *SignalService) runSignalCalculation() {
 	log.Printf("开始计算收藏股票信号...")
 
-	// 立即执行一次计算
-	s.calculateFavoriteStocksSignals()
+	// 立即启动一个goroutine执行计算，不阻塞服务启动
+	go s.calculateFavoriteStocksSignals()
 
 	// 设置定时器，每天凌晨2点执行一次
-	ticker := time.NewTicker(24 * time.Hour)
-	defer ticker.Stop()
+	// 计算下一个凌晨2点的时间
+	now := time.Now()
+	nextRun := time.Date(now.Year(), now.Month(), now.Day(), 2, 0, 0, 0, now.Location())
+	if now.After(nextRun) {
+		nextRun = nextRun.Add(24 * time.Hour)
+	}
 
-	for {
-		select {
-		case <-s.stopChan:
-			log.Printf("信号计算服务收到停止信号")
-			return
-		case <-ticker.C:
-			// 检查是否需要计算（避免重复计算）
-			if s.shouldCalculateToday() {
-				s.calculateFavoriteStocksSignals()
+	// 计算第一次执行的等待时间
+	initialDelay := nextRun.Sub(now)
+	log.Printf("下次定时计算将在 %v 后执行（%s）", initialDelay, nextRun.Format("2006-01-02 15:04:05"))
+
+	// 首次延迟后启动定时器
+	time.AfterFunc(initialDelay, func() {
+		// 首次定时执行
+		if s.shouldCalculateToday() {
+			go s.calculateFavoriteStocksSignals()
+		}
+
+		// 然后设置每24小时执行一次的定时器
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-s.stopChan:
+				log.Printf("信号计算服务收到停止信号")
+				return
+			case <-ticker.C:
+				// 检查是否需要计算（避免重复计算）
+				if s.shouldCalculateToday() {
+					go s.calculateFavoriteStocksSignals()
+				}
 			}
 		}
-	}
+	})
 }
 
 // shouldCalculateToday 检查今天是否需要计算信号
@@ -127,21 +159,76 @@ func (s *SignalService) shouldCalculateToday() bool {
 	return count == 0 // 如果今天没有计算过，则需要计算
 }
 
+// CalculationStatus 表示信号计算的状态
+type CalculationStatus struct {
+	IsCalculating bool      `json:"is_calculating"`
+	Total         int       `json:"total"`
+	Completed     int       `json:"completed"`
+	Failed        int       `json:"failed"`
+	StartTime     time.Time `json:"start_time"`
+	EndTime       time.Time `json:"end_time"`
+	Duration      string    `json:"duration,omitempty"`
+}
+
+// GetCalculationStatus 获取当前计算状态
+func (s *SignalService) GetCalculationStatus() *CalculationStatus {
+	s.statusMutex.RLock()
+	defer s.statusMutex.RUnlock()
+
+	status := &CalculationStatus{
+		IsCalculating: s.calculationStatus.IsCalculating,
+		Total:         s.calculationStatus.Total,
+		Completed:     s.calculationStatus.Completed,
+		Failed:        s.calculationStatus.Failed,
+		StartTime:     s.calculationStatus.StartTime,
+		EndTime:       s.calculationStatus.EndTime,
+	}
+
+	if !s.calculationStatus.StartTime.IsZero() {
+		if s.calculationStatus.IsCalculating {
+			status.Duration = time.Since(s.calculationStatus.StartTime).String()
+		} else if !s.calculationStatus.EndTime.IsZero() {
+			status.Duration = s.calculationStatus.EndTime.Sub(s.calculationStatus.StartTime).String()
+		}
+	}
+
+	return status
+}
+
 // calculateFavoriteStocksSignals 计算收藏股票的信号
 func (s *SignalService) calculateFavoriteStocksSignals() {
 	log.Printf("开始计算收藏股票信号...")
 	startTime := time.Now()
 
+	// 更新计算状态
+	s.statusMutex.Lock()
+	s.calculationStatus.IsCalculating = true
+	s.calculationStatus.StartTime = startTime
+	s.calculationStatus.Completed = 0
+	s.calculationStatus.Failed = 0
+	s.statusMutex.Unlock()
+
 	// 获取所有收藏股票
 	favorites := s.favoriteService.GetFavorites()
 	if len(favorites) == 0 {
 		log.Printf("没有收藏股票，跳过信号计算")
+
+		// 更新计算状态
+		s.statusMutex.Lock()
+		s.calculationStatus.IsCalculating = false
+		s.calculationStatus.EndTime = time.Now()
+		s.calculationStatus.Total = 0
+		s.statusMutex.Unlock()
+
 		return
 	}
 
 	total := len(favorites)
-	success := 0
-	failed := 0
+
+	// 更新总数
+	s.statusMutex.Lock()
+	s.calculationStatus.Total = total
+	s.statusMutex.Unlock()
 
 	// 并发计算信号
 	semaphore := make(chan struct{}, 5) // 限制并发数为5
@@ -156,18 +243,31 @@ func (s *SignalService) calculateFavoriteStocksSignals() {
 
 			if err := s.calculateStockSignal(fav.TSCode, fav.Name, false); err != nil {
 				log.Printf("计算股票 %s 信号失败: %v", fav.TSCode, err)
-				failed++
+
+				// 更新失败计数
+				s.statusMutex.Lock()
+				s.calculationStatus.Failed++
+				s.statusMutex.Unlock()
 			} else {
-				success++
+				// 更新成功计数
+				s.statusMutex.Lock()
+				s.calculationStatus.Completed++
+				s.statusMutex.Unlock()
 			}
 		}(favorite)
 	}
 
 	wg.Wait()
 
-	duration := time.Since(startTime)
+	// 计算完成，更新状态
+	s.statusMutex.Lock()
+	s.calculationStatus.IsCalculating = false
+	s.calculationStatus.EndTime = time.Now()
+	duration := s.calculationStatus.EndTime.Sub(s.calculationStatus.StartTime)
+	s.statusMutex.Unlock()
+
 	log.Printf("收藏股票信号计算完成: 总数=%d, 成功=%d, 失败=%d, 耗时=%v",
-		total, success, failed, duration)
+		total, s.calculationStatus.Completed, s.calculationStatus.Failed, duration)
 }
 
 // CalculateStockSignal 计算单个股票信号（公开方法）
@@ -183,6 +283,20 @@ func (s *SignalService) calculateStockSignal(tsCode, name string, force bool) er
 	if !force && s.hasSignalForToday(tsCode, today) {
 		log.Printf("股票 %s 今日信号已存在，跳过计算", tsCode)
 		return nil
+	}
+
+	// 如果没有提供名称，尝试从数据库获取
+	if name == "" {
+		// 尝试从本地数据库获取股票名称
+		stockInfo, err := s.getStockInfoFromDB(tsCode)
+		if err == nil && stockInfo.Name != "" {
+			name = stockInfo.Name
+			log.Printf("从数据库获取到股票名称: %s -> %s", tsCode, name)
+		} else {
+			// 使用代码作为名称
+			name = tsCode
+			log.Printf("未能获取股票名称，使用代码作为名称: %s", tsCode)
+		}
 	}
 
 	// 获取最近30天的数据进行分析
@@ -236,6 +350,35 @@ func (s *SignalService) calculateStockSignal(tsCode, name string, force bool) er
 		tsCode, signal.SignalType, signal.SignalStrength, signal.Confidence.Decimal.InexactFloat64())
 
 	return nil
+}
+
+// getStockInfoFromDB 从数据库获取股票信息
+func (s *SignalService) getStockInfoFromDB(tsCode string) (*models.StockBasic, error) {
+	query := `
+		SELECT ts_code, symbol, name, area, industry, market, list_date
+		FROM stock_basic 
+		WHERE ts_code = ?
+	`
+
+	var stock models.StockBasic
+	err := s.db.GetDB().QueryRow(query, tsCode).Scan(
+		&stock.TSCode,
+		&stock.Symbol,
+		&stock.Name,
+		&stock.Area,
+		&stock.Industry,
+		&stock.Market,
+		&stock.ListDate,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("未找到股票信息")
+		}
+		return nil, err
+	}
+
+	return &stock, nil
 }
 
 // hasSignalForToday 检查今天是否已有信号

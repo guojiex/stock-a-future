@@ -247,8 +247,10 @@ type FavoriteSignal struct {
 
 // FavoritesSignalsResponse 收藏股票信号响应
 type FavoritesSignalsResponse struct {
-	Total   int              `json:"total"`
-	Signals []FavoriteSignal `json:"signals"`
+	Total             int              `json:"total"`
+	Signals           []FavoriteSignal `json:"signals"`
+	Calculating       bool             `json:"calculating"`
+	CalculationStatus interface{}      `json:"calculation_status,omitempty"`
 }
 
 // CandlestickPattern 蜡烛图模式识别结果

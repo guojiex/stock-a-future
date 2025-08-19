@@ -37,7 +37,7 @@ func NewFavoriteService(dataDir string) (*FavoriteService, error) {
 	// 从JSON文件迁移数据到数据库
 	favoritesPath := filepath.Join(dataDir, "favorites", "favorites.json")
 	groupsPath := filepath.Join(dataDir, "favorites", "groups.json")
-	
+
 	if err := service.db.MigrateFromJSON(favoritesPath, groupsPath); err != nil {
 		return nil, fmt.Errorf("数据迁移失败: %v", err)
 	}
@@ -140,6 +140,9 @@ func (s *FavoriteService) GetFavorites() []*models.FavoriteStock {
 	for _, favorite := range s.favorites {
 		favorites = append(favorites, favorite)
 	}
+
+	// 按照分组ID和排序顺序进行稳定排序
+	sortFavorites(favorites)
 
 	return favorites
 }
@@ -297,6 +300,35 @@ func (s *FavoriteService) saveFavoriteToDB(favorite *models.FavoriteStock) error
 	)
 
 	return err
+}
+
+// sortFavorites 对收藏股票进行排序
+func sortFavorites(favorites []*models.FavoriteStock) {
+	// 按照分组ID和排序顺序进行排序
+	// 首先按分组ID排序，然后按sort_order排序
+	for i := 0; i < len(favorites)-1; i++ {
+		for j := i + 1; j < len(favorites); j++ {
+			if shouldSwap(favorites[i], favorites[j]) {
+				favorites[i], favorites[j] = favorites[j], favorites[i]
+			}
+		}
+	}
+}
+
+// shouldSwap 判断是否需要交换两个收藏股票的位置
+func shouldSwap(a, b *models.FavoriteStock) bool {
+	// 首先按分组ID排序
+	if a.GroupID != b.GroupID {
+		return a.GroupID > b.GroupID
+	}
+
+	// 分组ID相同时，按排序顺序排序
+	if a.SortOrder != b.SortOrder {
+		return a.SortOrder > b.SortOrder
+	}
+
+	// 排序顺序相同时，按创建时间排序
+	return a.CreatedAt.After(b.CreatedAt)
 }
 
 // updateFavoriteInDB 更新数据库中的收藏
@@ -477,7 +509,7 @@ func (s *FavoriteService) DeleteGroup(id string) error {
 		if favorite.GroupID == id {
 			favorite.GroupID = s.defaultGroupID
 			favorite.UpdatedAt = time.Now()
-			
+
 			// 更新数据库
 			if err := s.updateFavoriteInDB(favorite); err != nil {
 				return fmt.Errorf("更新收藏分组失败: %v", err)
@@ -507,7 +539,7 @@ func (s *FavoriteService) UpdateFavoritesOrder(request *models.UpdateFavoritesOr
 			favorite.GroupID = orderItem.GroupID
 			favorite.SortOrder = orderItem.SortOrder
 			favorite.UpdatedAt = time.Now()
-			
+
 			// 更新数据库
 			if err := s.updateFavoriteInDB(favorite); err != nil {
 				return fmt.Errorf("更新收藏排序失败: %v", err)

@@ -236,3 +236,25 @@ func (h *SignalHandler) GetLatestSignals(w http.ResponseWriter, r *http.Request)
 
 	log.Printf("[SignalHandler] 获取最新信号成功: 返回 %d 条记录", len(signals))
 }
+
+// GetCalculationStatus 获取信号计算状态
+func (h *SignalHandler) GetCalculationStatus(w http.ResponseWriter, r *http.Request) {
+	log.Printf("[SignalHandler] 收到获取信号计算状态请求: %s %s", r.Method, r.URL.Path)
+
+	// 获取计算状态
+	status := h.signalService.GetCalculationStatus()
+
+	response := models.APIResponse{
+		Success: true,
+		Data:    status,
+	}
+
+	// 响应头已在中间件中设置
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("编码响应失败: %v", err)
+		http.Error(w, "服务器内部错误", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("[SignalHandler] 获取信号计算状态成功")
+}
