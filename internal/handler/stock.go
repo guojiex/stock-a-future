@@ -47,8 +47,7 @@ func NewStockHandler(dataSourceClient client.DataSourceClient, cacheService *ser
 // GetDailyData 获取股票日线数据
 func (h *StockHandler) GetDailyData(w http.ResponseWriter, r *http.Request) {
 	// 设置响应头
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	// 记录请求开始
 	startTime := time.Now()
@@ -148,8 +147,7 @@ func (h *StockHandler) GetDailyData(w http.ResponseWriter, r *http.Request) {
 
 // GetIndicators 获取技术指标
 func (h *StockHandler) GetIndicators(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	// 记录请求开始
 	startTime := time.Now()
@@ -284,8 +282,7 @@ func (h *StockHandler) GetIndicators(w http.ResponseWriter, r *http.Request) {
 
 // GetPredictions 获取买卖预测
 func (h *StockHandler) GetPredictions(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	// 记录请求开始
 	startTime := time.Now()
@@ -399,8 +396,7 @@ func (h *StockHandler) GetPredictions(w http.ResponseWriter, r *http.Request) {
 
 // GetStockBasic 获取股票基本信息
 func (h *StockHandler) GetStockBasic(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	// 解析路径参数
 	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
@@ -430,8 +426,7 @@ func (h *StockHandler) GetStockBasic(w http.ResponseWriter, r *http.Request) {
 
 // GetStockList 获取本地股票列表
 func (h *StockHandler) GetStockList(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	// 获取所有本地股票
 	stocks := h.localStockService.GetAllStocks()
@@ -447,8 +442,7 @@ func (h *StockHandler) GetStockList(w http.ResponseWriter, r *http.Request) {
 
 // SearchStocks 搜索股票
 func (h *StockHandler) SearchStocks(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	// 获取搜索参数
 	query := r.URL.Query()
@@ -482,8 +476,7 @@ func (h *StockHandler) SearchStocks(w http.ResponseWriter, r *http.Request) {
 
 // RefreshLocalData 刷新本地数据
 func (h *StockHandler) RefreshLocalData(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	// 刷新本地数据
 	if err := h.localStockService.RefreshData(); err != nil {
@@ -505,8 +498,7 @@ func (h *StockHandler) RefreshLocalData(w http.ResponseWriter, r *http.Request) 
 
 // GetCacheStats 获取缓存统计信息
 func (h *StockHandler) GetCacheStats(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	if h.dailyCacheService == nil {
 		h.writeErrorResponse(w, http.StatusServiceUnavailable, "缓存服务未启用")
@@ -519,8 +511,7 @@ func (h *StockHandler) GetCacheStats(w http.ResponseWriter, r *http.Request) {
 
 // ClearCache 清空缓存
 func (h *StockHandler) ClearCache(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	if h.dailyCacheService == nil {
 		h.writeErrorResponse(w, http.StatusServiceUnavailable, "缓存服务未启用")
@@ -584,8 +575,7 @@ func (h *StockHandler) GetHealthStatus(w http.ResponseWriter, r *http.Request) {
 
 // GetFavorites 获取收藏股票列表
 func (h *StockHandler) GetFavorites(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	favorites := h.favoriteService.GetFavorites()
 
@@ -599,8 +589,7 @@ func (h *StockHandler) GetFavorites(w http.ResponseWriter, r *http.Request) {
 
 // AddFavorite 添加收藏股票
 func (h *StockHandler) AddFavorite(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	if r.Method != http.MethodPost {
 		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持POST方法")
@@ -631,8 +620,7 @@ func (h *StockHandler) AddFavorite(w http.ResponseWriter, r *http.Request) {
 
 // DeleteFavorite 删除收藏股票
 func (h *StockHandler) DeleteFavorite(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	if r.Method != http.MethodDelete {
 		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持DELETE方法")
@@ -665,8 +653,7 @@ func (h *StockHandler) DeleteFavorite(w http.ResponseWriter, r *http.Request) {
 
 // UpdateFavorite 更新收藏股票的时间范围
 func (h *StockHandler) UpdateFavorite(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	if r.Method != http.MethodPut {
 		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持PUT方法")
@@ -702,8 +689,7 @@ func (h *StockHandler) UpdateFavorite(w http.ResponseWriter, r *http.Request) {
 
 // CheckFavorite 检查股票是否已收藏
 func (h *StockHandler) CheckFavorite(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	// 解析路径参数
 	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
@@ -726,8 +712,7 @@ func (h *StockHandler) CheckFavorite(w http.ResponseWriter, r *http.Request) {
 
 // GetFavoritesSignals 获取所有收藏股票的信号汇总
 func (h *StockHandler) GetFavoritesSignals(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	if r.Method != http.MethodGet {
 		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持GET方法")
@@ -927,8 +912,7 @@ func (h *StockHandler) writeErrorResponse(w http.ResponseWriter, statusCode int,
 
 // GetGroups 获取分组列表
 func (h *StockHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	groups := h.favoriteService.GetGroups()
 
@@ -942,8 +926,7 @@ func (h *StockHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 
 // CreateGroup 创建分组
 func (h *StockHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	if r.Method != http.MethodPost {
 		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持POST方法")
@@ -970,8 +953,7 @@ func (h *StockHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 
 // UpdateGroup 更新分组
 func (h *StockHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	if r.Method != http.MethodPut {
 		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持PUT方法")
@@ -1007,8 +989,7 @@ func (h *StockHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 
 // DeleteGroup 删除分组
 func (h *StockHandler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	if r.Method != http.MethodDelete {
 		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持DELETE方法")
@@ -1041,8 +1022,7 @@ func (h *StockHandler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 
 // UpdateFavoritesOrder 更新收藏排序
 func (h *StockHandler) UpdateFavoritesOrder(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 响应头已在中间件中设置
 
 	if r.Method != http.MethodPut {
 		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持PUT方法")

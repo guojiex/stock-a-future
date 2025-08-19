@@ -40,3 +40,5 @@ go.work.sum
 /bin/
 *.log
 aktools_log.log.*
+.DS_Store
+stock-server

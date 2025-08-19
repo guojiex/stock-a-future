@@ -52,7 +52,7 @@ func (h *SignalHandler) CalculateSignal(w http.ResponseWriter, r *http.Request) 
 			Message: "计算失败",
 			Error:   err.Error(),
 		}
-		w.Header().Set("Content-Type", "application/json")
+		// 响应头已在中间件中设置
 		json.NewEncoder(w).Encode(response)
 		return
 	}
@@ -67,7 +67,7 @@ func (h *SignalHandler) CalculateSignal(w http.ResponseWriter, r *http.Request) 
 			Message: "获取结果失败",
 			Error:   err.Error(),
 		}
-		w.Header().Set("Content-Type", "application/json")
+		// 响应头已在中间件中设置
 		json.NewEncoder(w).Encode(response)
 		return
 	}
@@ -78,7 +78,7 @@ func (h *SignalHandler) CalculateSignal(w http.ResponseWriter, r *http.Request) 
 		Signal:  signal,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	// 响应头已在中间件中设置
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("编码响应失败: %v", err)
 		http.Error(w, "服务器内部错误", http.StatusInternalServerError)
@@ -149,7 +149,7 @@ func (h *SignalHandler) BatchCalculateSignals(w http.ResponseWriter, r *http.Req
 		Duration:  duration.String(),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	// 响应头已在中间件中设置
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("编码响应失败: %v", err)
 		http.Error(w, "服务器内部错误", http.StatusInternalServerError)
@@ -189,7 +189,7 @@ func (h *SignalHandler) GetSignal(w http.ResponseWriter, r *http.Request) {
 		Data:    signal,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	// 响应头已在中间件中设置
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("编码响应失败: %v", err)
 		http.Error(w, "服务器内部错误", http.StatusInternalServerError)
@@ -227,7 +227,7 @@ func (h *SignalHandler) GetLatestSignals(w http.ResponseWriter, r *http.Request)
 		},
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	// 响应头已在中间件中设置
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("编码响应失败: %v", err)
 		http.Error(w, "服务器内部错误", http.StatusInternalServerError)

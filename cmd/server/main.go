@@ -411,6 +411,11 @@ func withCORS(next http.Handler) http.Handler {
 			"object-src 'none';"
 		w.Header().Set("Content-Security-Policy", cspHeader)
 
+		// 为API请求设置Content-Type
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			w.Header().Set("Content-Type", "application/json")
+		}
+
 		// 处理预检请求
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)

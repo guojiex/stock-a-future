@@ -58,7 +58,7 @@ func (h *PatternHandler) RecognizePatterns(w http.ResponseWriter, r *http.Reques
 		Data:    patterns,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	// 响应头已在中间件中设置
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -102,7 +102,7 @@ func (h *PatternHandler) SearchPatterns(w http.ResponseWriter, r *http.Request) 
 		Data:    result,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	// 响应头已在中间件中设置
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -143,7 +143,7 @@ func (h *PatternHandler) GetPatternSummary(w http.ResponseWriter, r *http.Reques
 		Data:    summary,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	// 响应头已在中间件中设置
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -184,7 +184,7 @@ func (h *PatternHandler) GetRecentSignals(w http.ResponseWriter, r *http.Request
 		Data:    signals,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	// 响应头已在中间件中设置
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -218,7 +218,7 @@ func (h *PatternHandler) GetAvailablePatterns(w http.ResponseWriter, r *http.Req
 		Data:    patterns,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	// 响应头已在中间件中设置
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -337,6 +337,6 @@ func (h *PatternHandler) GetPatternStatistics(w http.ResponseWriter, r *http.Req
 		Data:    statistics,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	// 响应头已在中间件中设置
 	json.NewEncoder(w).Encode(response)
 }
