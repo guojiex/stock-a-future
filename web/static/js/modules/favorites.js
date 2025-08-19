@@ -1142,7 +1142,6 @@ class FavoritesModule {
         
         // 检查容器是否已经有内容
         if (signalsList.children.length === 0 || signalsList.innerHTML.trim().length < 100) {
-            console.log('初始化信号列表容器，显示加载状态');
             signalsList.innerHTML = '<div class="signals-empty"><p>正在加载信号数据...</p></div>';
         }
     }
@@ -1164,13 +1163,8 @@ class FavoritesModule {
             // 初始化容器状态
             this.initializeSignalsContainer();
             
-            // 调试：打印当前状态
-            console.log('=== 开始加载信号 ===');
-            this.debugSignalsState();
-            
             // 保存当前内容用于比较
             const currentContent = signalsList.innerHTML;
-            console.log('当前信号内容长度:', currentContent.length);
             
             // 显示加载状态，但保持原有内容可见
             const loadingDiv = document.createElement('div');
@@ -1185,9 +1179,7 @@ class FavoritesModule {
             }
             
             // 调用API获取信号数据
-            console.log('开始获取信号数据...');
             const response = await this.apiService.getFavoritesSignals();
-            console.log('API响应:', response);
             
             // 移除加载覆盖层
             const existingOverlay = signalsList.querySelector('.loading-overlay');
@@ -1197,11 +1189,6 @@ class FavoritesModule {
             
             // 验证响应数据
             if (response && response.signals) {
-                console.log(`获取到 ${response.signals.length} 个信号`);
-                
-                // 调试：打印新数据状态
-                this.debugNewSignalsData(response.signals);
-                
                 // 验证信号数据的完整性
                 const validSignals = response.signals.filter(signal => {
                     if (!signal || !signal.ts_code || !signal.name) {
@@ -1211,8 +1198,6 @@ class FavoritesModule {
                     return true;
                 });
                 
-                console.log(`有效信号数量: ${validSignals.length}`);
-                
                 if (validSignals.length > 0) {
                     // 使用淡入淡出效果更新内容
                     this.updateSignalsWithTransition(signalsList, validSignals, currentContent);
@@ -1220,25 +1205,17 @@ class FavoritesModule {
                         signalsCount.textContent = `共 ${response.total || validSignals.length} 支股票`;
                     }
                 } else {
-                    console.log('没有有效信号数据，显示空状态');
                     this.updateSignalsWithTransition(signalsList, [], currentContent);
                     if (signalsCount) {
                         signalsCount.textContent = '共 0 支股票';
                     }
                 }
             } else {
-                console.log('API返回空数据或格式不正确');
                 this.updateSignalsWithTransition(signalsList, [], currentContent);
                 if (signalsCount) {
                     signalsCount.textContent = '共 0 支股票';
                 }
             }
-            
-            // 调试：打印更新后的状态
-            setTimeout(() => {
-                console.log('=== 更新后的状态 ===');
-                this.debugSignalsState();
-            }, 500);
             
         } catch (error) {
             console.error('加载信号数据失败:', error);
@@ -1274,12 +1251,10 @@ class FavoritesModule {
         
         // 如果没有信号数据，显示空状态
         if (!signals || signals.length === 0) {
-            console.log('没有信号数据，显示空状态');
             signalsList.innerHTML = '<div class="signals-empty"><p>暂无信号数据</p></div>';
             return;
         }
 
-        console.log(`开始渲染 ${signals.length} 个信号`);
         let signalsHTML = '';
         
         // 按信号类型分组
@@ -1310,8 +1285,6 @@ class FavoritesModule {
                 holdSignals.push(signal);
             }
         });
-
-        console.log(`信号分组: 买入=${buySignals.length}, 卖出=${sellSignals.length}, 持有=${holdSignals.length}`);
 
         // 按置信度排序函数
         const sortByConfidence = (signals) => {
@@ -1379,16 +1352,12 @@ class FavoritesModule {
     updateSignalsWithTransition(container, signals, previousContent) {
         // 改进的内容变化检测
         const hasChanged = this.hasSignalsContentChanged(container, signals);
-        console.log('内容变化检测结果:', hasChanged);
         
         if (hasChanged) {
-            console.log('内容有变化，执行更新');
             // 创建新内容容器
             const newContent = document.createElement('div');
             newContent.className = 'signals-content-new';
             newContent.style.opacity = '0';
-            
-            console.log('创建新内容容器，开始渲染信号');
             
             // 渲染新内容到临时容器
             if (signals && signals.length > 0) {
@@ -1397,16 +1366,11 @@ class FavoritesModule {
                 newContent.innerHTML = '<div class="signals-empty"><p>暂无信号数据</p></div>';
             }
             
-            console.log('新内容容器渲染完成，子元素数量:', newContent.children.length);
-            console.log('新内容容器HTML:', newContent.innerHTML.substring(0, 200) + '...');
-            
             // 将新内容添加到容器中
             container.appendChild(newContent);
-            console.log('新内容已添加到容器，容器总子元素数量:', container.children.length);
             
             // 使用 requestAnimationFrame 确保DOM更新完成
             requestAnimationFrame(() => {
-                console.log('开始淡入动画');
                 // 淡入新内容
                 newContent.style.transition = 'opacity 0.4s ease-in-out';
                 newContent.style.opacity = '1';
@@ -1414,15 +1378,11 @@ class FavoritesModule {
                 // 400ms后移除旧内容
                 setTimeout(() => {
                     try {
-                        console.log('开始移除旧内容');
-                        
                         // 先保存新内容容器中的所有子元素
                         const newContentChildren = Array.from(newContent.children);
-                        console.log('保存的新内容子元素数量:', newContentChildren.length);
                         
                         // 移除所有旧内容，但排除新内容容器本身
                         const oldElements = container.querySelectorAll('.signal-group, .signals-empty, .signals-error');
-                        console.log('找到旧元素数量:', oldElements.length);
                         
                         // 只移除不在新内容容器中的旧元素
                         oldElements.forEach(el => {
@@ -1432,20 +1392,12 @@ class FavoritesModule {
                         });
                         
                         // 检查新内容容器的状态
-                        console.log('移除旧内容后，新内容容器的子元素数量:', newContent.children.length);
-                        console.log('新内容容器的所有子元素:', Array.from(newContent.children).map(child => ({
-                            tagName: child.tagName,
-                            className: child.className,
-                            id: child.id
-                        })));
                         
                         // 直接移动所有子元素，而不是用选择器
                         const allNewElements = Array.from(newContent.children);
-                        console.log('准备移动的新元素数量:', allNewElements.length);
                         
                         allNewElements.forEach(el => {
                             container.appendChild(el);
-                            console.log('已移动元素:', el.tagName, el.className);
                         });
                         
                         // 移除临时容器
@@ -1454,8 +1406,6 @@ class FavoritesModule {
                         // 重新设置事件监听器
                         this.setupSignalItemEvents();
                         
-                        console.log('内容更新完成，最终容器子元素数量:', container.children.length);
-                        console.log('最终容器内容:', container.innerHTML.substring(0, 200) + '...');
                     } catch (error) {
                         console.error('更新信号内容时出错:', error);
                         // 如果出错，保持原有内容不变
@@ -1464,19 +1414,16 @@ class FavoritesModule {
                 }, 400);
             });
         } else {
-            console.log('信号内容未发生变化，跳过更新');
             // 即使没有变化，也要确保显示正确的内容
             if (signals && signals.length > 0) {
                 // 如果有信号数据但容器为空，强制更新
                 if (container.querySelectorAll('.signal-group, .signals-empty').length === 0) {
-                    console.log('强制更新内容（容器为空）');
                     this.renderSignals(signals);
                 }
             } else if (signals.length === 0) {
                 // 如果没有信号数据，确保显示空状态
                 const currentEmpty = container.querySelector('.signals-empty');
                 if (!currentEmpty) {
-                    console.log('强制显示空状态');
                     container.innerHTML = '<div class="signals-empty"><p>暂无信号数据</p></div>';
                 }
             }
@@ -1495,7 +1442,6 @@ class FavoritesModule {
             
             // 如果数量不同，肯定有变化
             if (currentTotal !== newTotal) {
-                console.log(`信号数量变化: ${currentTotal} -> ${newTotal}`);
                 return true;
             }
             
@@ -1513,7 +1459,6 @@ class FavoritesModule {
             const hasNewContent = newSignals && newSignals.length > 0;
             
             if (hasCurrentContent !== hasNewContent) {
-                console.log(`内容类型变化: 当前=${hasCurrentContent}, 新=${hasNewContent}`);
                 return true;
             }
             
@@ -1527,7 +1472,6 @@ class FavoritesModule {
                 const newCode = firstNewSignal.ts_code;
                 
                 if (currentCode !== newCode) {
-                    console.log(`第一个信号代码变化: ${currentCode} -> ${newCode}`);
                     return true;
                 }
             }
@@ -1549,7 +1493,6 @@ class FavoritesModule {
             return;
         }
 
-        console.log('开始渲染信号到容器，信号数量:', signals.length);
         let signalsHTML = '';
         
         // 按信号类型分组
@@ -1581,12 +1524,6 @@ class FavoritesModule {
             }
         });
 
-        console.log('信号分组结果:', {
-            buy: buySignals.length,
-            sell: sellSignals.length,
-            hold: holdSignals.length
-        });
-
         // 按置信度排序函数
         const sortByConfidence = (signals) => {
             return signals.sort((a, b) => {
@@ -1616,7 +1553,6 @@ class FavoritesModule {
 
         // 渲染买入信号
         if (sortedBuySignals.length > 0) {
-            console.log('渲染买入信号组，数量:', sortedBuySignals.length);
             signalsHTML += `
                 <div class="signal-group buy-signals">
                     <h3 class="signal-group-title buy">🟢 买入信号 (${sortedBuySignals.length})</h3>
@@ -1627,7 +1563,6 @@ class FavoritesModule {
 
         // 渲染卖出信号
         if (sortedSellSignals.length > 0) {
-            console.log('渲染卖出信号组，数量:', sortedSellSignals.length);
             signalsHTML += `
                 <div class="signal-group sell-signals">
                     <h3 class="signal-group-title sell">🔴 卖出信号 (${sortedSellSignals.length})</h3>
@@ -1638,7 +1573,6 @@ class FavoritesModule {
 
         // 渲染持有信号
         if (sortedHoldSignals.length > 0) {
-            console.log('渲染持有信号组，数量:', sortedHoldSignals.length);
             signalsHTML += `
                 <div class="signal-group hold-signals">
                     <h3 class="signal-group-title hold">🟡 持有信号 (${sortedHoldSignals.length})</h3>
@@ -1647,27 +1581,7 @@ class FavoritesModule {
             `;
         }
 
-        console.log('最终HTML长度:', signalsHTML.length);
-        console.log('最终HTML内容:', signalsHTML.substring(0, 200) + '...');
-        
-        // 设置HTML内容
         container.innerHTML = signalsHTML;
-        
-        // 验证内容是否正确设置
-        console.log('容器更新完成，当前子元素数量:', container.children.length);
-        console.log('容器实际HTML长度:', container.innerHTML.length);
-        
-        // 检查是否有信号组
-        const signalGroups = container.querySelectorAll('.signal-group');
-        console.log('容器中的信号组数量:', signalGroups.length);
-        
-        if (signalGroups.length > 0) {
-            signalGroups.forEach((group, index) => {
-                const title = group.querySelector('.signal-group-title')?.textContent;
-                const items = group.querySelectorAll('.signal-item');
-                console.log(`信号组 ${index + 1}: ${title}, 信号项数量: ${items.length}`);
-            });
-        }
     }
 
     /**
@@ -1909,75 +1823,6 @@ class FavoritesModule {
                 }, 500);
             }
         }
-    }
-
-    /**
-     * 调试方法：打印当前信号列表状态
-     */
-    debugSignalsState() {
-        const signalsList = document.getElementById('signalsList');
-        if (!signalsList) {
-            console.log('调试: 找不到信号列表容器');
-            return;
-        }
-        
-        const currentGroups = signalsList.querySelectorAll('.signal-group');
-        const currentEmpty = signalsList.querySelector('.signals-empty');
-        const currentError = signalsList.querySelector('.signals-error');
-        
-        console.log('=== 当前信号列表状态 ===');
-        console.log('信号组数量:', currentGroups.length);
-        console.log('空状态显示:', !!currentEmpty);
-        console.log('错误状态显示:', !!currentError);
-        console.log('容器HTML长度:', signalsList.innerHTML.length);
-        console.log('容器实际HTML内容:', signalsList.innerHTML);
-        
-        if (currentGroups.length > 0) {
-            currentGroups.forEach((group, index) => {
-                const title = group.querySelector('.signal-group-title')?.textContent;
-                const items = group.querySelectorAll('.signal-item');
-                console.log(`组 ${index + 1}: ${title}, 信号项数量: ${items.length}`);
-            });
-        }
-        
-        if (currentEmpty) {
-            console.log('空状态内容:', currentEmpty.textContent);
-        }
-        
-        if (currentError) {
-            console.log('错误状态内容:', currentError.textContent);
-        }
-        
-        // 检查是否有其他内容
-        const allChildren = Array.from(signalsList.children);
-        console.log('所有子元素:', allChildren.map(child => ({
-            tagName: child.tagName,
-            className: child.className,
-            textContent: child.textContent?.substring(0, 50)
-        })));
-        
-        console.log('========================');
-    }
-
-    /**
-     * 调试方法：打印新信号数据状态
-     */
-    debugNewSignalsData(signals) {
-        console.log('=== 新信号数据状态 ===');
-        console.log('信号数组:', signals);
-        console.log('信号数量:', signals ? signals.length : 0);
-        
-        if (signals && signals.length > 0) {
-            signals.forEach((signal, index) => {
-                console.log(`信号 ${index + 1}:`, {
-                    ts_code: signal.ts_code,
-                    name: signal.name,
-                    hasPredictions: !!(signal.predictions && signal.predictions.predictions),
-                    predictionsCount: signal.predictions && signal.predictions.predictions ? signal.predictions.predictions.length : 0
-                });
-            });
-        }
-        console.log('========================');
     }
 }
 
