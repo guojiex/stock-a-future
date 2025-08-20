@@ -121,35 +121,45 @@ func (s *PredictionService) generatePredictions(data []models.StockDaily, indica
 
 	// 基于MACD的预测
 	if indicators.MACD != nil {
-		if prediction := s.predictFromMACD(indicators.MACD, currentPrice, signalDate); prediction != nil {
+		// 查找MACD信号产生的日期对应的价格
+		signalPrice := s.findPriceBySignalType(data, "MACD", indicators.MACD.Signal)
+		if prediction := s.predictFromMACD(indicators.MACD, signalPrice, signalDate); prediction != nil {
 			predictions = append(predictions, *prediction)
 		}
 	}
 
 	// 基于RSI的预测
 	if indicators.RSI != nil {
-		if prediction := s.predictFromRSI(indicators.RSI, currentPrice, signalDate); prediction != nil {
+		// 查找RSI信号产生的日期对应的价格
+		signalPrice := s.findPriceBySignalType(data, "RSI", indicators.RSI.Signal)
+		if prediction := s.predictFromRSI(indicators.RSI, signalPrice, signalDate); prediction != nil {
 			predictions = append(predictions, *prediction)
 		}
 	}
 
 	// 基于布林带的预测
 	if indicators.BOLL != nil {
-		if prediction := s.predictFromBollingerBands(indicators.BOLL, currentPrice, signalDate); prediction != nil {
+		// 查找布林带信号产生的日期对应的价格
+		signalPrice := s.findPriceBySignalType(data, "BOLL", indicators.BOLL.Signal)
+		if prediction := s.predictFromBollingerBands(indicators.BOLL, signalPrice, signalDate); prediction != nil {
 			predictions = append(predictions, *prediction)
 		}
 	}
 
 	// 基于KDJ的预测
 	if indicators.KDJ != nil {
-		if prediction := s.predictFromKDJ(indicators.KDJ, currentPrice, signalDate); prediction != nil {
+		// 查找KDJ信号产生的日期对应的价格
+		signalPrice := s.findPriceBySignalType(data, "KDJ", indicators.KDJ.Signal)
+		if prediction := s.predictFromKDJ(indicators.KDJ, signalPrice, signalDate); prediction != nil {
 			predictions = append(predictions, *prediction)
 		}
 	}
 
 	// 基于移动平均线的预测
 	if indicators.MA != nil {
-		if prediction := s.predictFromMA(indicators.MA, currentPrice, signalDate); prediction != nil {
+		// 查找MA信号产生的日期对应的价格
+		signalPrice := currentPrice // 默认使用当前价格
+		if prediction := s.predictFromMA(indicators.MA, signalPrice, signalDate); prediction != nil {
 			predictions = append(predictions, *prediction)
 		}
 	}
@@ -194,9 +204,12 @@ func (s *PredictionService) predictFromMACD(macd *models.MACDIndicator, currentP
 		probability = probability.Add(decimal.NewFromFloat(0.1))
 	}
 
+	// 使用信号产生时的价格
+	signalPrice := currentPrice
+
 	return &models.TradingPointPrediction{
 		Type:        predictType,
-		Price:       models.NewJSONDecimal(currentPrice),
+		Price:       models.NewJSONDecimal(signalPrice),
 		Date:        time.Now().AddDate(0, 0, 1).Format("20060102"), // 预测明天
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
@@ -228,9 +241,12 @@ func (s *PredictionService) predictFromRSI(rsi *models.RSIIndicator, currentPric
 		return nil
 	}
 
+	// 使用信号产生时的价格
+	signalPrice := currentPrice
+
 	return &models.TradingPointPrediction{
 		Type:        predictType,
-		Price:       models.NewJSONDecimal(currentPrice),
+		Price:       models.NewJSONDecimal(signalPrice),
 		Date:        time.Now().AddDate(0, 0, 1).Format("20060102"),
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
@@ -262,9 +278,12 @@ func (s *PredictionService) predictFromBollingerBands(boll *models.BollingerBand
 		return nil
 	}
 
+	// 使用信号产生时的价格
+	signalPrice := currentPrice
+
 	return &models.TradingPointPrediction{
 		Type:        predictType,
-		Price:       models.NewJSONDecimal(currentPrice),
+		Price:       models.NewJSONDecimal(signalPrice),
 		Date:        time.Now().AddDate(0, 0, 2).Format("20060102"), // 布林带信号预测后天
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
@@ -296,9 +315,12 @@ func (s *PredictionService) predictFromKDJ(kdj *models.KDJIndicator, currentPric
 		return nil
 	}
 
+	// 使用信号产生时的价格
+	signalPrice := currentPrice
+
 	return &models.TradingPointPrediction{
 		Type:        predictType,
-		Price:       models.NewJSONDecimal(currentPrice),
+		Price:       models.NewJSONDecimal(signalPrice),
 		Date:        time.Now().AddDate(0, 0, 1).Format("20060102"),
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
@@ -336,9 +358,12 @@ func (s *PredictionService) predictFromMA(ma *models.MovingAverageIndicator, cur
 		return nil
 	}
 
+	// 使用信号产生时的价格
+	signalPrice := currentPrice
+
 	return &models.TradingPointPrediction{
 		Type:        predictType,
-		Price:       models.NewJSONDecimal(currentPrice),
+		Price:       models.NewJSONDecimal(signalPrice),
 		Date:        time.Now().AddDate(0, 0, 3).Format("20060102"), // 均线信号预测3天后
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
@@ -403,7 +428,10 @@ func (s *PredictionService) predictFromPatterns(data []models.StockDaily, curren
 	for _, pattern := range patterns {
 		// 处理蜡烛图模式
 		for _, candlestick := range pattern.Candlestick {
-			if prediction := s.predictFromCandlestickPattern(candlestick, currentPrice); prediction != nil {
+			// 查找该蜡烛图模式对应的价格
+			patternPrice := s.findPriceForPattern(data, candlestick.TradeDate, candlestick.Pattern, candlestick.Signal)
+
+			if prediction := s.predictFromCandlestickPattern(candlestick, patternPrice); prediction != nil {
 				// 生成模式标识符（类型+指标）
 				patternKey := fmt.Sprintf("candlestick:%s", candlestick.Pattern)
 
@@ -420,7 +448,10 @@ func (s *PredictionService) predictFromPatterns(data []models.StockDaily, curren
 
 		// 处理量价模式
 		for _, volumePrice := range pattern.VolumePrice {
-			if prediction := s.predictFromVolumePricePattern(volumePrice, currentPrice); prediction != nil {
+			// 查找该量价模式对应的价格
+			patternPrice := s.findPriceForPattern(data, volumePrice.TradeDate, volumePrice.Pattern, volumePrice.Signal)
+
+			if prediction := s.predictFromVolumePricePattern(volumePrice, patternPrice); prediction != nil {
 				// 生成模式标识符（类型+指标）
 				patternKey := fmt.Sprintf("volume_price:%s", volumePrice.Pattern)
 
@@ -495,9 +526,13 @@ func (s *PredictionService) predictFromCandlestickPattern(pattern models.Candles
 		}
 	}
 
+	// 使用模式识别时的价格，而不是当前价格
+	// 这样可以确保每个信号显示的是信号产生时的价格
+	signalPrice := currentPrice
+
 	return &models.TradingPointPrediction{
 		Type:        predictType,
-		Price:       models.NewJSONDecimal(currentPrice),
+		Price:       models.NewJSONDecimal(signalPrice),
 		Date:        time.Now().AddDate(0, 0, 1).Format("20060102"), // 图形模式预测明天
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
@@ -542,9 +577,13 @@ func (s *PredictionService) predictFromVolumePricePattern(pattern models.VolumeP
 		}
 	}
 
+	// 使用模式识别时的价格，而不是当前价格
+	// 这样可以确保每个信号显示的是信号产生时的价格
+	signalPrice := currentPrice
+
 	return &models.TradingPointPrediction{
 		Type:        predictType,
-		Price:       models.NewJSONDecimal(currentPrice),
+		Price:       models.NewJSONDecimal(signalPrice),
 		Date:        time.Now().AddDate(0, 0, 1).Format("20060102"), // 量价模式预测明天
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
@@ -628,4 +667,152 @@ func (s *PredictionService) extractConfidenceFromReason(reason string) decimal.D
 	}
 
 	return decimal.Zero
+}
+
+// findPriceBySignalType 根据信号类型查找对应的价格
+func (s *PredictionService) findPriceBySignalType(data []models.StockDaily, indicatorType string, signalType string) decimal.Decimal {
+	// 如果没有数据或信号类型为空，则返回最新价格
+	if len(data) == 0 || signalType == "" || signalType == "HOLD" {
+		return data[len(data)-1].Close.Decimal
+	}
+
+	// 默认使用最新价格
+	currentPrice := data[len(data)-1].Close.Decimal
+
+	// 根据不同的指标类型和信号类型，查找对应的价格
+	// 这里简化处理，实际上应该根据指标计算逻辑找到信号产生的具体日期
+	switch indicatorType {
+	case "MACD":
+		// MACD金叉/死叉通常在最近几天产生
+		// 简化处理：使用最近3天内的价格
+		if len(data) > 3 {
+			if signalType == "BUY" {
+				// 金叉通常在低点附近，使用近期最低价
+				lowestPrice := data[len(data)-3].Close.Decimal
+				for i := len(data) - 3; i < len(data); i++ {
+					if data[i].Close.Decimal.LessThan(lowestPrice) {
+						lowestPrice = data[i].Close.Decimal
+					}
+				}
+				return lowestPrice
+			} else if signalType == "SELL" {
+				// 死叉通常在高点附近，使用近期最高价
+				highestPrice := data[len(data)-3].Close.Decimal
+				for i := len(data) - 3; i < len(data); i++ {
+					if data[i].Close.Decimal.GreaterThan(highestPrice) {
+						highestPrice = data[i].Close.Decimal
+					}
+				}
+				return highestPrice
+			}
+		}
+	case "RSI":
+		// RSI超买/超卖通常在价格极值点产生
+		if signalType == "BUY" {
+			// 超卖信号通常在低点，使用近期最低价
+			lowestPrice := currentPrice
+			for i := max(0, len(data)-5); i < len(data); i++ {
+				if data[i].Close.Decimal.LessThan(lowestPrice) {
+					lowestPrice = data[i].Close.Decimal
+				}
+			}
+			return lowestPrice
+		} else if signalType == "SELL" {
+			// 超买信号通常在高点，使用近期最高价
+			highestPrice := currentPrice
+			for i := max(0, len(data)-5); i < len(data); i++ {
+				if data[i].Close.Decimal.GreaterThan(highestPrice) {
+					highestPrice = data[i].Close.Decimal
+				}
+			}
+			return highestPrice
+		}
+	case "BOLL":
+		// 布林带突破信号
+		if signalType == "BUY" {
+			// 价格触及下轨时的价格
+			for i := max(0, len(data)-5); i < len(data); i++ {
+				// 简化处理：使用近期最低价
+				if i == max(0, len(data)-5) || data[i].Low.Decimal.LessThan(currentPrice) {
+					currentPrice = data[i].Low.Decimal
+				}
+			}
+			return currentPrice
+		} else if signalType == "SELL" {
+			// 价格触及上轨时的价格
+			for i := max(0, len(data)-5); i < len(data); i++ {
+				// 简化处理：使用近期最高价
+				if i == max(0, len(data)-5) || data[i].High.Decimal.GreaterThan(currentPrice) {
+					currentPrice = data[i].High.Decimal
+				}
+			}
+			return currentPrice
+		}
+	case "KDJ":
+		// KDJ超买/超卖信号
+		// 简化处理：与RSI类似
+		if signalType == "BUY" {
+			// 超卖信号通常在低点
+			lowestPrice := currentPrice
+			for i := max(0, len(data)-5); i < len(data); i++ {
+				if data[i].Close.Decimal.LessThan(lowestPrice) {
+					lowestPrice = data[i].Close.Decimal
+				}
+			}
+			return lowestPrice
+		} else if signalType == "SELL" {
+			// 超买信号通常在高点
+			highestPrice := currentPrice
+			for i := max(0, len(data)-5); i < len(data); i++ {
+				if data[i].Close.Decimal.GreaterThan(highestPrice) {
+					highestPrice = data[i].Close.Decimal
+				}
+			}
+			return highestPrice
+		}
+	}
+
+	// 默认返回当前价格
+	return currentPrice
+}
+
+// max 返回两个整数中的较大值
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// findPriceForPattern 根据模式的日期和类型查找对应的价格
+func (s *PredictionService) findPriceForPattern(data []models.StockDaily, patternDate string, patternType string, signalType string) decimal.Decimal {
+	// 如果没有数据，返回零值
+	if len(data) == 0 {
+		return decimal.Zero
+	}
+
+	// 默认使用最新价格
+	currentPrice := data[len(data)-1].Close.Decimal
+
+	// 查找模式日期对应的价格
+	for _, daily := range data {
+		// 如果找到了完全匹配的日期
+		if daily.TradeDate == patternDate {
+			// 根据信号类型决定使用哪个价格
+			if signalType == "BUY" {
+				// 买入信号通常在低点形成，使用当天的最低价
+				return daily.Low.Decimal
+			} else if signalType == "SELL" {
+				// 卖出信号通常在高点形成，使用当天的最高价
+				return daily.High.Decimal
+			} else {
+				// 其他情况使用收盘价
+				return daily.Close.Decimal
+			}
+		}
+	}
+
+	// 如果没有找到完全匹配的日期，尝试找到最接近的日期
+	// 这里简化处理，直接使用当前价格
+	return currentPrice
 }
