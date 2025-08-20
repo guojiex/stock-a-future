@@ -84,15 +84,50 @@ func TestPatternRecognizer_RecognizeHammer(t *testing.T) {
 		},
 	}
 
+	// 直接测试锤子线识别函数
+	t.Logf("测试锤子线识别 - 输入数据: Open=%v, High=%v, Low=%v, Close=%v",
+		data[0].Open.Decimal, data[0].High.Decimal, data[0].Low.Decimal, data[0].Close.Decimal)
+
+	// 计算实体和影线
+	body := data[0].Close.Decimal.Sub(data[0].Open.Decimal).Abs()
+	higherPrice := data[0].Close.Decimal
+	lowerPrice := data[0].Open.Decimal
+	if data[0].Open.Decimal.GreaterThan(data[0].Close.Decimal) {
+		higherPrice = data[0].Open.Decimal
+		lowerPrice = data[0].Close.Decimal
+	}
+	upperShadow := data[0].High.Decimal.Sub(higherPrice)
+	lowerShadow := lowerPrice.Sub(data[0].Low.Decimal)
+
+	t.Logf("实体长度: %v, 上影线: %v, 下影线: %v", body, upperShadow, lowerShadow)
+	t.Logf("下影线是否大于实体的2倍: %v", lowerShadow.GreaterThan(body.Mul(decimal.NewFromInt(2))))
+	t.Logf("上影线是否小于实体的0.5倍: %v", upperShadow.LessThanOrEqual(body.Mul(decimal.NewFromFloat(0.5))))
+
+	// 直接调用锤子线识别函数
+	hammerPattern := recognizer.recognizeHammer(data[0])
+	if hammerPattern != nil {
+		t.Logf("✅ 直接调用recognizeHammer成功识别出锤子线，置信度: %v", hammerPattern.Confidence.Decimal)
+	} else {
+		t.Logf("❌ 直接调用recognizeHammer未识别出锤子线")
+	}
+
+	// 通过完整流程测试
 	patterns := recognizer.RecognizeAllPatterns(data)
 	if len(patterns) == 0 {
 		t.Error("应该识别出锤子线模式")
+		t.Logf("RecognizeAllPatterns返回空结果")
 		return
+	} else {
+		t.Logf("RecognizeAllPatterns返回结果数量: %d", len(patterns))
 	}
 
 	found := false
 	for _, pattern := range patterns {
+		t.Logf("检查日期 %s 的模式:", pattern.TradeDate)
+		t.Logf("  蜡烛图模式数量: %d", len(pattern.Candlestick))
+
 		for _, candlestick := range pattern.Candlestick {
+			t.Logf("  模式: %s, 信号: %s", candlestick.Pattern, candlestick.Signal)
 			if candlestick.Pattern == "锤子线" {
 				found = true
 				if candlestick.Signal != "BUY" {
@@ -136,15 +171,51 @@ func TestPatternRecognizer_RecognizeVolumePriceRise(t *testing.T) {
 		},
 	}
 
+	// 直接测试量价齐升识别函数
+	t.Logf("测试量价齐升识别 - 当前数据: Close=%v, Vol=%v",
+		data[1].Close.Decimal, data[1].Vol.Decimal)
+	t.Logf("前一天数据: Close=%v, Vol=%v",
+		data[0].Close.Decimal, data[0].Vol.Decimal)
+
+	// 计算价格变化
+	priceChange := data[1].Close.Decimal.Sub(data[0].Close.Decimal)
+	priceChangePct := priceChange.Div(data[0].Close.Decimal).Mul(decimal.NewFromInt(100))
+
+	// 计算成交量变化
+	volumeChange := data[1].Vol.Decimal.Sub(data[0].Vol.Decimal)
+	volumeChangePct := volumeChange.Div(data[0].Vol.Decimal).Mul(decimal.NewFromInt(100))
+
+	t.Logf("价格变化: %v (%v%%)", priceChange, priceChangePct)
+	t.Logf("成交量变化: %v (%v%%)", volumeChange, volumeChangePct)
+	t.Logf("价格是否上涨: %v", priceChangePct.GreaterThanOrEqual(decimal.Zero))
+	t.Logf("成交量是否增加: %v", volumeChangePct.GreaterThanOrEqual(decimal.Zero))
+
+	// 直接调用量价齐升识别函数
+	volumePricePattern := recognizer.recognizeVolumePriceRise(data[1], data[0], data[0])
+	if volumePricePattern != nil {
+		t.Logf("✅ 直接调用recognizeVolumePriceRise成功识别出量价齐升，置信度: %v",
+			volumePricePattern.Confidence.Decimal)
+	} else {
+		t.Logf("❌ 直接调用recognizeVolumePriceRise未识别出量价齐升")
+	}
+
+	// 通过完整流程测试
 	patterns := recognizer.RecognizeAllPatterns(data)
 	if len(patterns) == 0 {
 		t.Error("应该识别出量价齐升模式")
+		t.Logf("RecognizeAllPatterns返回空结果")
 		return
+	} else {
+		t.Logf("RecognizeAllPatterns返回结果数量: %d", len(patterns))
 	}
 
 	found := false
 	for _, pattern := range patterns {
+		t.Logf("检查日期 %s 的模式:", pattern.TradeDate)
+		t.Logf("  量价模式数量: %d", len(pattern.VolumePrice))
+
 		for _, volumePrice := range pattern.VolumePrice {
+			t.Logf("  模式: %s, 信号: %s", volumePrice.Pattern, volumePrice.Signal)
 			if volumePrice.Pattern == "量价齐升" {
 				found = true
 				if volumePrice.Signal != "BUY" {
