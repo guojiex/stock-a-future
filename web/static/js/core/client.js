@@ -327,9 +327,36 @@ class StockAFutureClient {
 
     /**
      * 格式化日期为 YYYY-MM-DD
+     * @param {Date} date - 日期对象
+     * @returns {string} - 格式化后的日期字符串 YYYY-MM-DD
      */
     formatDate(date) {
-        return date.toISOString().split('T')[0];
+        if (!date) {
+            console.warn('[Client] formatDate 收到无效日期');
+            return '';
+        }
+        
+        try {
+            // 确保是Date对象
+            const dateObj = date instanceof Date ? date : new Date(date);
+            
+            // 检查是否有效日期
+            if (isNaN(dateObj.getTime())) {
+                console.warn('[Client] formatDate 收到无效日期:', date);
+                return String(date);
+            }
+            
+            // 获取年月日并格式化
+            const year = dateObj.getFullYear();
+            // 月份需要+1，因为getMonth()返回0-11
+            const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+            const day = dateObj.getDate().toString().padStart(2, '0');
+            
+            return `${year}-${month}-${day}`;
+        } catch (error) {
+            console.error('[Client] 日期格式化失败:', error);
+            return String(date);
+        }
     }
 
     /**
@@ -344,6 +371,39 @@ class StockAFutureClient {
         const month = tradeDateStr.substring(4, 6);
         const day = tradeDateStr.substring(6, 8);
         return new Date(`${year}-${month}-${day}`);
+    }
+    
+    /**
+     * 显示消息提示
+     * @param {string} message - 消息内容
+     * @param {string} type - 消息类型: 'success', 'error', 'warning', 'info'
+     * @param {number} duration - 显示时长(毫秒)，默认3000
+     */
+    showMessage(message, type = 'info', duration = 3000) {
+        // 移除已有的消息
+        const existingMessages = document.querySelectorAll('.message');
+        existingMessages.forEach(msg => msg.remove());
+        
+        // 创建新消息元素
+        const messageElement = document.createElement('div');
+        messageElement.className = `message message-${type}`;
+        messageElement.textContent = message;
+        
+        // 添加到body
+        document.body.appendChild(messageElement);
+        
+        // 设置自动消失
+        setTimeout(() => {
+            messageElement.style.opacity = '0';
+            messageElement.style.transform = 'translateX(100%)';
+            
+            // 动画结束后移除元素
+            setTimeout(() => {
+                messageElement.remove();
+            }, 500);
+        }, duration);
+        
+        return messageElement;
     }
 }
 

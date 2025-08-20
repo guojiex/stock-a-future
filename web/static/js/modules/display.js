@@ -195,6 +195,9 @@ class DisplayModule {
         if (data && (Array.isArray(data) ? data.length > 0 : Object.keys(data).length > 0)) {
             console.log(`[Display] 有预测数据，创建显示内容`);
             predictionsContainer.innerHTML = this.createPredictionsDisplay(data);
+            
+            // 设置日期点击事件
+            this.setupDateClickHandlers(stockCode);
         } else {
             console.log(`[Display] 无预测数据，显示提示信息`);
             predictionsContainer.innerHTML = '<div class="no-data">暂无预测数据</div>';
@@ -204,6 +207,103 @@ class DisplayModule {
         section.scrollIntoView({ behavior: 'smooth' });
         
         console.log(`[Display] 买卖预测显示完成`);
+    }
+    
+    /**
+     * 设置日期点击事件处理
+     */
+    setupDateClickHandlers(stockCode) {
+        console.log(`[Display] 设置日期点击事件处理`);
+        
+        // 清除之前的事件处理函数
+        if (this.dateClickHandlers && this.dateClickHandlers.length > 0) {
+            this.dateClickHandlers.forEach(handler => {
+                if (handler.element && handler.element.removeEventListener) {
+                    handler.element.removeEventListener('click', handler.callback);
+                }
+            });
+            this.dateClickHandlers = [];
+        }
+        
+        // 查找所有日期链接
+        const dateLinks = document.querySelectorAll('.date-link');
+        console.log(`[Display] 找到 ${dateLinks.length} 个日期链接`);
+        
+        dateLinks.forEach(link => {
+            const date = link.getAttribute('data-date');
+            if (!date) return;
+            
+            const clickHandler = (e) => {
+                e.preventDefault();
+                this.handleDateLinkClick(date, stockCode);
+            };
+            
+            link.addEventListener('click', clickHandler);
+            
+            // 存储事件处理函数，以便后续清理
+            this.dateClickHandlers.push({
+                element: link,
+                callback: clickHandler
+            });
+            
+            // 添加视觉提示，表明可点击
+            link.classList.add('clickable');
+            link.title = '点击跳转到日K线对应日期';
+        });
+    }
+    
+    /**
+     * 处理日期链接点击
+     */
+    handleDateLinkClick(date, stockCode) {
+        console.log(`[Display] 日期链接点击: ${date}, 股票代码: ${stockCode}`);
+        
+        if (!date || !stockCode) {
+            console.warn(`[Display] 日期或股票代码无效: ${date}, ${stockCode}`);
+            return;
+        }
+        
+        // 标准化日期格式（移除时间部分）
+        let normalizedDate = date;
+        if (normalizedDate && normalizedDate.includes('T')) {
+            normalizedDate = normalizedDate.split('T')[0];
+        }
+        
+        // 切换到日线数据tab
+        this.switchToTab('daily-data');
+        
+        // 等待图表加载完成
+        setTimeout(() => {
+            // 使用chartsModule导航到指定日期
+            if (this.chartsModule && this.chartsModule.navigateToDate) {
+                // 使用标准化后的日期
+                const success = this.chartsModule.navigateToDate(normalizedDate);
+                if (success) {
+                    console.log(`[Display] 成功导航到日期: ${normalizedDate}`);
+                } else {
+                    console.warn(`[Display] 导航到日期失败: ${normalizedDate}`);
+                    
+                    // 检查当前图表中是否有数据
+                    if (this.chartsModule.currentDates && this.chartsModule.currentDates.length > 0) {
+                        // 如果有数据，但找不到特定日期，提示用户调整查询范围
+                        const dateStr = this.formatDateForDisplay(normalizedDate);
+                        const earliestDate = this.formatDateForDisplay(this.chartsModule.currentDates[0]);
+                        const latestDate = this.formatDateForDisplay(this.chartsModule.currentDates[this.chartsModule.currentDates.length - 1]);
+                        
+                        this.client.showMessage(
+                            `提示：未能在K线图中找到 ${dateStr} 的数据。当前K线图显示的日期范围是 ${earliestDate} 到 ${latestDate}，请调整查询范围。`, 
+                            'warning',
+                            5000 // 显示时间延长到5秒
+                        );
+                    } else {
+                        // 如果没有数据，提示用户先获取数据
+                        this.client.showMessage(`提示：请先获取日线数据。`, 'warning');
+                    }
+                }
+            } else {
+                console.error(`[Display] 图表模块不可用或缺少navigateToDate方法`);
+            }
+        }, 300); // 给图表加载留出时间
     }
 
     /**
@@ -389,17 +489,32 @@ class DisplayModule {
 
     /**
      * 格式化日期
+     * @param {string|Date} dateInput - 日期字符串或Date对象
+     * @returns {string} - 格式化后的日期字符串
      */
-    formatDate(dateString) {
-        if (!dateString) return 'N/A';
+    formatDate(dateInput) {
+        if (!dateInput) return 'N/A';
         
         try {
+            // 如果是Date对象，直接格式化
+            if (dateInput instanceof Date) {
+                return dateInput.toLocaleDateString('zh-CN');
+            }
+            
+            // 处理字符串
+            const dateString = String(dateInput);
+            
             // 处理 YYYYMMDD 格式
-            if (dateString.length === 8) {
+            if (dateString.length === 8 && !dateString.includes('-')) {
                 const year = dateString.substring(0, 4);
                 const month = dateString.substring(4, 6);
                 const day = dateString.substring(6, 8);
                 return `${year}-${month}-${day}`;
+            }
+            
+            // 处理带T的ISO格式日期，如 "2025-08-14T00:00:00.000"
+            if (dateString.includes('T')) {
+                return dateString.split('T')[0];
             }
             
             // 处理其他格式，尝试直接解析
@@ -408,8 +523,65 @@ class DisplayModule {
             
             return date.toLocaleDateString('zh-CN');
         } catch (error) {
-            console.warn('[Display] 日期格式化失败:', dateString, error);
-            return dateString;
+            console.warn('[Display] 日期格式化失败:', dateInput, error);
+            return String(dateInput);
+        }
+    }
+    
+    /**
+     * 格式化日期为更友好的显示格式（年/月/日）
+     * @param {string|Date} dateInput - 日期字符串或Date对象
+     * @returns {string} - 格式化后的日期字符串，如 2025/8/18
+     */
+    formatDateForDisplay(dateInput) {
+        if (!dateInput) return 'N/A';
+        
+        try {
+            let dateObj;
+            
+            // 如果是Date对象
+            if (dateInput instanceof Date) {
+                dateObj = dateInput;
+            } else {
+                // 处理字符串
+                const dateString = String(dateInput);
+                
+                // 处理 YYYYMMDD 格式
+                if (dateString.length === 8 && !dateString.includes('-')) {
+                    const year = dateString.substring(0, 4);
+                    const month = dateString.substring(4, 6);
+                    const day = dateString.substring(6, 8);
+                    dateObj = new Date(`${year}-${month}-${day}`);
+                }
+                // 处理带T的ISO格式日期，如 "2025-08-14T00:00:00.000"
+                else if (dateString.includes('T')) {
+                    dateObj = new Date(dateString);
+                }
+                // 处理 YYYY-MM-DD 格式
+                else if (dateString.includes('-')) {
+                    dateObj = new Date(dateString);
+                }
+                // 其他格式
+                else {
+                    dateObj = new Date(dateString);
+                }
+            }
+            
+            // 检查是否有效日期
+            if (isNaN(dateObj.getTime())) {
+                return String(dateInput);
+            }
+            
+            // 格式化为 YYYY/M/D 格式
+            const year = dateObj.getFullYear();
+            const month = dateObj.getMonth() + 1; // 月份从0开始
+            const day = dateObj.getDate();
+            
+            return `${year}/${month}/${day}`;
+            
+        } catch (error) {
+            console.warn('[Display] 日期显示格式化失败:', dateInput, error);
+            return String(dateInput);
         }
     }
 
@@ -427,6 +599,9 @@ class DisplayModule {
                 <p>预测置信度</p>
             </div>
         `;
+        
+        // 用于存储日期点击事件的处理函数
+        this.dateClickHandlers = [];
         
         // 预测列表
         if (data.predictions && data.predictions.length > 0) {
@@ -458,8 +633,10 @@ class DisplayModule {
                                     <span class="info-icon" title="预测的目标价格">ℹ️</span>
                                 </div>
                                 <div class="prediction-signal-date">
-                                    📅 ${this.formatDate(prediction.signal_date) || 'N/A'}
-                                    <span class="info-icon" title="信号产生的日期">ℹ️</span>
+                                    <a href="javascript:void(0);" class="date-link" data-date="${prediction.signal_date || ''}">
+                                        📅 ${this.formatDateForDisplay(prediction.signal_date) || 'N/A'}
+                                    </a>
+                                    <span class="info-icon" title="信号产生的日期 (点击可跳转到日K线对应日期)">ℹ️</span>
                                 </div>
                             </div>
                             <div class="collapse-toggle">

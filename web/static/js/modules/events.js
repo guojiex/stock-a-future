@@ -533,18 +533,26 @@ class EventsModule {
      * 设置默认日期
      */
     setDefaultDates() {
+        // 获取当前日期
         const today = new Date();
-        const sixtyDaysAgo = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000);
+        
+        // 获取最近的交易日（排除周末）
+        const latestTradingDay = this.getLatestTradingDay(today);
+        
+        // 计算60个自然日之前的日期
+        const sixtyDaysAgo = new Date(latestTradingDay.getTime() - 60 * 24 * 60 * 60 * 1000);
         
         const endDateInput = document.getElementById('endDate');
         const startDateInput = document.getElementById('startDate');
         
         if (endDateInput) {
-            endDateInput.value = this.client.formatDate(today);
+            endDateInput.value = this.client.formatDate(latestTradingDay);
         }
         if (startDateInput) {
             startDateInput.value = this.client.formatDate(sixtyDaysAgo);
         }
+
+        console.log(`[Events] 设置默认日期范围: ${this.client.formatDate(sixtyDaysAgo)} 至 ${this.client.formatDate(latestTradingDay)}`);
 
         // 更新日期快捷按钮状态
         if (this.dateShortcutsModule) {
@@ -553,6 +561,25 @@ class EventsModule {
                 this.dateShortcutsModule.updateActiveButtonByDateRange();
             }, 100);
         }
+    }
+    
+    /**
+     * 获取最近的交易日（排除周末）
+     * @param {Date} date - 起始日期
+     * @returns {Date} - 最近的交易日
+     */
+    getLatestTradingDay(date) {
+        const result = new Date(date);
+        const day = result.getDay(); // 0是周日，6是周六
+        
+        // 如果是周末，调整到最近的周五
+        if (day === 0) { // 周日
+            result.setDate(result.getDate() - 2);
+        } else if (day === 6) { // 周六
+            result.setDate(result.getDate() - 1);
+        }
+        
+        return result;
     }
 
     /**

@@ -7,6 +7,7 @@ class ChartsModule {
     constructor(client) {
         this.client = client;
         this.currentChart = null;
+        this.currentDates = []; // 存储当前图表的日期数据
     }
 
     /**
@@ -51,6 +52,9 @@ class ChartsModule {
                 return dateStr;
             }
         });
+        
+        // 存储日期数据，用于后续导航
+        this.currentDates = dates;
         
         // 计算移动平均线
         const ma5 = this.calculateMA(data.map(item => parseFloat(item.close)), 5);
@@ -345,6 +349,94 @@ class ChartsModule {
             this.currentChart.dispose();
             this.currentChart = null;
         }
+    }
+    
+    /**
+     * 导航到特定日期
+     * @param {string} targetDate - 目标日期，格式为 YYYY-MM-DD 或带时间的 ISO 格式
+     * @returns {boolean} - 是否成功导航
+     */
+    navigateToDate(targetDate) {
+        console.log(`[Charts] 尝试导航到日期: ${targetDate}`);
+        
+        if (!this.currentChart || !this.currentDates || this.currentDates.length === 0) {
+            console.warn('[Charts] 无法导航：图表未初始化或无日期数据');
+            return false;
+        }
+        
+        // 标准化日期格式
+        let normalizedTargetDate = targetDate;
+        
+        // 处理带T的ISO格式日期，如 "2025-08-14T00:00:00.000"
+        if (normalizedTargetDate && normalizedTargetDate.includes('T')) {
+            normalizedTargetDate = normalizedTargetDate.split('T')[0];
+        }
+        
+        // 处理 YYYYMMDD 格式
+        if (normalizedTargetDate && normalizedTargetDate.length === 8 && !normalizedTargetDate.includes('-')) {
+            normalizedTargetDate = `${normalizedTargetDate.substring(0,4)}-${normalizedTargetDate.substring(4,6)}-${normalizedTargetDate.substring(6,8)}`;
+        }
+        
+        console.log(`[Charts] 标准化后的日期: ${normalizedTargetDate}`);
+        
+        // 查找日期索引
+        const dateIndex = this.currentDates.findIndex(date => date === normalizedTargetDate);
+        if (dateIndex === -1) {
+            console.warn(`[Charts] 未找到目标日期: ${normalizedTargetDate}`);
+            return false;
+        }
+        
+        console.log(`[Charts] 找到日期索引: ${dateIndex}, 总日期数: ${this.currentDates.length}`);
+        
+        // 计算数据窗口位置
+        // 默认显示30天数据，将目标日期居中
+        const totalDates = this.currentDates.length;
+        const windowSize = Math.min(30, totalDates); // 显示窗口大小，最多30天
+        
+        let start, end;
+        if (totalDates <= windowSize) {
+            // 如果总数据量小于窗口大小，显示全部
+            start = 0;
+            end = 100;
+        } else {
+            // 计算百分比位置，使目标日期居中
+            const halfWindow = Math.floor(windowSize / 2);
+            let centerIndex = dateIndex;
+            
+            // 确保窗口不会超出数据范围
+            if (centerIndex < halfWindow) {
+                centerIndex = halfWindow;
+            } else if (centerIndex > totalDates - halfWindow) {
+                centerIndex = totalDates - halfWindow;
+            }
+            
+            start = Math.max(0, (centerIndex - halfWindow) / totalDates * 100);
+            end = Math.min(100, (centerIndex + halfWindow) / totalDates * 100);
+        }
+        
+        // 设置数据区域缩放
+        this.currentChart.dispatchAction({
+            type: 'dataZoom',
+            start: start,
+            end: end
+        });
+        
+        // 高亮目标日期点
+        this.currentChart.dispatchAction({
+            type: 'highlight',
+            seriesIndex: 0,
+            dataIndex: dateIndex
+        });
+        
+        // 显示提示框
+        this.currentChart.dispatchAction({
+            type: 'showTip',
+            seriesIndex: 0,
+            dataIndex: dateIndex
+        });
+        
+        console.log(`[Charts] 已导航到日期: ${normalizedTargetDate}, 缩放范围: ${start.toFixed(2)}% - ${end.toFixed(2)}%`);
+        return true;
     }
 }
 

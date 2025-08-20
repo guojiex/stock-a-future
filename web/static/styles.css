@@ -929,6 +929,37 @@ body {
     display: block; /* 使用块级显示 */
 }
 
+/* 可点击的日期链接样式 */
+.date-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.date-link:hover {
+    color: var(--accent-color);
+    text-decoration: underline;
+}
+
+.date-link.clickable {
+    cursor: pointer;
+}
+
+.date-link.clickable::after {
+    content: '🔍';
+    font-size: 0.75rem;
+    margin-left: 4px;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.date-link.clickable:hover::after {
+    opacity: 1;
+}
+
 /* 调整预测信号日期中tooltip的箭头位置 */
 .prediction-signal-date .info-icon[title]:hover::before {
     bottom: auto;

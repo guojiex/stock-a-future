@@ -906,7 +906,7 @@ class FavoritesModule {
                 stockSearchInput.value = `${favorite.name} (${favorite.ts_code})`;
             }
 
-            // 恢复收藏时的时间范围
+            // 设置时间范围：使用收藏的开始日期，但结束日期使用当前日期
             const startDateInput = document.getElementById('startDate');
             const endDateInput = document.getElementById('endDate');
             
@@ -916,11 +916,16 @@ class FavoritesModule {
                     startDateInput.value = formattedStartDate;
                 }
             }
-            if (endDateInput && favorite.end_date) {
-                const formattedEndDate = this.formatDateForInput(favorite.end_date);
-                if (formattedEndDate) {
-                    endDateInput.value = formattedEndDate;
-                }
+            
+            // 使用当前日期作为结束日期（排除周末）
+            if (endDateInput) {
+                const today = new Date();
+                const latestTradingDay = this.getLatestTradingDay(today);
+                const formattedLatestDate = this.formatDateForInput(
+                    `${latestTradingDay.getFullYear()}${String(latestTradingDay.getMonth() + 1).padStart(2, '0')}${String(latestTradingDay.getDate()).padStart(2, '0')}`
+                );
+                endDateInput.value = formattedLatestDate;
+                console.log(`[Favorites] 设置结束日期为最近交易日: ${formattedLatestDate}`);
             }
 
             // 更新收藏按钮状态（稍微延迟以确保输入框值已更新）
@@ -1064,6 +1069,25 @@ class FavoritesModule {
         }
         
         return dateStr;
+    }
+    
+    /**
+     * 获取最近的交易日（排除周末）
+     * @param {Date} date - 起始日期
+     * @returns {Date} - 最近的交易日
+     */
+    getLatestTradingDay(date) {
+        const result = new Date(date);
+        const day = result.getDay(); // 0是周日，6是周六
+        
+        // 如果是周末，调整到最近的周五
+        if (day === 0) { // 周日
+            result.setDate(result.getDate() - 2);
+        } else if (day === 6) { // 周六
+            result.setDate(result.getDate() - 1);
+        }
+        
+        return result;
     }
 
     /**
