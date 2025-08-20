@@ -2740,6 +2740,54 @@ body {
     border-radius: var(--radius-sm);
 }
 
+/* 回测结果样式 */
+.prediction-backtest {
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-sm);
+    border-top: 1px dashed var(--border-color);
+}
+
+.backtest-result {
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    display: inline-block;
+}
+
+.backtest-result.correct {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.backtest-result.incorrect {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.backtest-details {
+    display: flex;
+    gap: var(--spacing-md);
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.next-day-price {
+    font-weight: 500;
+}
+
+.price-diff {
+    font-weight: 500;
+}
+
+.price-diff.positive {
+    color: var(--success-color);
+}
+
+.price-diff.negative {
+    color: var(--error-color);
+}
+
 /* 信号加载和错误状态 */
 .signals-loading,
 .signals-error,

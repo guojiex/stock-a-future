@@ -28,6 +28,7 @@
 - 预测概率和置信度计算
 - 详细的预测理由说明
 - 支持多时间周期预测
+- 预测信号回测功能，显示历史预测准确性
 
 ### 🚀 RESTful API
 - 完整的REST API接口
@@ -462,7 +463,13 @@ GET /api/v1/stocks/{code}/predictions
         "date": "2024-01-16",
         "probability": 0.65,
         "reason": "MACD金叉信号，DIF线上穿DEA线",
-        "indicators": ["MACD"]
+        "indicators": ["MACD"],
+        "signal_date": "2024-01-15",
+        "backtested": true,
+        "is_correct": true,
+        "next_day_price": 8.85,
+        "price_diff": 0.15,
+        "price_diff_ratio": 1.72
       }
     ],
     "confidence": 0.68,
@@ -792,6 +799,19 @@ def get_predictions(stock_code):
             print(f"预测价格: {pred['price']}")
             print(f"预测概率: {pred['probability']:.2%}")
             print(f"预测理由: {pred['reason']}")
+            
+            # 显示回测结果
+            if pred.get("backtested"):
+                result = "✅ 正确" if pred.get("is_correct") else "❌ 错误"
+                print(f"回测结果: {result}")
+                print(f"次日价格: {pred.get('next_day_price')}")
+                
+                # 格式化价格差异
+                price_diff = pred.get("price_diff", 0)
+                price_diff_ratio = pred.get("price_diff_ratio", 0)
+                sign = "+" if price_diff >= 0 else ""
+                print(f"价格差异: {sign}{price_diff:.2f} ({sign}{price_diff_ratio:.2f}%)")
+            
             print("---")
         return predictions
     return []
@@ -866,6 +886,14 @@ if __name__ == "__main__":
 如果健康检查显示Tushare服务状态为"healthy"，说明配置成功。
 
 ## 📈 更新日志
+
+### 2025-08-20
+
+#### 🆕 新增功能
+- **预测信号回测功能**: 新增对历史预测信号的回测，显示预测准确性和价格差异
+  - 自动判断预测是否正确（买入信号后涨/卖出信号后跌）
+  - 计算预测价格与实际价格的差值和百分比
+  - 直观显示回测结果（正确/错误）和价格变化
 
 ### 2025-08-13
 

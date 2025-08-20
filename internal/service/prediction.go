@@ -41,6 +41,9 @@ func (s *PredictionService) PredictTradingPoints(data []models.StockDaily) (*mod
 	// 基于技术指标生成预测
 	predictions := s.generatePredictions(data, indicators)
 
+	// 对历史预测进行回测
+	predictions = s.backTestPredictions(data, predictions)
+
 	// 计算整体置信度
 	confidence := s.calculateOverallConfidence(predictions)
 
@@ -815,4 +818,81 @@ func (s *PredictionService) findPriceForPattern(data []models.StockDaily, patter
 	// 如果没有找到完全匹配的日期，尝试找到最接近的日期
 	// 这里简化处理，直接使用当前价格
 	return currentPrice
+}
+
+// backTestPredictions 对预测进行回测
+func (s *PredictionService) backTestPredictions(data []models.StockDaily, predictions []models.TradingPointPrediction) []models.TradingPointPrediction {
+	// 如果数据不足，无法回测
+	if len(data) <= 1 {
+		return predictions
+	}
+
+	// 创建日期到价格的映射，方便快速查找
+	dateToPrice := make(map[string]models.StockDaily)
+	for _, daily := range data {
+		dateToPrice[daily.TradeDate] = daily
+	}
+
+	// 对每个预测进行回测
+	for i := range predictions {
+		// 获取信号日期
+		signalDate := predictions[i].SignalDate
+
+		// 尝试找到信号日期后的第一个交易日
+		nextDayData, nextDay := s.findNextTradingDay(data, signalDate)
+
+		// 如果找到了下一个交易日，进行回测
+		if nextDay != "" {
+			predictions[i].Backtested = true
+			predictions[i].NextDayPrice = models.NewJSONDecimal(nextDayData.Close.Decimal)
+
+			// 计算价格差值
+			priceDiff := nextDayData.Close.Decimal.Sub(predictions[i].Price.Decimal)
+			predictions[i].PriceDiff = models.NewJSONDecimal(priceDiff)
+
+			// 计算价格差值百分比
+			if !predictions[i].Price.Decimal.IsZero() {
+				priceDiffRatio := priceDiff.Div(predictions[i].Price.Decimal).Mul(decimal.NewFromInt(100))
+				predictions[i].PriceDiffRatio = models.NewJSONDecimal(priceDiffRatio)
+			} else {
+				predictions[i].PriceDiffRatio = models.NewJSONDecimal(decimal.Zero)
+			}
+
+			// 判断预测是否正确
+			if predictions[i].Type == "BUY" {
+				// 买入信号：如果第二天收盘价高于信号价格，则预测正确
+				predictions[i].IsCorrect = nextDayData.Close.Decimal.GreaterThan(predictions[i].Price.Decimal)
+			} else if predictions[i].Type == "SELL" {
+				// 卖出信号：如果第二天收盘价低于信号价格，则预测正确
+				predictions[i].IsCorrect = nextDayData.Close.Decimal.LessThan(predictions[i].Price.Decimal)
+			}
+		}
+	}
+
+	return predictions
+}
+
+// findNextTradingDay 查找指定日期之后的第一个交易日
+func (s *PredictionService) findNextTradingDay(data []models.StockDaily, currentDate string) (models.StockDaily, string) {
+	// 如果数据不足，无法查找
+	if len(data) <= 1 {
+		return models.StockDaily{}, ""
+	}
+
+	// 查找当前日期的索引
+	currentIndex := -1
+	for i, daily := range data {
+		if daily.TradeDate == currentDate {
+			currentIndex = i
+			break
+		}
+	}
+
+	// 如果找到了当前日期，且不是最后一天，返回下一个交易日
+	if currentIndex >= 0 && currentIndex < len(data)-1 {
+		return data[currentIndex+1], data[currentIndex+1].TradeDate
+	}
+
+	// 如果没有找到当前日期或者是最后一天，返回空
+	return models.StockDaily{}, ""
 }

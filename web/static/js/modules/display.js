@@ -653,6 +653,22 @@ class DisplayModule {
                                 ${prediction.reason || '基于技术指标分析'}
                                 <span class="info-icon" title="预测依据：包含识别的技术模式、置信度和强度等级">ℹ️</span>
                             </div>
+                            ${prediction.backtested ? `
+                            <div class="prediction-backtest">
+                                <div class="backtest-result ${prediction.is_correct ? 'correct' : 'incorrect'}">
+                                    回测结果: ${prediction.is_correct ? '✅ 正确' : '❌ 错误'}
+                                </div>
+                                <div class="backtest-details">
+                                    <div class="next-day-price">
+                                        次日价格: ¥${prediction.next_day_price?.toFixed(2) || 'N/A'}
+                                    </div>
+                                    <div class="price-diff ${prediction.price_diff >= 0 ? 'positive' : 'negative'}">
+                                        价差: ${prediction.price_diff >= 0 ? '+' : ''}${prediction.price_diff?.toFixed(2) || '0.00'} 
+                                        (${prediction.price_diff_ratio >= 0 ? '+' : ''}${prediction.price_diff_ratio?.toFixed(2) || '0.00'}%)
+                                    </div>
+                                </div>
+                            </div>
+                            ` : ''}
                         </div>
                     </div>
                 `;

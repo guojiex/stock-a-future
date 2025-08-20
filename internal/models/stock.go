@@ -130,13 +130,18 @@ type PredictionResult struct {
 
 // TradingPointPrediction 买卖点预测
 type TradingPointPrediction struct {
-	Type        string      `json:"type"`        // "BUY" 或 "SELL"
-	Price       JSONDecimal `json:"price"`       // 预测价格
-	Date        string      `json:"date"`        // 预测日期
-	Probability JSONDecimal `json:"probability"` // 概率
-	Reason      string      `json:"reason"`      // 预测理由
-	Indicators  []string    `json:"indicators"`  // 相关指标
-	SignalDate  string      `json:"signal_date"` // 信号产生的日期（基于哪一天的数据）
+	Type           string      `json:"type"`             // "BUY" 或 "SELL"
+	Price          JSONDecimal `json:"price"`            // 预测价格
+	Date           string      `json:"date"`             // 预测日期
+	Probability    JSONDecimal `json:"probability"`      // 概率
+	Reason         string      `json:"reason"`           // 预测理由
+	Indicators     []string    `json:"indicators"`       // 相关指标
+	SignalDate     string      `json:"signal_date"`      // 信号产生的日期（基于哪一天的数据）
+	Backtested     bool        `json:"backtested"`       // 是否已回测
+	IsCorrect      bool        `json:"is_correct"`       // 预测是否正确
+	NextDayPrice   JSONDecimal `json:"next_day_price"`   // 第二天收盘价
+	PriceDiff      JSONDecimal `json:"price_diff"`       // 价格差值
+	PriceDiffRatio JSONDecimal `json:"price_diff_ratio"` // 价格差值百分比
 }
 
 // APIResponse 通用API响应结构
