@@ -591,15 +591,6 @@ class DisplayModule {
     createPredictionsDisplay(data) {
         let predictionsHTML = '';
         
-        // 置信度摘要
-        const confidence = data.confidence || 0;
-        predictionsHTML += `
-            <div class="prediction-summary">
-                <div class="confidence-score">${(confidence * 100).toFixed(1)}%</div>
-                <p>预测置信度</p>
-            </div>
-        `;
-        
         // 用于存储日期点击事件的处理函数
         this.dateClickHandlers = [];
         
@@ -624,19 +615,25 @@ class DisplayModule {
                         <div class="prediction-header" onclick="this.parentElement.classList.toggle('collapsed')">
                             <div class="prediction-icon">${icon}</div>
                             <div class="prediction-content">
-                                <div class="prediction-type">
-                                    ${typeText}信号
-                                    <span class="info-icon" title="买卖信号类型：BUY=买入，SELL=卖出">ℹ️</span>
-                                </div>
-                                <div class="prediction-price">
-                                    ¥${prediction.price?.toFixed(2) || 'N/A'}
-                                    <span class="info-icon" title="预测的目标价格">ℹ️</span>
-                                </div>
-                                <div class="prediction-signal-date">
-                                    <a href="javascript:void(0);" class="date-link" data-date="${prediction.signal_date || ''}">
-                                        📅 ${this.formatDateForDisplay(prediction.signal_date) || 'N/A'}
-                                    </a>
-                                    <span class="info-icon" title="信号产生的日期 (点击可跳转到日K线对应日期)">ℹ️</span>
+                                <div class="prediction-main-row">
+                                    <div class="prediction-type">
+                                        ${typeText}信号
+                                        <span class="info-icon" title="买卖信号类型：BUY=买入，SELL=卖出">ℹ️</span>
+                                    </div>
+                                    <div class="prediction-price">
+                                        ¥${prediction.price?.toFixed(2) || 'N/A'}
+                                        <span class="info-icon" title="预测的目标价格">ℹ️</span>
+                                    </div>
+                                    <div class="prediction-signal-date">
+                                        <a href="javascript:void(0);" class="date-link" data-date="${prediction.signal_date || ''}">
+                                            📅 ${this.formatDateForDisplay(prediction.signal_date) || 'N/A'}
+                                        </a>
+                                        <span class="info-icon" title="信号产生的日期 (点击可跳转到日K线对应日期)">ℹ️</span>
+                                    </div>
+                                    <div class="prediction-probability">
+                                        概率: ${(prediction.probability * 100).toFixed(1)}%
+                                        <span class="info-icon" title="预测成功的概率，基于技术指标置信度和历史表现">ℹ️</span>
+                                    </div>
                                 </div>
                             </div>
                             <div class="collapse-toggle">
@@ -645,20 +642,16 @@ class DisplayModule {
                             </div>
                         </div>
                         <div class="prediction-details">
-                            <div class="prediction-probability">
-                                概率: ${(prediction.probability * 100).toFixed(1)}%
-                                <span class="info-icon" title="预测成功的概率，基于技术指标置信度和历史表现">ℹ️</span>
-                            </div>
                             <div class="prediction-reason">
                                 ${prediction.reason || '基于技术指标分析'}
                                 <span class="info-icon" title="预测依据：包含识别的技术模式、置信度和强度等级">ℹ️</span>
                             </div>
                             ${prediction.backtested ? `
                             <div class="prediction-backtest">
-                                <div class="backtest-result ${prediction.is_correct ? 'correct' : 'incorrect'}">
-                                    回测结果: ${prediction.is_correct ? '✅ 正确' : '❌ 错误'}
-                                </div>
-                                <div class="backtest-details">
+                                <div class="backtest-summary">
+                                    <div class="backtest-result ${prediction.is_correct ? 'correct' : 'incorrect'}">
+                                        回测结果: ${prediction.is_correct ? '✅ 正确' : '❌ 错误'}
+                                    </div>
                                     <div class="next-day-price">
                                         次日价格: ¥${prediction.next_day_price?.toFixed(2) || 'N/A'}
                                     </div>

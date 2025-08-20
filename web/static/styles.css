@@ -53,9 +53,50 @@ body {
 }
 
 .container {
-    max-width: 1200px;
+    max-width: 90%; /* 使用百分比宽度而不是固定像素 */
+    width: 100%;
     margin: 0 auto;
     padding: var(--spacing-md);
+}
+
+/* 针对超大屏幕的优化 */
+@media (min-width: 1921px) {
+    .container {
+        max-width: 80%; /* 在超大屏幕上使用更大的比例 */
+    }
+}
+
+/* 针对4K及更大屏幕的优化 */
+@media (min-width: 3000px) {
+    .container {
+        max-width: 75%; /* 在4K屏幕上使用更大的比例 */
+    }
+    
+    /* 增加字体大小以提高可读性 */
+    body {
+        font-size: 1.2rem;
+    }
+    
+    .header h1 {
+        font-size: 3rem;
+    }
+    
+    .header p {
+        font-size: 1.4rem;
+    }
+    
+    .card h2 {
+        font-size: 2.2rem;
+    }
+    
+    .card h3 {
+        font-size: 1.8rem;
+    }
+    
+    /* 增加图表高度 */
+    .chart-container {
+        height: 800px;
+    }
 }
 
 /* 头部样式 */
@@ -138,6 +179,7 @@ body {
     margin-bottom: var(--spacing-lg);
     border: 1px solid var(--border-color);
     transition: all 0.3s ease;
+    width: 100%; /* 确保卡片占满容器宽度 */
 }
 
 .card:hover {
@@ -469,11 +511,25 @@ body {
 /* 图表容器 */
 .chart-container {
     position: relative;
-    height: 400px;
+    height: 500px; /* 增加图表高度 */
     margin-bottom: var(--spacing-lg);
     padding: var(--spacing-md);
     background: var(--bg-secondary);
     border-radius: var(--radius-md);
+    width: 100%; /* 确保图表容器占满卡片宽度 */
+}
+
+/* 针对超大屏幕增加图表高度 */
+@media (min-width: 1600px) {
+    .chart-container {
+        height: 600px;
+    }
+}
+
+@media (min-width: 2000px) {
+    .chart-container {
+        height: 700px;
+    }
 }
 
 /* 数据摘要 */
@@ -481,6 +537,14 @@ body {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: var(--spacing-md);
+    width: 100%; /* 确保数据摘要占满卡片宽度 */
+}
+
+/* 针对大屏幕优化数据摘要布局 */
+@media (min-width: 1600px) {
+    .data-summary {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* 更大的列宽 */
+    }
 }
 
 .summary-item {
@@ -591,22 +655,7 @@ body {
     gap: var(--spacing-lg);
 }
 
-.prediction-summary {
-    padding: var(--spacing-lg);
-    background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(245, 158, 11, 0.1));
-    border-radius: var(--radius-md);
-    border: 1px solid rgba(37, 99, 235, 0.2);
-    text-align: center;
-    position: relative; /* 添加相对定位 */
-    z-index: 1; /* 确保z-index低于信息图标 */
-}
-
-.confidence-score {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--primary-color);
-    margin-bottom: var(--spacing-sm);
-}
+/* 预测摘要样式已移除 */
 
 .predictions-list {
     display: flex;
@@ -648,10 +697,10 @@ body {
 }
 
 .prediction-header {
-    padding: var(--spacing-lg);
+    padding: var(--spacing-md);
     display: flex;
-    align-items: center;
-    gap: var(--spacing-lg);
+    align-items: flex-start;
+    gap: var(--spacing-md);
     cursor: pointer;
     transition: background-color 0.2s ease;
 }
@@ -661,15 +710,17 @@ body {
 }
 
 .prediction-icon {
-    width: 48px;
-    height: 48px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: bold;
     color: white;
+    flex-shrink: 0;
+    margin-top: 2px;
 }
 
 .prediction-item.buy .prediction-icon {
@@ -684,8 +735,16 @@ body {
     flex: 1;
 }
 
+.prediction-main-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    flex-wrap: nowrap;
+    width: 100%;
+}
+
 .prediction-details {
-    padding: 0 var(--spacing-lg) var(--spacing-lg) var(--spacing-lg);
+    padding: 0 var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + 36px);
     max-height: 200px;
     opacity: 1;
     transition: all 0.3s ease;
@@ -695,31 +754,34 @@ body {
 .prediction-type {
     font-size: 1.125rem;
     font-weight: 600;
-    margin-bottom: var(--spacing-xs);
     display: flex;
     align-items: center;
     gap: var(--spacing-xs);
     position: relative; /* 确保相对定位 */
+    min-width: 80px;
+    white-space: nowrap;
 }
 
 .prediction-price {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 700;
-    margin-bottom: var(--spacing-sm);
     display: flex;
     align-items: center;
     gap: var(--spacing-xs);
     position: relative; /* 确保相对定位 */
+    min-width: 100px;
+    white-space: nowrap;
 }
 
 .prediction-probability {
     font-size: 0.875rem;
     color: var(--text-secondary);
-    margin-bottom: var(--spacing-sm);
     display: flex;
     align-items: center;
     gap: var(--spacing-xs);
     position: relative; /* 确保相对定位 */
+    white-space: nowrap;
+    min-width: 100px;
 }
 
 .prediction-signal-date {
@@ -729,6 +791,10 @@ body {
     align-items: center;
     gap: var(--spacing-xs);
     position: relative; /* 确保相对定位 */
+    white-space: nowrap;
+    min-width: 120px;
+    margin: 0;
+    padding: 0;
 }
 
 .prediction-reason {
@@ -747,6 +813,7 @@ body {
     align-items: center;
     gap: var(--spacing-xs);
     min-width: 60px;
+    margin-top: 2px;
 }
 
 .collapse-icon {
@@ -788,6 +855,9 @@ body {
     transition: opacity 0.2s ease;
     position: relative;
     z-index: 10; /* 确保信息图标在其他元素上方 */
+    margin: 0;
+    padding: 0;
+    vertical-align: middle;
 }
 
 .info-icon:hover {
@@ -937,6 +1007,8 @@ body {
     position: relative;
     display: inline-flex;
     align-items: center;
+    margin: 0;
+    padding: 0;
 }
 
 .date-link:hover {
@@ -1057,7 +1129,7 @@ body {
     margin-left: -4px;
 }
 
-.prediction-signal-date {
+.prediction-signal-date-badge {
     font-size: 0.75rem;
     color: var(--text-tertiary);
     margin-top: var(--spacing-xs);
@@ -2098,6 +2170,7 @@ body {
     border-radius: var(--radius-md) var(--radius-md) 0 0;
     overflow: hidden;
     margin-top: var(--spacing-md);
+    width: 100%; /* 确保tab导航占满卡片宽度 */
 }
 
 /* 确保section标题和tab导航之间有适当间距 */
@@ -2742,14 +2815,21 @@ body {
 
 /* 回测结果样式 */
 .prediction-backtest {
-    margin-top: var(--spacing-md);
+    margin-top: var(--spacing-sm);
     padding-top: var(--spacing-sm);
     border-top: 1px dashed var(--border-color);
 }
 
+.backtest-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-md);
+    font-size: 0.875rem;
+}
+
 .backtest-result {
     font-weight: 600;
-    margin-bottom: var(--spacing-xs);
     padding: var(--spacing-xs) var(--spacing-sm);
     border-radius: var(--radius-sm);
     display: inline-block;
@@ -2763,13 +2843,6 @@ body {
 .backtest-result.incorrect {
     background-color: rgba(239, 68, 68, 0.1);
     color: #ef4444;
-}
-
-.backtest-details {
-    display: flex;
-    gap: var(--spacing-md);
-    font-size: 0.875rem;
-    color: var(--text-secondary);
 }
 
 .next-day-price {
