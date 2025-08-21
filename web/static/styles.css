@@ -795,6 +795,7 @@ body {
     min-width: 120px;
     margin: 0;
     padding: 0;
+    margin-right: 20px; /* 添加右侧间距，防止tooltip与后面的文字混在一起 */
 }
 
 .prediction-reason {
@@ -885,18 +886,19 @@ body {
     bottom: 100%;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--text-primary);
+    background: var(--text-primary); /* 完全不透明的背景 */
     color: white;
     padding: var(--spacing-sm) var(--spacing-md); /* 增加内边距 */
     border-radius: var(--radius-sm);
     font-size: 0.75rem;
     line-height: 1.4; /* 增加行高 */
-    z-index: 9999; /* 使用更高的z-index确保工具提示显示在最上层 */
-    box-shadow: var(--shadow-md);
+    z-index: 99999; /* 使用极高的z-index确保工具提示显示在最上层 */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* 增强阴影效果 */
     margin-bottom: var(--spacing-xs);
     width: max-content; /* 使用max-content确保内容不会被截断 */
     max-width: 280px; /* 最大宽度 */
     white-space: pre-wrap; /* 使用pre-wrap保持空格并允许换行 */
+    pointer-events: none; /* 防止工具提示阻止交互 */
     overflow-wrap: break-word; /* 确保长单词也能换行 */
     text-align: left; /* 确保文本左对齐 */
     display: block; /* 使用块级显示 */
@@ -997,6 +999,9 @@ body {
     white-space: pre-wrap; /* 使用pre-wrap保持空格并允许换行 */
     overflow-wrap: break-word; /* 确保长单词也能换行 */
     display: block; /* 使用块级显示 */
+    background: var(--text-primary); /* 使用完全不透明的背景 */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* 增强阴影效果 */
+    z-index: 99999; /* 确保tooltip内容在最上层 */
 }
 
 /* 可点击的日期链接样式 */
@@ -1009,6 +1014,7 @@ body {
     align-items: center;
     margin: 0;
     padding: 0;
+    z-index: 20; /* 确保日期链接在其他元素上方 */
 }
 
 .date-link:hover {
@@ -1043,6 +1049,7 @@ body {
     border-right-color: var(--text-primary);
     margin-bottom: 0;
     margin-left: -4px;
+    z-index: 99999; /* 确保tooltip箭头在最上层 */
 }
 
 /* 预测理由中的tooltip特殊处理 */
@@ -1058,6 +1065,7 @@ body {
     white-space: pre-wrap; /* 使用pre-wrap保持空格并允许换行 */
     overflow-wrap: break-word; /* 确保长单词也能换行 */
     display: block; /* 使用块级显示 */
+    z-index: 99999; /* 确保tooltip内容在最上层 */
 }
 
 /* 调整预测理由中tooltip的箭头位置 */
@@ -1071,6 +1079,7 @@ body {
     border-right-color: var(--text-primary);
     margin-bottom: 0;
     margin-left: -4px;
+    z-index: 99999; /* 确保tooltip箭头在最上层 */
 }
 
 /* 预测详情中的tooltip特殊处理 */
@@ -1086,6 +1095,7 @@ body {
     white-space: pre-wrap; /* 使用pre-wrap保持空格并允许换行 */
     overflow-wrap: break-word; /* 确保长单词也能换行 */
     display: block; /* 使用块级显示 */
+    z-index: 99999; /* 确保tooltip内容在最上层 */
 }
 
 /* 预测概率中的tooltip特殊处理 */
@@ -1094,6 +1104,7 @@ body {
     top: 0; /* 改为从顶部开始，避免被上方元素遮挡 */
     left: 100%;
     transform: none; /* 移除垂直居中的变换 */
+    z-index: 99999; /* 确保tooltip内容在最上层 */
     margin-left: var(--spacing-xs);
     margin-bottom: 0;
     width: max-content; /* 使用max-content确保内容不会被截断 */
@@ -2385,12 +2396,12 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.95); /* 增加不透明度，减少背景透视 */
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 10;
-    backdrop-filter: blur(2px);
+    backdrop-filter: blur(4px); /* 增加模糊效果 */
 }
 
 .tab-loading .loading-content {
@@ -2535,18 +2546,17 @@ body {
 
 /* 信号刷新加载覆盖层 */
 .loading-overlay {
-    position: absolute;
+    position: fixed; /* 改为固定定位，覆盖整个视口 */
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.98); /* 增加不透明度，使背景更不透明 */
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 10;
-    border-radius: var(--radius-md);
-    backdrop-filter: blur(2px);
+    z-index: 9999; /* 使用更高的z-index确保在最上层 */
+    backdrop-filter: blur(8px); /* 增加更强的模糊效果 */
 }
 
 .loading-overlay .loading {
@@ -2876,6 +2886,27 @@ body {
 
 .signals-error {
     color: var(--error-color);
+}
+
+/* 帮助链接样式 */
+.help-links {
+    margin-top: 10px;
+}
+
+.help-links a {
+    display: inline-block;
+    padding: 5px 10px;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+    color: #333;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.help-links a:hover {
+    background-color: #e0e0e0;
+    color: #000;
 }
 
 /* 响应式设计 */

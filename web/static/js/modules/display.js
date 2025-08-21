@@ -630,6 +630,7 @@ class DisplayModule {
                                         </a>
                                         <span class="info-icon" title="信号产生的日期 (点击可跳转到日K线对应日期)">ℹ️</span>
                                     </div>
+                                    <div style="width: 10px;"></div> <!-- 添加一个空的div作为间隔 -->
                                     <div class="prediction-probability">
                                         概率: ${(prediction.probability * 100).toFixed(1)}%
                                         <span class="info-icon" title="预测成功的概率，基于技术指标置信度和历史表现">ℹ️</span>
