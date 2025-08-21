@@ -100,6 +100,25 @@ func main() {
 		log.Fatalf("创建收藏服务失败: %v", err)
 	}
 
+	// 创建数据库服务
+	databaseService, err := service.NewDatabaseService("data")
+	if err != nil {
+		log.Fatalf("创建数据库服务失败: %v", err)
+	}
+
+	// 创建数据清理服务
+	var cleanupService *service.CleanupService
+	if cfg.CleanupEnabled {
+		cleanupService = service.NewCleanupService(
+			databaseService,
+			cfg.CleanupInterval,
+			cfg.CleanupRetentionDays,
+		)
+		log.Printf("数据清理服务已创建，清理间隔: %v", cfg.CleanupInterval)
+	} else {
+		log.Printf("数据清理服务已禁用")
+	}
+
 	// 创建图形识别服务
 	patternService := service.NewPatternService(dataSourceClient)
 
@@ -112,23 +131,38 @@ func main() {
 		log.Fatalf("创建信号计算服务失败: %v", err)
 	}
 
-	// 注册信号服务到应用上下文
+	// 注册服务到应用上下文
 	app.RegisterSignalService(signalService)
+	if cleanupService != nil {
+		app.RegisterCleanupService(cleanupService)
+	}
 
 	// 启动异步信号计算服务
 	signalService.Start()
 	log.Printf("✓ 异步信号计算服务已启动")
+
+	// 启动数据清理服务
+	if cleanupService != nil {
+		cleanupService.Start()
+		log.Printf("✓ 数据清理服务已启动")
+	}
 
 	// 创建处理器
 	stockHandler := handler.NewStockHandler(dataSourceClient, cacheService, favoriteService, app)
 	patternHandler := handler.NewPatternHandler(patternService)
 	signalHandler := handler.NewSignalHandler(signalService)
 
+	// 创建清理处理器
+	var cleanupHandler *handler.CleanupHandler
+	if cleanupService != nil {
+		cleanupHandler = handler.NewCleanupHandler(cleanupService)
+	}
+
 	// 创建路由器
 	mux := http.NewServeMux()
 
 	// 注册路由
-	registerRoutes(mux, stockHandler, patternHandler, signalHandler)
+	registerRoutes(mux, stockHandler, patternHandler, signalHandler, cleanupHandler)
 
 	// 添加静态文件服务
 	registerStaticRoutes(mux)
@@ -166,6 +200,11 @@ func main() {
 		log.Printf("  缓存统计: GET http://%s/api/v1/cache/stats", addr)
 		log.Printf("  清空缓存: DELETE http://%s/api/v1/cache", addr)
 	}
+	if cfg.CleanupEnabled {
+		log.Printf("  清理状态: GET http://%s/api/v1/cleanup/status", addr)
+		log.Printf("  手动清理: POST http://%s/api/v1/cleanup/manual", addr)
+		log.Printf("  更新配置: PUT http://%s/api/v1/cleanup/config", addr)
+	}
 	log.Printf("  Web客户端: http://%s/", addr)
 	log.Printf("示例: curl http://%s/api/v1/stocks/000001.SZ/daily", addr)
 
@@ -187,6 +226,11 @@ func main() {
 	// 停止信号计算服务
 	signalService.Stop()
 
+	// 停止数据清理服务
+	if cleanupService != nil {
+		cleanupService.Stop()
+	}
+
 	// 关闭收藏服务
 	if err := favoriteService.Close(); err != nil {
 		log.Printf("关闭收藏服务失败: %v", err)
@@ -197,11 +241,16 @@ func main() {
 		log.Printf("关闭信号服务失败: %v", err)
 	}
 
+	// 关闭数据库服务
+	if err := databaseService.Close(); err != nil {
+		log.Printf("关闭数据库服务失败: %v", err)
+	}
+
 	log.Printf("服务器已优雅关闭")
 }
 
 // registerRoutes 注册路由
-func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patternHandler *handler.PatternHandler, signalHandler *handler.SignalHandler) {
+func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patternHandler *handler.PatternHandler, signalHandler *handler.SignalHandler, cleanupHandler *handler.CleanupHandler) {
 	// 健康检查
 	mux.HandleFunc("GET /api/v1/health", stockHandler.GetHealthStatus)
 
@@ -250,6 +299,12 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patt
 	mux.HandleFunc("GET /api/v1/signals", signalHandler.GetLatestSignals)
 	mux.HandleFunc("GET /api/v1/signals/status", signalHandler.GetCalculationStatus)
 
+	// 数据清理API
+	if cleanupHandler != nil {
+		mux.HandleFunc("GET /api/v1/cleanup/status", cleanupHandler.GetStatus)
+		mux.HandleFunc("POST /api/v1/cleanup/manual", cleanupHandler.ManualCleanup)
+		mux.HandleFunc("PUT /api/v1/cleanup/config", cleanupHandler.UpdateConfig)
+	}
 }
 
 // registerStaticRoutes 注册静态文件路由

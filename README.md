@@ -677,6 +677,28 @@ make build
 - **数据库存储**: 使用SQLite数据库存储，支持数据迁移、备份和恢复
 - **拖拽排序**: 支持拖拽操作调整收藏顺序和分组
 
+#### 数据清理功能
+
+- **自动清理过期数据**: 定期清理超过指定天数的历史股票信号数据
+- **智能清理策略**: 只清理股票信号数据，保护用户收藏信息
+- **可配置保留期**: 支持自定义数据保留天数（默认90天）
+- **手动清理支持**: 提供API接口手动触发清理任务
+- **实时监控**: 查看清理服务状态和数据库统计信息
+- **优雅关闭**: 服务器关闭时自动停止清理服务
+
+#### 启用数据清理
+在 `config.env` 文件中添加：
+```bash
+CLEANUP_ENABLED=true           # 启用数据清理服务
+CLEANUP_INTERVAL=24h           # 清理间隔（默认24小时）
+CLEANUP_RETENTION_DAYS=90      # 股票信号数据保留天数
+```
+
+#### 数据清理API
+- `GET /api/v1/cleanup/status` - 查看清理服务状态
+- `POST /api/v1/cleanup/manual` - 手动触发清理
+- `PUT /api/v1/cleanup/config` - 更新清理配置
+
 #### 交互体验
 - **图表缩放**: 鼠标滚轮缩放，拖拽平移
 - **数据提示**: 鼠标悬停显示详细的OHLC数据、成交量、涨跌幅
@@ -727,6 +749,13 @@ curl http://localhost:8081/api/v1/stocks/000001.SZ/indicators
 
 # 获取买卖点预测
 curl http://localhost:8081/api/v1/stocks/000001.SZ/predictions
+
+# 数据清理管理（需要启用清理服务）
+curl http://localhost:8081/api/v1/cleanup/status                    # 查看清理服务状态
+curl -X POST http://localhost:8081/api/v1/cleanup/manual           # 手动触发清理
+curl -X PUT http://localhost:8081/api/v1/cleanup/config \          # 更新清理配置
+  -H "Content-Type: application/json" \
+  -d '{"retention_days": 60}'
 ```
 
 #### AKTools快速测试
@@ -906,6 +935,7 @@ if __name__ == "__main__":
 - **技术指标叠加**: 自动显示MA5/MA10/MA20移动平均线
 - **复权参数支持**: 新增`adjust`参数，支持前复权(qfq)、后复权(hfq)、不复权(none)选择
 - **数据库存储**: 收藏功能升级为SQLite数据库存储，支持数据迁移、备份和恢复
+- **数据清理功能**: 新增自动数据清理服务，定期清理过期股票信号数据，保护用户收藏信息
 
 #### 🔧 改进优化
 - **端口更新**: 默认端口从8080改为8081，避免常见冲突

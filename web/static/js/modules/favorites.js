@@ -1645,9 +1645,21 @@ class FavoritesModule {
      */
     renderSignalGroup(signals, type) {
         return signals.map(signal => {
+            // 添加调试信息
+            console.log(`[Favorites] 渲染信号项:`, {
+                ts_code: signal.ts_code,
+                name: signal.name,
+                type: type,
+                signal: signal
+            });
+            
             const currentPrice = signal.current_price || 'N/A';
             const tradeDate = signal.trade_date || 'N/A';
             const updatedAt = signal.updated_at || 'N/A';
+            
+            // 确保股票代码和名字存在
+            const stockCode = signal.ts_code || 'N/A';
+            const stockName = signal.name || '未知股票';
             
             // 获取主要信号和置信度
             let mainSignal = 'HOLD';
@@ -1680,11 +1692,11 @@ class FavoritesModule {
                 `<span class="confidence-label ${confidenceClass}">置信度: ${maxConfidence.toFixed(1)}%</span>` : '';
 
             return `
-                <div class="signal-item ${type}-signal" data-stock-code="${signal.ts_code}" data-ts-code="${signal.ts_code}">
+                <div class="signal-item ${type}-signal" data-stock-code="${stockCode}" data-ts-code="${stockCode}">
                     <div class="signal-header">
                         <div class="signal-stock-info">
-                            <span class="signal-stock-name">${signal.name}</span>
-                            <span class="signal-stock-code">${signal.ts_code}</span>
+                            <span class="signal-stock-name" title="${stockName}">${stockName}</span>
+                            <span class="signal-stock-code" title="${stockCode}">${stockCode}</span>
                         </div>
                         <div class="signal-price">
                             <span class="current-price">¥${currentPrice}</span>

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"stock-a-future/internal/models"
@@ -14,7 +15,8 @@ import (
 
 // DatabaseService 数据库服务
 type DatabaseService struct {
-	db *sql.DB
+	db     *sql.DB
+	dbPath string
 }
 
 // NewDatabaseService 创建数据库服务
@@ -43,7 +45,10 @@ func NewDatabaseService(dataDir string) (*DatabaseService, error) {
 	db.SetMaxIdleConns(1)
 	db.SetConnMaxLifetime(time.Hour)
 
-	service := &DatabaseService{db: db}
+	service := &DatabaseService{
+		db:     db,
+		dbPath: dbPath,
+	}
 
 	// 初始化数据库表
 	if err := service.initTables(); err != nil {
@@ -320,4 +325,88 @@ func (s *DatabaseService) markMigrationComplete() error {
 	_, err := s.db.Exec(stmt, "json_to_sqlite_migration", time.Now())
 
 	return err
+}
+
+// CleanupExpiredData 清理过期数据
+func (s *DatabaseService) CleanupExpiredData(retentionDays int) error {
+	log.Printf("开始清理过期数据...")
+	log.Printf("股票信号数据保留天数: %d天", retentionDays)
+
+	// 清理过期的股票信号数据
+	if err := s.cleanupExpiredSignals(retentionDays); err != nil {
+		log.Printf("清理过期信号数据失败: %v", err)
+		return err
+	}
+
+	log.Printf("过期数据清理完成")
+	return nil
+}
+
+// cleanupExpiredSignals 清理过期的股票信号数据
+func (s *DatabaseService) cleanupExpiredSignals(retentionDays int) error {
+	// 计算指定天数前的日期
+	cutoffDate := time.Now().AddDate(0, 0, -retentionDays).Format("20060102")
+
+	// 删除指定天数前的信号数据
+	result, err := s.db.Exec(`
+		DELETE FROM stock_signals 
+		WHERE trade_date < ? AND signal_date < ?
+	`, cutoffDate, cutoffDate)
+	if err != nil {
+		return fmt.Errorf("删除过期信号数据失败: %v", err)
+	}
+
+	deletedRows, err := result.RowsAffected()
+	if err != nil {
+		log.Printf("无法获取删除行数: %v", err)
+	} else {
+		log.Printf("清理了 %d 条过期的股票信号数据", deletedRows)
+	}
+
+	return nil
+}
+
+// GetDatabaseStats 获取数据库统计信息
+func (s *DatabaseService) GetDatabaseStats() (map[string]interface{}, error) {
+	stats := make(map[string]interface{})
+
+	// 获取各表的记录数
+	tables := []string{"favorite_groups", "favorite_stocks", "stock_signals"}
+
+	for _, table := range tables {
+		var count int
+		err := s.db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", table)).Scan(&count)
+		if err != nil {
+			return nil, fmt.Errorf("获取表 %s 记录数失败: %v", table, err)
+		}
+		stats[table+"_count"] = count
+	}
+
+	// 尝试获取数据库文件大小（使用更安全的方式）
+	if dbPath := s.getDatabasePath(); dbPath != "" {
+		if fileInfo, err := os.Stat(dbPath); err == nil {
+			stats["database_size_mb"] = float64(fileInfo.Size()) / (1024 * 1024)
+		}
+	}
+
+	// 获取最早的信号数据日期
+	var oldestSignalDate string
+	err := s.db.QueryRow("SELECT MIN(trade_date) FROM stock_signals").Scan(&oldestSignalDate)
+	if err == nil && oldestSignalDate != "" {
+		stats["oldest_signal_date"] = oldestSignalDate
+	}
+
+	// 获取最新的信号数据日期
+	var newestSignalDate string
+	err = s.db.QueryRow("SELECT MAX(trade_date) FROM stock_signals").Scan(&newestSignalDate)
+	if err == nil && newestSignalDate != "" {
+		stats["newest_signal_date"] = newestSignalDate
+	}
+
+	return stats, nil
+}
+
+// getDatabasePath 获取数据库文件路径
+func (s *DatabaseService) getDatabasePath() string {
+	return s.dbPath
 }
