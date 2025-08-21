@@ -1704,9 +1704,9 @@ class FavoritesModule {
                         </div>
                     </div>
                     <div class="signal-details">
-                        <div class="signal-main">
-                            <span class="signal-type ${mainSignal.toLowerCase()}">${this.getSignalText(mainSignal)}</span>
-                            ${confidenceLabel}
+                        <div class="signal-info-compact">
+                            <span class="signal-type-compact ${mainSignal.toLowerCase()}">${this.getSignalText(mainSignal)}</span>
+                            ${confidenceLabel ? confidenceLabel.replace('confidence-label', 'confidence-label-compact') : ''}
                         </div>
                         ${signalReason ? `<div class="signal-reason">${signalReason}</div>` : ''}
                     </div>

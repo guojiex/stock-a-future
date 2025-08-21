@@ -2589,6 +2589,15 @@ body {
     transition: all 0.2s ease;
 }
 
+/* 信号详情区域优化 */
+.signal-details {
+    margin: var(--spacing-sm) 0;
+}
+
+.signal-details .signal-info-compact {
+    margin-bottom: var(--spacing-xs);
+}
+
 .signal-item:last-child {
     border-bottom: none;
 }
@@ -2663,8 +2672,10 @@ body {
 .signal-main {
     display: flex;
     align-items: center;
-    gap: var(--spacing-md);
+    justify-content: space-between;
+    gap: var(--spacing-sm);
     margin-bottom: var(--spacing-sm);
+    flex-wrap: wrap;
 }
 
 .signal-type {
@@ -2673,6 +2684,8 @@ body {
     font-size: 0.875rem;
     font-weight: 600;
     text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .signal-type.buy {
@@ -2707,6 +2720,8 @@ body {
     display: inline-flex;
     align-items: center;
     gap: var(--spacing-xs);
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .confidence-label::before {
@@ -2744,6 +2759,104 @@ body {
     background: var(--bg-secondary);
     padding: var(--spacing-sm);
     border-radius: var(--radius-sm);
+}
+
+/* 信号信息紧凑布局 */
+.signal-info-compact {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: var(--spacing-sm);
+    align-items: center;
+    align-content: start;
+}
+
+.signal-info-compact .signal-type-compact {
+    grid-column: 1;
+    justify-self: start;
+}
+
+.signal-info-compact .confidence-label-compact {
+    grid-column: 2;
+    justify-self: start;
+}
+
+/* 在中等屏幕上使用紧凑布局 */
+@media (max-width: 1024px) {
+    .signal-info-compact {
+        grid-template-columns: auto auto;
+        gap: var(--spacing-xs);
+    }
+}
+
+/* 在小屏幕上使用单列布局 */
+@media (max-width: 768px) {
+    .signal-info-compact {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-xs);
+    }
+    
+    .signal-info-compact .signal-type-compact,
+    .signal-info-compact .confidence-label-compact {
+        grid-column: 1;
+        justify-self: start;
+    }
+}
+
+.signal-type-compact {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: fit-content;
+}
+
+.signal-type-compact.buy {
+    background: #10b981;
+    color: white;
+}
+
+.signal-type-compact.sell {
+    background: #ef4444;
+    color: white;
+}
+
+.signal-type-compact.hold {
+    background: #f59e0b;
+    color: white;
+}
+
+.confidence-label-compact {
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: fit-content;
+}
+
+.confidence-label-compact.high-confidence {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+.confidence-label-compact.medium-confidence {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+}
+
+.confidence-label-compact.low-confidence {
+    background: linear-gradient(135deg, #6b7280, #4b5563);
+    color: white;
+    box-shadow: 0 2px 4px rgba(107, 114, 128, 0.3);
 }
 
 /* 回测结果样式 */
