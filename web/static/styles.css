@@ -930,64 +930,12 @@ body {
     font-style: normal;
 }
 
-/* 预测类型中的tooltip特殊处理 */
-.prediction-type .info-icon[title]:hover::after {
-    bottom: auto;
-    top: 50%;
-    left: 100%;
-    transform: translateY(-50%);
-    margin-left: var(--spacing-xs);
-    margin-bottom: 0;
-    width: max-content; /* 使用max-content确保内容不会被截断 */
-    max-width: 250px; /* 最大宽度 */
-    white-space: pre-wrap; /* 使用pre-wrap保持空格并允许换行 */
-    overflow-wrap: break-word; /* 确保长单词也能换行 */
-    display: block; /* 使用块级显示 */
-}
-
-/* 调整预测类型中tooltip的箭头位置 */
-.prediction-type .info-icon[title]:hover::before {
-    bottom: auto;
-    top: 50%;
-    left: 100%;
-    transform: translateY(-50%);
-    border: 4px solid transparent;
-    border-left: none;
-    border-right-color: var(--text-primary);
-    margin-bottom: 0;
-    margin-left: -4px;
-}
-
-/* 预测价格中的tooltip特殊处理 */
-.prediction-price .info-icon[title]:hover::after {
-    bottom: auto;
-    top: 50%;
-    left: 100%;
-    transform: translateY(-50%);
-    margin-left: var(--spacing-xs);
-    margin-bottom: 0;
-    width: max-content; /* 使用max-content确保内容不会被截断 */
-    max-width: 250px; /* 最大宽度 */
-    white-space: pre-wrap; /* 使用pre-wrap保持空格并允许换行 */
-    overflow-wrap: break-word; /* 确保长单词也能换行 */
-    display: block; /* 使用块级显示 */
-}
-
-/* 调整预测价格中tooltip的箭头位置 */
-.prediction-price .info-icon[title]:hover::before {
-    bottom: auto;
-    top: 50%;
-    left: 100%;
-    transform: translateY(-50%);
-    border: 4px solid transparent;
-    border-left: none;
-    border-right-color: var(--text-primary);
-    margin-bottom: 0;
-    margin-left: -4px;
-}
-
-/* 预测信号日期中的tooltip特殊处理 */
-.prediction-signal-date .info-icon[title]:hover::after {
+/* 预测元素中的tooltip基础样式 */
+.prediction-type .info-icon[title]:hover::after,
+.prediction-price .info-icon[title]:hover::after,
+.prediction-signal-date .info-icon[title]:hover::after,
+.prediction-reason .info-icon[title]:hover::after,
+.prediction-details .info-icon[title]:hover::after {
     bottom: auto;
     top: 50%;
     left: 100%;
@@ -1003,6 +951,28 @@ body {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* 增强阴影效果 */
     z-index: 99999; /* 确保tooltip内容在最上层 */
 }
+
+/* 预测元素中tooltip箭头的基础样式 */
+.prediction-type .info-icon[title]:hover::before,
+.prediction-price .info-icon[title]:hover::before,
+.prediction-signal-date .info-icon[title]:hover::before,
+.prediction-reason .info-icon[title]:hover::before,
+.prediction-details .info-icon[title]:hover::before {
+    bottom: auto;
+    top: 50%;
+    left: 100%;
+    transform: translateY(-50%);
+    border: 4px solid transparent;
+    border-left: none;
+    border-right-color: var(--text-primary);
+    margin-bottom: 0;
+    margin-left: -4px;
+    z-index: 99999; /* 确保tooltip箭头在最上层 */
+}
+
+/* 预测价格特殊样式（如果需要特殊处理，可以在这里添加） */
+
+/* 预测信号日期特殊样式（如果需要特殊处理，可以在这里添加） */
 
 /* 可点击的日期链接样式 */
 .date-link {
@@ -1038,67 +1008,13 @@ body {
     opacity: 1;
 }
 
-/* 调整预测信号日期中tooltip的箭头位置 */
-.prediction-signal-date .info-icon[title]:hover::before {
-    bottom: auto;
-    top: 50%;
-    left: 100%;
-    transform: translateY(-50%);
-    border: 4px solid transparent;
-    border-left: none;
-    border-right-color: var(--text-primary);
-    margin-bottom: 0;
-    margin-left: -4px;
-    z-index: 99999; /* 确保tooltip箭头在最上层 */
-}
 
-/* 预测理由中的tooltip特殊处理 */
-.prediction-reason .info-icon[title]:hover::after {
-    bottom: auto;
-    top: 50%;
-    left: 100%;
-    transform: translateY(-50%);
-    margin-left: var(--spacing-xs);
-    margin-bottom: 0;
-    width: max-content; /* 使用max-content确保内容不会被截断 */
-    max-width: 250px; /* 最大宽度 */
-    white-space: pre-wrap; /* 使用pre-wrap保持空格并允许换行 */
-    overflow-wrap: break-word; /* 确保长单词也能换行 */
-    display: block; /* 使用块级显示 */
-    z-index: 99999; /* 确保tooltip内容在最上层 */
-}
 
-/* 调整预测理由中tooltip的箭头位置 */
-.prediction-reason .info-icon[title]:hover::before {
-    bottom: auto;
-    top: 50%;
-    left: 100%;
-    transform: translateY(-50%);
-    border: 4px solid transparent;
-    border-left: none;
-    border-right-color: var(--text-primary);
-    margin-bottom: 0;
-    margin-left: -4px;
-    z-index: 99999; /* 确保tooltip箭头在最上层 */
-}
+/* 预测理由特殊样式（如果需要特殊处理，可以在这里添加） */
 
-/* 预测详情中的tooltip特殊处理 */
-.prediction-details .info-icon[title]:hover::after {
-    bottom: auto;
-    top: 50%;
-    left: 100%;
-    transform: translateY(-50%);
-    margin-left: var(--spacing-xs);
-    margin-bottom: 0;
-    width: max-content; /* 使用max-content确保内容不会被截断 */
-    max-width: 250px; /* 最大宽度 */
-    white-space: pre-wrap; /* 使用pre-wrap保持空格并允许换行 */
-    overflow-wrap: break-word; /* 确保长单词也能换行 */
-    display: block; /* 使用块级显示 */
-    z-index: 99999; /* 确保tooltip内容在最上层 */
-}
+/* 预测详情特殊样式（如果需要特殊处理，可以在这里添加） */
 
-/* 预测概率中的tooltip特殊处理 */
+/* 预测概率中的tooltip特殊处理（与其他预测元素不同） */
 .prediction-probability .info-icon[title]:hover::after {
     bottom: auto;
     top: 0; /* 改为从顶部开始，避免被上方元素遮挡 */
@@ -1112,20 +1028,11 @@ body {
     white-space: pre-wrap; /* 使用pre-wrap保持空格并允许换行 */
     overflow-wrap: break-word; /* 确保长单词也能换行 */
     display: block; /* 使用块级显示 */
+    background: var(--text-primary); /* 使用完全不透明的背景 */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* 增强阴影效果 */
 }
 
-/* 调整预测详情中tooltip的箭头位置 */
-.prediction-details .info-icon[title]:hover::before {
-    bottom: auto;
-    top: 50%;
-    left: 100%;
-    transform: translateY(-50%);
-    border: 4px solid transparent;
-    border-left: none;
-    border-right-color: var(--text-primary);
-    margin-bottom: 0;
-    margin-left: -4px;
-}
+
 
 /* 调整预测概率中tooltip的箭头位置 */
 .prediction-probability .info-icon[title]:hover::before {
@@ -1138,6 +1045,7 @@ body {
     border-right-color: var(--text-primary);
     margin-bottom: 0;
     margin-left: -4px;
+    z-index: 99999; /* 确保tooltip箭头在最上层 */
 }
 
 .prediction-signal-date-badge {
