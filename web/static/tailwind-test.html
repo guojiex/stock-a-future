@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tailwind CSS + DaisyUI 测试</title>
+    <link href="./css/output.css" rel="stylesheet">
+</head>
+<body class="bg-base-100 text-base-content">
+    <div class="container mx-auto p-8">
+        <h1 class="text-4xl font-bold text-center mb-8 text-primary">
+            🚀 Tailwind CSS + DaisyUI 安装成功！
+        </h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- 卡片1 -->
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-success">✅ 安装完成</h2>
+                    <p>Tailwind CSS 和 DaisyUI 已经成功安装并配置完成！</p>
+                    <div class="card-actions justify-end">
+                        <button class="btn btn-primary">了解更多</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 卡片2 -->
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-warning">🎨 组件库</h2>
+                    <p>DaisyUI 提供了丰富的组件，可以快速构建现代化界面。</p>
+                    <div class="card-actions justify-end">
+                        <button class="btn btn-secondary">查看组件</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 卡片3 -->
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-info">📱 响应式</h2>
+                    <p>Tailwind CSS 的响应式设计让您的应用在各种设备上都能完美显示。</p>
+                    <div class="card-actions justify-end">
+                        <button class="btn btn-accent">开始使用</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 按钮展示 -->
+        <div class="mt-8 text-center">
+            <h3 class="text-2xl font-semibold mb-4">按钮样式展示</h3>
+            <div class="flex flex-wrap justify-center gap-4">
+                <button class="btn btn-primary">主要按钮</button>
+                <button class="btn btn-secondary">次要按钮</button>
+                <button class="btn btn-accent">强调按钮</button>
+                <button class="btn btn-success">成功按钮</button>
+                <button class="btn btn-warning">警告按钮</button>
+                <button class="btn btn-error">错误按钮</button>
+            </div>
+        </div>
+        
+        <!-- 主题切换 -->
+        <div class="mt-8 text-center">
+            <h3 class="text-2xl font-semibold mb-4">主题切换</h3>
+            <div class="flex flex-wrap justify-center gap-4">
+                <button class="btn btn-outline" onclick="document.documentElement.setAttribute('data-theme', 'light')">浅色主题</button>
+                <button class="btn btn-outline" onclick="document.documentElement.setAttribute('data-theme', 'dark')">深色主题</button>
+                <button class="btn btn-outline" onclick="document.documentElement.setAttribute('data-theme', 'corporate')">企业主题</button>
+                <button class="btn btn-outline" onclick="document.documentElement.setAttribute('data-theme', 'business')">商务主题</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
