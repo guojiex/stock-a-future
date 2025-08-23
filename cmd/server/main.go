@@ -13,7 +13,6 @@ import (
 	"stock-a-future/internal/service"
 	"strings"
 	"syscall"
-	"time"
 )
 
 // 日志相关配置
@@ -408,7 +407,7 @@ func registerStaticRoutes(mux *http.ServeMux) {
 // withLogging 日志中间件
 func withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		startTime := time.Now()
+		// startTime := time.Now()
 
 		// 生成请求ID
 		requestID := logger.GenerateRequestID()
@@ -432,12 +431,12 @@ func withLogging(next http.Handler) http.Handler {
 		}
 
 		// 记录请求开始
-		logger.GetGlobalLogger().InfoCtx(ctx, "HTTP请求开始",
-			logger.String("method", r.Method),
-			logger.String("path", r.URL.Path),
-			logger.String("remote_addr", r.RemoteAddr),
-			logger.String("user_agent", r.UserAgent()),
-		)
+		// logger.GetGlobalLogger().InfoCtx(ctx, "HTTP请求开始",
+		// 	logger.String("method", r.Method),
+		// 	logger.String("path", r.URL.Path),
+		// 	logger.String("remote_addr", r.RemoteAddr),
+		// 	logger.String("user_agent", r.UserAgent()),
+		// )
 
 		// 包装ResponseWriter以捕获状态码
 		wrappedWriter := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
@@ -445,7 +444,7 @@ func withLogging(next http.Handler) http.Handler {
 		next.ServeHTTP(wrappedWriter, r)
 
 		// 计算响应时间
-		responseTime := time.Since(startTime)
+		// responseTime := time.Since(startTime)
 
 		// 对于304状态码不记录日志
 		if wrappedWriter.statusCode == http.StatusNotModified {
@@ -453,13 +452,13 @@ func withLogging(next http.Handler) http.Handler {
 		}
 
 		// 记录响应信息
-		logger.GetGlobalLogger().InfoCtx(ctx, "HTTP请求完成",
-			logger.String("method", r.Method),
-			logger.String("path", r.URL.Path),
-			logger.String("remote_addr", r.RemoteAddr),
-			logger.Int("status_code", wrappedWriter.statusCode),
-			logger.Duration("response_time", responseTime),
-		)
+		// logger.GetGlobalLogger().InfoCtx(ctx, "HTTP请求完成",
+		// 	logger.String("method", r.Method),
+		// 	logger.String("path", r.URL.Path),
+		// 	logger.String("remote_addr", r.RemoteAddr),
+		// 	logger.Int("status_code", wrappedWriter.statusCode),
+		// 	logger.Duration("response_time", responseTime),
+		// )
 	})
 }
 

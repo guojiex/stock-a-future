@@ -54,11 +54,8 @@ type Config struct {
 
 // Load 加载配置
 func Load() *Config {
-	// 尝试加载.env文件
-	if err := godotenv.Load(); err != nil {
-		// 这里还不能使用logger，因为logger还没有初始化
-		// log.Println("未找到.env文件，使用环境变量")
-	}
+	// 尝试加载.env文件，失败时使用环境变量
+	_ = godotenv.Load()
 
 	config := &Config{
 		DataSourceType:   getEnv("DATA_SOURCE_TYPE", "tushare"),
@@ -175,5 +172,4 @@ func (c *Config) ToLoggerConfig() map[string]interface{} {
 // PrintConfigInfo 打印配置信息（需要在logger初始化后调用）
 func (c *Config) PrintConfigInfo() {
 	// 这个函数需要在logger初始化后调用
-	// 在main.go中调用这个函数
 }

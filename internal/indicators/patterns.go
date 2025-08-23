@@ -6,6 +6,13 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// 信号常量
+const (
+	SignalBuy  = "BUY"
+	SignalSell = "SELL"
+	SignalHold = "HOLD"
+)
+
 // PatternRecognizer 图形识别器
 type PatternRecognizer struct{}
 
@@ -21,7 +28,6 @@ func (p *PatternRecognizer) RecognizeAllPatterns(data []models.StockDaily) []mod
 		return []models.PatternRecognitionResult{}
 	}
 
-	// log.Printf("[模式识别] 开始识别模式，共 %d 天数据", len(data))
 	var results []models.PatternRecognitionResult
 
 	// 根据数据长度决定从哪个索引开始处理
@@ -49,7 +55,6 @@ func (p *PatternRecognizer) RecognizeAllPatterns(data []models.StockDaily) []mod
 			prev2 = prev1 // 如果没有前两天数据，使用前一天数据代替
 		}
 
-		// log.Printf("📅 [模式识别] 分析日期: %s (索引: %d)", current.TradeDate, i)
 		// log.Printf("🔍 [模式识别] 开始识别各种技术形态...")
 
 		// 识别蜡烛图模式
@@ -552,10 +557,10 @@ func (p *PatternRecognizer) recognizeVolumePriceDivergence(current, prev1, _ mod
 
 		var signal, description string
 		if priceChangePct.GreaterThan(decimal.Zero) {
-			signal = "SELL" // 顶背离
+			signal = SignalSell // 顶背离
 			description = "价格上涨但成交量下降，可能见顶"
 		} else {
-			signal = "BUY" // 底背离
+			signal = SignalBuy // 底背离
 			description = "价格下跌但成交量上升，可能见底"
 		}
 
@@ -689,7 +694,7 @@ func (p *PatternRecognizer) calculateStrength(confidence decimal.Decimal) string
 // calculateCombinedSignal 计算综合信号
 func (p *PatternRecognizer) calculateCombinedSignal(candlestick []models.CandlestickPattern, volumePrice []models.VolumePricePattern) (string, decimal.Decimal, string) {
 	if len(candlestick) == 0 && len(volumePrice) == 0 {
-		return "HOLD", decimal.Zero, "LOW"
+		return SignalHold, decimal.Zero, "LOW"
 	}
 
 	var totalConfidence decimal.Decimal

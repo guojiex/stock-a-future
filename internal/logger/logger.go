@@ -102,7 +102,7 @@ func NewLogger(config *Config) (Logger, error) {
 	// 解析日志级别
 	level, err := zapcore.ParseLevel(config.Level)
 	if err != nil {
-		return nil, fmt.Errorf("无效的日志级别 %s: %v", config.Level, err)
+		return nil, fmt.Errorf("无效的日志级别 %s: %w", config.Level, err)
 	}
 
 	var cores []zapcore.Core
@@ -241,9 +241,9 @@ func createFileCore(config *Config, level zapcore.Level) (zapcore.Core, error) {
 	}
 
 	// 文件输出
-	file, err := os.OpenFile(config.Filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	file, err := os.OpenFile(config.Filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)
 	if err != nil {
-		return nil, fmt.Errorf("无法打开日志文件 %s: %v", config.Filename, err)
+		return nil, fmt.Errorf("无法打开日志文件 %s: %w", config.Filename, err)
 	}
 	writeSyncer := zapcore.AddSync(file)
 

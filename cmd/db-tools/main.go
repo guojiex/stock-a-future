@@ -62,7 +62,7 @@ func backupDatabase(dbService *service.DatabaseService, dataDir string) error {
 	backupDir := filepath.Join(dataDir, "backups")
 
 	// 确保备份目录存在
-	if err := os.MkdirAll(backupDir, 0755); err != nil {
+	if err := os.MkdirAll(backupDir, 0o755); err != nil {
 		return fmt.Errorf("创建备份目录失败: %v", err)
 	}
 
@@ -94,7 +94,7 @@ func restoreDatabase(dbService *service.DatabaseService, dataDir, backupPath str
 	if _, err := os.Stat(dbPath); err == nil {
 		timestamp := time.Now().Format("20060102_150405")
 		backupDir := filepath.Join(dataDir, "backups")
-		if err := os.MkdirAll(backupDir, 0755); err != nil {
+		if err := os.MkdirAll(backupDir, 0o755); err != nil {
 			return fmt.Errorf("创建备份目录失败: %v", err)
 		}
 

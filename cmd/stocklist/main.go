@@ -43,7 +43,7 @@ func main() {
 
 	// 确保输出目录存在
 	outputDir := filepath.Dir(*output)
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		log.Fatalf("创建输出目录失败: %v", err)
 	}
 
