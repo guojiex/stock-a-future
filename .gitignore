@@ -42,3 +42,4 @@ go.work.sum
 aktools_log.log.*
 .DS_Store
 stock-server
+coverage
