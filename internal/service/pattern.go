@@ -49,8 +49,8 @@ func (p *PatternService) SearchPatterns(request models.PatternSearchRequest) (*m
 	// 识别所有图形模式
 	allPatterns := p.patternRecognizer.RecognizeAllPatterns(stockData)
 
-	// 过滤指定图形类型和置信度
-	var filteredPatterns []models.PatternRecognitionResult
+	// 预分配切片容量，避免频繁扩容
+	filteredPatterns := make([]models.PatternRecognitionResult, 0, len(allPatterns))
 	for _, pattern := range allPatterns {
 		// 检查置信度
 		if request.MinConfidence > 0 {

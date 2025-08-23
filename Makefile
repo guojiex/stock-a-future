@@ -123,7 +123,45 @@ tools:
 # 代码质量检查
 lint:
 	@echo "运行代码质量检查..."
-	golangci-lint run
+	golangci-lint run ./...
+
+lint-fix:
+	@echo "运行代码质量检查并自动修复..."
+	@golangci-lint run --fix ./...
+
+# 代码格式化
+fmt:
+	@echo "格式化代码..."
+	@go fmt ./...
+	@echo "代码格式化完成"
+
+# 代码导入整理
+imports:
+	@echo "整理代码导入..."
+	@goimports -w .
+	@echo "代码导入整理完成"
+
+# 代码质量检查（快速模式）
+lint-quick:
+	@echo "快速代码质量检查..."
+	@golangci-lint run --fast ./...
+
+# 生成代码质量报告
+lint-report:
+	@echo "生成代码质量报告..."
+	@golangci-lint run --out-format=html > lint-report.html
+	@echo "代码质量报告已生成: lint-report.html"
+
+# 测试覆盖率
+test-coverage:
+	@echo "运行测试并生成覆盖率报告..."
+	@go test -coverprofile=coverage.out ./...
+	@go tool cover -html=coverage.out -o coverage.html
+	@echo "测试覆盖率报告已生成: coverage.html"
+
+# 代码质量检查（包含测试）
+quality: fmt imports lint test-coverage
+	@echo "代码质量检查完成！"
 
 # 创建.env文件
 env:
@@ -221,9 +259,19 @@ help:
 	@echo "  make deps        - 下载依赖"
 	@echo "  make run         - 构建并运行"
 	@echo "  make dev         - 开发模式运行"
+	@echo ""
+	@echo "代码质量检查:"
 	@echo "  make fmt         - 格式化代码"
+	@echo "  make imports     - 整理代码导入"
 	@echo "  make vet         - 代码检查"
 	@echo "  make lint        - 代码质量检查"
+	@echo "  make lint-fix    - 代码质量检查并自动修复"
+	@echo "  make lint-quick  - 快速代码质量检查"
+	@echo "  make lint-report - 生成代码质量报告"
+	@echo "  make test-coverage - 生成测试覆盖率报告"
+	@echo "  make quality     - 完整代码质量检查流程"
+	@echo ""
+	@echo "开发工具:"
 	@echo "  make tools       - 安装开发工具"
 	@echo "  make env         - 创建.env配置文件"
 	@echo "  make stocklist   - 构建股票列表工具"

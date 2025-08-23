@@ -54,191 +54,121 @@
 ## 快速开始
 
 ### 环境要求
-- Go 1.22+
-- 数据源选择：
-  - **Tushare**: 需要Tushare Pro账号和Token，数据质量高但有限制
-  - **AKTools**: 免费开源，基于[AKShare](https://akshare.akfamily.xyz/)，数据全面且无调用限制
-    - 需要Python 3.7+环境
-    - 安装命令：`pip install aktools`
-
-### 数据源对比
-
-| 特性 | Tushare | AKTools |
-|------|---------|---------|
-| **费用** | 免费账号有限制，Pro版收费 | 完全免费，无调用限制 |
-| **数据质量** | 专业级，数据准确度高 | 基于AKShare，数据质量良好 |
-| **更新频率** | 实时，T+1 | 实时，T+1 |
-| **安装复杂度** | 简单，仅需Token | 需要Python环境，安装AKTools |
-| **稳定性** | 商业服务，稳定性高 | 开源项目，依赖社区维护 |
-| **推荐场景** | 生产环境，商业应用 | 学习研究，个人项目 |
-
-> **推荐**: 如果您是初学者或用于学习研究，建议使用AKTools数据源；如果是商业应用或对数据质量要求极高，建议使用Tushare。
+- **Go**: 1.24.0 或更高版本
+- **Python**: 3.7+ (用于AKTools服务)
+- **内存**: 至少2GB可用内存
+- **磁盘**: 至少1GB可用空间
 
 ### 安装步骤
 
 1. **克隆项目**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/yourusername/stock-a-future.git
    cd stock-a-future
    ```
 
-2. **安装依赖**
+2. **安装Go依赖**
    ```bash
-   make deps
+   go mod download
+   go mod tidy
    ```
 
 3. **配置环境变量**
    ```bash
-   make env
-   # 编辑.env文件，选择数据源并配置相应参数
-   vim .env
+   # 复制配置文件模板
+   cp config.env.example config.env
    
-   # 使用Tushare数据源
-   DATA_SOURCE_TYPE=tushare
-   TUSHARE_TOKEN=your_tushare_token_here
-   
-   # 或使用AKTools数据源（免费）
-   DATA_SOURCE_TYPE=aktools
-   AKTOOLS_BASE_URL=http://127.0.0.1:8080
+   # 编辑配置文件，设置数据源类型
+   # 推荐使用AKTools（免费，无需API密钥）
    ```
 
-4. **获取股票列表（可选）**
+4. **启动AKTools服务**
    ```bash
-   # 获取上交所股票列表
-   make fetch-sse
+   # 安装AKTools
+   pip install aktools
    
-   # 获取所有股票列表（上交所在线获取 + 深交所Excel文件）
-   make fetch-stocks
+   # 启动服务
+   python -m aktools --port 8080
+   
+   # 后台运行（Linux/Mac）
+   nohup python -m aktools > aktools.log 2>&1 &
+   
+   # Windows后台运行
+   start /B python -m aktools
+   
+   # 使用项目提供的启动脚本（推荐）
+   # Windows批处理
+   start-aktools-server.bat
+   
+   # PowerShell脚本
+   .\start-aktools-server.ps1
    ```
-   
-   > **注意**：深交所股票数据已包含在 `data/A股列表.xlsx` 文件中，无需在线获取。
 
-5. **启动服务**
+5. **启动Stock-A-Future服务**
    ```bash
-   # 开发模式
+   # 开发模式运行
+   go run cmd/server/main.go
+   
+   # 或使用Makefile
    make dev
    
-   # 或者构建后运行
+   # 或构建后运行
    make build
    make run
    ```
-
-6. **编译Curl工具（可选）**
-   ```bash
-   # 使用批处理文件（推荐Windows用户）
-   build-curl.bat
-   
-   # 或使用PowerShell脚本
-   .\build-curl.ps1
-   
-   # 或手动编译
-   go build -o curl.exe ./cmd/curl
-   ```
-   
-   > **注意**：curl工具特别适合在Windows环境下调试API接口，无需安装额外的curl工具。
-
-服务将在 `http://localhost:8081` 启动。
-
-### 🚀 AKTools快速启动指南
-
-如果您想快速体验系统功能，推荐使用AKTools数据源（完全免费）：
-
-#### 1. 一键启动AKTools服务
-```bash
-# Windows用户（推荐）
-start-aktools-server.bat
-
-# PowerShell用户
-.\start-aktools-server.ps1
-
-# 手动启动
-python -m aktools
-```
-
-#### 2. 启动Stock-A-Future API
-```bash
-# 使用启动脚本
-start-aktools-server.bat
-
-# 或手动启动
-go run cmd/server/main.go
-```
-
-#### 3. 验证服务
-```bash
-# 测试AKTools连接
-curl http://127.0.0.1:8080/api/public/stock_zh_a_info?symbol=000001
-
-# 测试Stock-A-Future API
-curl http://localhost:8081/api/v1/health
-```
-
-#### 4. 访问Web界面
-在浏览器中打开：http://localhost:8081
-
-> **提示**: 使用项目提供的启动脚本可以自动处理端口配置和依赖检查，推荐新手使用。
-
-### 使用AKTools数据源（推荐免费使用）
-
-如果您选择使用AKTools数据源，需要先启动AKTools服务。AKTools是基于[AKShare](https://akshare.akfamily.xyz/)的免费开源数据源，提供完整的A股数据。
-
-#### 安装AKTools
-```bash
-# 安装AKTools（基于AKShare的免费开源数据源）
-pip install aktools
-
-# 或者从源码安装最新版本
-pip install git+https://github.com/akfamily/aktools.git
-```
-
-#### 启动AKTools服务
-```bash
-# 启动AKTools服务（默认端口8080）
-python -m aktools
-
-# 或者指定端口启动
-python -m aktools --port 8080
-
-# 后台运行（Linux/Mac）
-nohup python -m aktools > aktools.log 2>&1 &
-
-# Windows后台运行
-start /B python -m aktools
-
-# 使用项目提供的启动脚本（推荐）
-# Windows批处理
-start-aktools-server.bat
-
-# PowerShell脚本
-.\start-aktools-server.ps1
-```
-
-#### 验证AKTools服务
-```bash
-# 测试AKTools连接
-curl http://127.0.0.1:8080/api/public/stock_zh_a_info?symbol=000001
-
-# 或使用项目内置的测试工具
-make test-aktools
-
-# 或直接运行测试程序
-go run cmd/aktools-test/main.go
-```
-
-#### AKTools配置说明
-- **默认端口**: 8080
-- **数据源**: 基于[AKShare](https://akshare.akfamily.xyz/)，免费开源
-- **支持数据**: A股股票数据、基金、债券、期货等
-- **更新频率**: 实时数据，T+1历史数据
-- **官方文档**: [AKShare官方文档](https://akshare.akfamily.xyz/)
-
-> **注意**: AKTools服务需要保持运行状态，Stock-A-Future API才能正常获取数据。详细设置请参考 [AKTOOLS_SETUP.md](AKTOOLS_SETUP.md)。
 
 6. **使用Web界面**
    - 启动服务器后，直接在浏览器访问 `http://localhost:8081/`
    - Web界面已集成到服务器中，无需单独打开HTML文件
    - 使用智能搜索框输入股票名称或代码（如：平安银行、000001）
    - 选择股票后查看专业K线图和技术指标
+
+7. **代码质量检查**
+   ```bash
+   # 快速代码质量检查
+   golangci-lint run ./...
+   
+   # 格式化代码
+   go fmt ./...
+   
+   # 运行测试
+   go test -v ./...
+   
+   # 生成测试覆盖率报告
+   go test -coverprofile=coverage.out ./...
+   go tool cover -html=coverage.out
+   ```
+
+### 快速命令参考
+
+| 命令 | 说明 | 用途 |
+|------|------|------|
+| `make dev` | 开发模式运行 | 快速启动开发服务器 |
+| `make build` | 构建应用 | 生成可执行文件 |
+| `make test` | 运行测试 | 验证代码功能 |
+| `make lint` | 代码质量检查 | 检查代码规范 |
+| `make quality` | 完整质量检查 | 格式化+检查+测试 |
+| `make fmt` | 格式化代码 | 统一代码风格 |
+| `make imports` | 整理导入 | 优化导入顺序 |
+| `make stop` | 停止服务 | 停止运行中的服务器 |
+| `make status` | 查看状态 | 检查服务运行状态 |
+
+### 验证安装
+
+1. **检查AKTools服务**
+   ```bash
+   curl http://127.0.0.1:8080/api/public/stock_zh_a_info?symbol=000001
+   ```
+
+2. **检查Stock-A-Future服务**
+   ```bash
+   curl http://localhost:8081/api/v1/health
+   ```
+
+3. **访问Web界面**
+   - 浏览器访问: `http://localhost:8081/`
+   - 搜索股票: 输入"平安银行"或"000001"
+   - 查看图表: 选择股票后查看K线图
 
 ## API文档
 
@@ -1011,6 +941,75 @@ if __name__ == "__main__":
 3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 开启 Pull Request
+
+## 代码质量检查
+
+本项目使用 `golangci-lint` 进行代码质量检查，确保代码符合Go语言最佳实践。
+
+### 安装golangci-lint
+
+```bash
+# 安装最新版本
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+# 验证安装
+golangci-lint --version
+```
+
+### 运行代码检查
+
+```bash
+# 检查整个项目
+golangci-lint run ./...
+
+# 检查特定包
+golangci-lint run ./internal/service
+
+# 检查特定文件
+golangci-lint run internal/service/signal.go
+
+# 生成详细报告
+golangci-lint run --out-format=html > lint-report.html
+```
+
+### 自动修复
+
+```bash
+# 自动修复可修复的问题
+golangci-lint run --fix ./...
+
+# 格式化代码
+go fmt ./...
+
+# 整理导入
+goimports -w .
+```
+
+### 配置说明
+
+项目根目录包含 `.golangci.yml` 配置文件，主要设置：
+
+- **函数长度限制**: 最大80行，40条语句
+- **函数复杂度限制**: 最大圈复杂度10
+- **启用的检查器**: 包括代码质量、性能、安全等40+个检查器
+- **排除规则**: 测试文件和vendor目录
+
+### 常见问题解决
+
+**Q: 如何忽略特定的lint警告？**
+A: 在代码中添加注释：
+```go
+//nolint:gocyclo
+func complexFunction() {
+    // 复杂逻辑
+}
+```
+
+**Q: 如何临时禁用某个检查器？**
+A: 修改 `.golangci.yml` 配置文件，在 `disable` 部分添加检查器名称。
+
+**Q: 如何查看检查器的详细说明？**
+A: 运行 `golangci-lint help linters` 查看所有检查器的说明。
 
 ## 许可证
 

@@ -285,20 +285,52 @@ func (s *SignalService) calculateStockSignal(tsCode, name string, force bool) er
 		return nil
 	}
 
-	// 如果没有提供名称，尝试从数据库获取
-	if name == "" {
-		// 尝试从本地数据库获取股票名称
-		stockInfo, err := s.getStockInfoFromDB(tsCode)
-		if err == nil && stockInfo.Name != "" {
-			name = stockInfo.Name
-			log.Printf("从数据库获取到股票名称: %s -> %s", tsCode, name)
-		} else {
-			// 使用代码作为名称
-			name = tsCode
-			log.Printf("未能获取股票名称，使用代码作为名称: %s", tsCode)
-		}
+	// 获取股票名称
+	name = s.getStockName(tsCode, name)
+
+	// 获取股票数据
+	stockData, err := s.getStockDataForAnalysis(tsCode)
+	if err != nil {
+		return err
 	}
 
+	// 计算信号
+	signal, err := s.computeStockSignal(tsCode, name, stockData, today)
+	if err != nil {
+		return err
+	}
+
+	// 保存信号到数据库
+	if err := s.saveSignalToDB(signal); err != nil {
+		return fmt.Errorf("保存信号到数据库失败: %v", err)
+	}
+
+	log.Printf("股票 %s 信号计算完成: 类型=%s, 强度=%s, 置信度=%.2f",
+		tsCode, signal.SignalType, signal.SignalStrength, signal.Confidence.Decimal.InexactFloat64())
+
+	return nil
+}
+
+// getStockName 获取股票名称
+func (s *SignalService) getStockName(tsCode, name string) string {
+	if name != "" {
+		return name
+	}
+
+	// 尝试从本地数据库获取股票名称
+	stockInfo, err := s.getStockInfoFromDB(tsCode)
+	if err == nil && stockInfo.Name != "" {
+		log.Printf("从数据库获取到股票名称: %s -> %s", tsCode, stockInfo.Name)
+		return stockInfo.Name
+	}
+
+	// 使用代码作为名称
+	log.Printf("未能获取股票名称，使用代码作为名称: %s", tsCode)
+	return tsCode
+}
+
+// getStockDataForAnalysis 获取用于分析的股票数据
+func (s *SignalService) getStockDataForAnalysis(tsCode string) ([]models.StockDaily, error) {
 	// 获取最近30天的数据进行分析
 	endDate := time.Now().Format("20060102")
 	startDate := time.Now().AddDate(0, 0, -30).Format("20060102")
@@ -307,19 +339,24 @@ func (s *SignalService) calculateStockSignal(tsCode, name string, force bool) er
 	stockData, err := s.stockService.GetDailyData(tsCode, startDate, endDate, "qfq")
 	if err != nil {
 		log.Printf("获取股票 %s 数据详细错误: %v", tsCode, err)
-		return fmt.Errorf("获取股票数据失败: %v", err)
+		return nil, fmt.Errorf("获取股票数据失败: %v", err)
 	}
 
 	if len(stockData) == 0 {
-		return fmt.Errorf("没有获取到股票数据")
+		return nil, fmt.Errorf("没有获取到股票数据")
 	}
 
+	return stockData, nil
+}
+
+// computeStockSignal 计算股票信号
+func (s *SignalService) computeStockSignal(tsCode, name string, stockData []models.StockDaily, today string) (*models.StockSignal, error) {
 	// 获取最新的交易日期
 	latestData := stockData[len(stockData)-1]
 	tradeDate := latestData.TradeDate
 
 	// 计算图形模式
-	patterns, err := s.patternService.RecognizePatterns(tsCode, startDate, endDate)
+	patterns, err := s.patternService.RecognizePatterns(tsCode, tradeDate, tradeDate)
 	if err != nil {
 		log.Printf("识别图形模式失败: %v", err)
 		patterns = []models.PatternRecognitionResult{} // 继续处理，但无图形模式
@@ -341,15 +378,7 @@ func (s *SignalService) calculateStockSignal(tsCode, name string, force bool) er
 	signal.CreatedAt = time.Now()
 	signal.UpdatedAt = time.Now()
 
-	// 保存信号到数据库
-	if err := s.saveSignalToDB(signal); err != nil {
-		return fmt.Errorf("保存信号到数据库失败: %v", err)
-	}
-
-	log.Printf("股票 %s 信号计算完成: 类型=%s, 强度=%s, 置信度=%.2f",
-		tsCode, signal.SignalType, signal.SignalStrength, signal.Confidence.Decimal.InexactFloat64())
-
-	return nil
+	return signal, nil
 }
 
 // getStockInfoFromDB 从数据库获取股票信息

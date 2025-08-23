@@ -1,0 +1,101 @@
+run:
+  timeout: 5m
+  go: "1.24"
+  modules-download-mode: readonly
+
+linters-settings:
+  # 函数长度限制
+  funlen:
+    lines: 80
+    statements: 40
+  
+  # 函数复杂度限制
+  cyclop:
+    max-complexity: 10
+    package-average: 5.0
+  
+  # 错误检查
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  
+  # 未使用的变量和导入
+  unused:
+    check-exported: false
+  
+  # 注释格式 - 暂时禁用
+  # godot:
+  #   scope: all
+  #   period: true
+  
+  # 命名规范
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+
+linters:
+  enable:
+    # 代码质量
+    - bodyclose
+    - contextcheck
+    - cyclop
+    - dupl
+    - errcheck
+    - errname
+    - errorlint
+    - exhaustive
+    - funlen
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    # - godot  # 暂时禁用
+    - gofmt
+    - gofumpt
+    - goimports
+    - gomnd
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - nakedret
+    - nilerr
+    - noctx
+    - nolintlint
+    - prealloc
+    - predeclared
+    - staticcheck
+    - structcheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - varcheck
+    - whitespace
+
+  disable:
+    # 暂时禁用的检查
+    - lll  # 行长度限制，避免过于严格
+    - wsl  # 空白行规则，避免过于严格
+
+issues:
+  exclude-rules:
+    # 排除一些常见的误报
+    - path: _test\.go
+      linters:
+        - funlen
+        - gocognit
+    
+    # 排除vendor目录
+    - path: vendor/
+      linters:
+        - all
+
+  max-issues-per-linter: 0
+  max-same-issues: 0

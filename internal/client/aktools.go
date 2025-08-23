@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -107,26 +108,22 @@ func (c *AKToolsClient) GetDailyData(symbol, startDate, endDate, adjust string) 
 	// 构建查询参数
 	params := url.Values{}
 	params.Set("symbol", cleanSymbol)
-	if startDate != "" {
-		params.Set("start_date", startDate)
-	}
-	if endDate != "" {
-		params.Set("end_date", endDate)
-	}
-	// 使用默认参数
-	params.Set("period", "daily")
-
-	// 设置复权方式，如果没有指定则使用前复权
-	if adjust == "" {
-		adjust = "qfq" // 默认前复权，更符合用户习惯
-	}
+	params.Set("start_date", startDate)
+	params.Set("end_date", endDate)
 	params.Set("adjust", adjust)
 
 	// 构建完整URL
 	apiURL := fmt.Sprintf("%s/api/public/stock_zh_a_hist?%s", c.baseURL, params.Encode())
 
+	// 创建带context的请求
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
 	// 发送HTTP请求
-	resp, err := c.client.Get(apiURL)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("请求AKTools API失败: %w, URL: %s, 股票代码: %s", err, apiURL, symbol)
 	}
@@ -176,8 +173,15 @@ func (c *AKToolsClient) GetStockBasic(symbol string) (*models.StockBasic, error)
 	// 构建完整URL - 使用股票基本信息API
 	apiURL := fmt.Sprintf("%s/api/public/stock_zh_a_info?%s", c.baseURL, params.Encode())
 
+	// 创建带context的请求
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
 	// 发送HTTP请求
-	resp, err := c.client.Get(apiURL)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("请求AKTools股票信息API失败: %w, URL: %s, 股票代码: %s", err, apiURL, symbol)
 	}
@@ -216,8 +220,15 @@ func (c *AKToolsClient) GetStockList() ([]models.StockBasic, error) {
 	// 构建完整URL - 使用股票列表API
 	apiURL := fmt.Sprintf("%s/api/public/stock_zh_a_spot", c.baseURL)
 
+	// 创建带context的请求
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
 	// 发送HTTP请求
-	resp, err := c.client.Get(apiURL)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("请求AKTools股票列表API失败: %w, URL: %s", err, apiURL)
 	}
@@ -405,8 +416,15 @@ func (c *AKToolsClient) TestConnection() error {
 	// 打印测试请求的URL
 	log.Printf("正在测试AKTools API连接，请求URL: %s", apiURL)
 
+	// 创建带context的请求
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return fmt.Errorf("创建请求失败: %w", err)
+	}
+
 	// 发送测试请求
-	resp, err := testClient.Get(apiURL)
+	resp, err := testClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("AKTools连接测试失败: %w", err)
 	}
