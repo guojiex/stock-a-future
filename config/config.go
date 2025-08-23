@@ -147,8 +147,8 @@ func getIntEnv(key string, defaultValue int) int {
 	return defaultValue
 }
 
-// maskToken 掩码Token，只显示前4位和后4位
-func maskToken(token string) string {
+// MaskToken 掩码Token，只显示前4位和后4位
+func MaskToken(token string) string {
 	if len(token) <= 8 {
 		return "***"
 	}

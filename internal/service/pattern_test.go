@@ -137,7 +137,7 @@ func TestPatternService_SearchPatterns(t *testing.T) {
 	}
 
 	if response == nil {
-		t.Error("SearchPatterns应该返回非空响应")
+		t.Fatal("SearchPatterns应该返回非空响应")
 	}
 
 	if response.Total < 0 {

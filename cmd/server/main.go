@@ -60,7 +60,7 @@ func main() {
 	logger.Info("Tushare基础URL", logger.String("url", cfg.TushareBaseURL))
 	logger.Info("AKTools基础URL", logger.String("url", cfg.AKToolsBaseURL))
 	if cfg.DataSourceType == "tushare" {
-		logger.Info("Tushare Token", logger.String("token", maskTokenLocal(cfg.TushareToken)))
+		logger.Info("Tushare Token", logger.String("token", config.MaskToken(cfg.TushareToken)))
 	}
 	logger.Info("模式预测时间窗口", logger.Int("days", cfg.PatternPredictionDays))
 	logger.Info("数据清理配置:")
@@ -340,14 +340,6 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patt
 		mux.HandleFunc("POST /api/v1/cleanup/manual", cleanupHandler.ManualCleanup)
 		mux.HandleFunc("PUT /api/v1/cleanup/config", cleanupHandler.UpdateConfig)
 	}
-}
-
-// maskTokenLocal 掩码Token，只显示前4位和后4位
-func maskTokenLocal(token string) string {
-	if len(token) <= 8 {
-		return "***"
-	}
-	return token[:4] + "..." + token[len(token)-4:]
 }
 
 // registerStaticRoutes 注册静态文件路由

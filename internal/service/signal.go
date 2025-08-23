@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"stock-a-future/internal/logger"
 	"stock-a-future/internal/models"
 	"sync"
 	"time"
@@ -85,7 +86,7 @@ func (s *SignalService) Stop() {
 
 	s.running = false
 	close(s.stopChan)
-	log.Printf("信号计算服务已停止")
+	logger.Info("信号计算服务已停止")
 }
 
 // Close 关闭服务

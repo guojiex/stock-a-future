@@ -1,7 +1,7 @@
 package service
 
 import (
-	"log"
+	"stock-a-future/internal/logger"
 	"time"
 )
 
@@ -28,12 +28,12 @@ func NewCleanupService(databaseService *DatabaseService, cleanupInterval time.Du
 // Start 启动数据清理服务
 func (s *CleanupService) Start() {
 	if s.isRunning {
-		log.Printf("数据清理服务已在运行中")
+		logger.Warn("数据清理服务已在运行中")
 		return
 	}
 
 	s.isRunning = true
-	log.Printf("启动数据清理服务，清理间隔: %v", s.cleanupInterval)
+	logger.Info("启动数据清理服务", logger.Duration("interval", s.cleanupInterval))
 
 	// 启动时立即执行一次清理
 	go s.performCleanup()
@@ -48,7 +48,7 @@ func (s *CleanupService) Stop() {
 		return
 	}
 
-	log.Printf("停止数据清理服务...")
+	logger.Info("停止数据清理服务...")
 	close(s.stopChan)
 	s.isRunning = false
 }
@@ -63,7 +63,7 @@ func (s *CleanupService) runCleanupLoop() {
 		case <-ticker.C:
 			go s.performCleanup()
 		case <-s.stopChan:
-			log.Printf("数据清理服务已停止")
+			logger.Info("数据清理服务已停止")
 			return
 		}
 	}
@@ -72,26 +72,26 @@ func (s *CleanupService) runCleanupLoop() {
 // performCleanup 执行数据清理
 func (s *CleanupService) performCleanup() {
 	startTime := time.Now()
-	log.Printf("开始执行数据清理任务...")
+	logger.Info("开始执行数据清理任务...")
 
 	// 清理数据库过期数据
 	if err := s.databaseService.CleanupExpiredData(s.retentionDays); err != nil {
-		log.Printf("数据库清理失败: %v", err)
+		logger.ErrorLog("数据库清理失败", logger.ErrorField(err))
 	}
 
 	// 获取清理后的数据库统计信息
 	stats, err := s.databaseService.GetDatabaseStats()
 	if err != nil {
-		log.Printf("获取数据库统计信息失败: %v", err)
+		logger.Warn("获取数据库统计信息失败", logger.ErrorField(err))
 	} else {
-		log.Printf("数据库统计信息:")
+		logger.Info("数据库统计信息:")
 		for key, value := range stats {
-			log.Printf("  %s: %v", key, value)
+			logger.Info("  统计项", logger.String("key", key), logger.Any("value", value))
 		}
 	}
 
 	duration := time.Since(startTime)
-	log.Printf("数据清理任务完成，耗时: %v", duration)
+	logger.Info("数据清理任务完成", logger.Duration("duration", duration))
 }
 
 // IsRunning 检查服务是否正在运行
@@ -107,7 +107,7 @@ func (s *CleanupService) GetCleanupInterval() time.Duration {
 // SetCleanupInterval 设置清理间隔
 func (s *CleanupService) SetCleanupInterval(interval time.Duration) {
 	s.cleanupInterval = interval
-	log.Printf("数据清理间隔已更新为: %v", interval)
+	logger.Info("数据清理间隔已更新", logger.Duration("interval", interval))
 }
 
 // GetRetentionDays 获取股票信号数据保留天数
@@ -118,11 +118,11 @@ func (s *CleanupService) GetRetentionDays() int {
 // SetRetentionDays 设置股票信号数据保留天数
 func (s *CleanupService) SetRetentionDays(days int) {
 	s.retentionDays = days
-	log.Printf("股票信号数据保留天数已更新为: %d天", days)
+	logger.Info("股票信号数据保留天数已更新", logger.Int("retention_days", days))
 }
 
 // PerformManualCleanup 手动执行数据清理
 func (s *CleanupService) PerformManualCleanup() {
-	log.Printf("手动触发数据清理任务...")
+	logger.Info("手动触发数据清理任务...")
 	s.performCleanup()
 }
