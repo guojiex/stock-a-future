@@ -1,7 +1,6 @@
 package config
 
 import (
-	"log"
 	"os"
 	"strconv"
 	"time"
@@ -26,7 +25,17 @@ type Config struct {
 	ServerHost string
 
 	// 日志配置
-	LogLevel string
+	LogLevel         string
+	LogFormat        string // 日志格式: json, console
+	LogOutput        string // 输出目标: stdout, stderr, file, both
+	LogFilename      string // 日志文件名
+	LogMaxSize       int    // 最大文件大小(MB)
+	LogMaxBackups    int    // 最大备份文件数
+	LogMaxAge        int    // 最大保留天数
+	LogCompress      bool   // 是否压缩
+	LogConsoleFormat string // 终端格式: simple, detailed
+	LogShowCaller    bool   // 是否显示调用位置
+	LogShowTime      bool   // 是否显示时间
 
 	// 缓存配置
 	CacheDefaultTTL      time.Duration // 默认缓存过期时间
@@ -47,17 +56,28 @@ type Config struct {
 func Load() *Config {
 	// 尝试加载.env文件
 	if err := godotenv.Load(); err != nil {
-		log.Println("未找到.env文件，使用环境变量")
+		// 这里还不能使用logger，因为logger还没有初始化
+		// log.Println("未找到.env文件，使用环境变量")
 	}
 
 	config := &Config{
-		DataSourceType: getEnv("DATA_SOURCE_TYPE", "tushare"),
-		TushareToken:   getEnv("TUSHARE_TOKEN", ""),
-		TushareBaseURL: getEnv("TUSHARE_BASE_URL", "http://api.tushare.pro"),
-		AKToolsBaseURL: getEnv("AKTOOLS_BASE_URL", "http://127.0.0.1:8080"),
-		ServerPort:     getEnv("SERVER_PORT", "8080"),
-		ServerHost:     getEnv("SERVER_HOST", "localhost"),
-		LogLevel:       getEnv("LOG_LEVEL", "info"),
+		DataSourceType:   getEnv("DATA_SOURCE_TYPE", "tushare"),
+		TushareToken:     getEnv("TUSHARE_TOKEN", ""),
+		TushareBaseURL:   getEnv("TUSHARE_BASE_URL", "http://api.tushare.pro"),
+		AKToolsBaseURL:   getEnv("AKTOOLS_BASE_URL", "http://127.0.0.1:8080"),
+		ServerPort:       getEnv("SERVER_PORT", "8080"),
+		ServerHost:       getEnv("SERVER_HOST", "localhost"),
+		LogLevel:         getEnv("LOG_LEVEL", "info"),
+		LogFormat:        getEnv("LOG_FORMAT", "console"),
+		LogOutput:        getEnv("LOG_OUTPUT", "stdout"),
+		LogFilename:      getEnv("LOG_FILENAME", "logs/app.log"),
+		LogMaxSize:       getIntEnv("LOG_MAX_SIZE", 100),
+		LogMaxBackups:    getIntEnv("LOG_MAX_BACKUPS", 3),
+		LogMaxAge:        getIntEnv("LOG_MAX_AGE", 28),
+		LogCompress:      getBoolEnv("LOG_COMPRESS", true),
+		LogConsoleFormat: getEnv("LOG_CONSOLE_FORMAT", "simple"),
+		LogShowCaller:    getBoolEnv("LOG_SHOW_CALLER", false),
+		LogShowTime:      getBoolEnv("LOG_SHOW_TIME", true),
 
 		// 缓存配置 - 默认值
 		CacheDefaultTTL:      getDurationEnv("CACHE_DEFAULT_TTL", 1*time.Hour),         // 默认1小时
@@ -76,23 +96,9 @@ func Load() *Config {
 
 	// 验证必要配置
 	if config.DataSourceType == "tushare" && config.TushareToken == "" {
-		log.Fatal("使用Tushare数据源时，TUSHARE_TOKEN 环境变量是必需的")
+		// 这里使用panic，因为logger还没有初始化
+		panic("使用Tushare数据源时，TUSHARE_TOKEN 环境变量是必需的")
 	}
-
-	// 打印数据源配置信息
-	log.Printf("=== 数据源配置信息 ===")
-	log.Printf("数据源类型: %s", config.DataSourceType)
-	log.Printf("Tushare基础URL: %s", config.TushareBaseURL)
-	log.Printf("AKTools基础URL: %s", config.AKToolsBaseURL)
-	if config.DataSourceType == "tushare" {
-		log.Printf("Tushare Token: %s", maskToken(config.TushareToken))
-	}
-	log.Printf("模式预测时间窗口: %d天", config.PatternPredictionDays)
-	log.Printf("数据清理配置:")
-	log.Printf("  启用: %t", config.CleanupEnabled)
-	log.Printf("  间隔: %v", config.CleanupInterval)
-	log.Printf("  股票信号保留: %d天", config.CleanupRetentionDays)
-	log.Printf("=====================")
 
 	return config
 }
@@ -111,7 +117,8 @@ func getBoolEnv(key string, defaultValue bool) bool {
 		if parsed, err := strconv.ParseBool(value); err == nil {
 			return parsed
 		}
-		log.Printf("警告: 无法解析环境变量 %s=%s 为布尔值，使用默认值 %v", key, value, defaultValue)
+		// 这里不能使用logger，因为logger还没有初始化，暂时注释掉
+		// logger.Warnf("无法解析环境变量 %s=%s 为布尔值，使用默认值 %v", key, value, defaultValue)
 	}
 	return defaultValue
 }
@@ -122,7 +129,8 @@ func getDurationEnv(key string, defaultValue time.Duration) time.Duration {
 		if parsed, err := time.ParseDuration(value); err == nil {
 			return parsed
 		}
-		log.Printf("警告: 无法解析环境变量 %s=%s 为时间间隔，使用默认值 %v", key, value, defaultValue)
+		// 这里不能使用logger，因为logger还没有初始化，暂时注释掉
+		// logger.Warnf("无法解析环境变量 %s=%s 为时间间隔，使用默认值 %v", key, value, defaultValue)
 	}
 	return defaultValue
 }
@@ -133,7 +141,8 @@ func getIntEnv(key string, defaultValue int) int {
 		if parsed, err := strconv.Atoi(value); err == nil {
 			return parsed
 		}
-		log.Printf("警告: 无法解析环境变量 %s=%s 为整数，使用默认值 %d", key, value, defaultValue)
+		// 这里不能使用logger，因为logger还没有初始化，暂时注释掉
+		// logger.Warnf("无法解析环境变量 %s=%s 为整数，使用默认值 %d", key, value, defaultValue)
 	}
 	return defaultValue
 }
@@ -144,4 +153,27 @@ func maskToken(token string) string {
 		return "***"
 	}
 	return token[:4] + "..." + token[len(token)-4:]
+}
+
+// ToLoggerConfig 将应用配置转换为日志配置
+func (c *Config) ToLoggerConfig() map[string]interface{} {
+	return map[string]interface{}{
+		"level":          c.LogLevel,
+		"format":         c.LogFormat,
+		"output":         c.LogOutput,
+		"filename":       c.LogFilename,
+		"max_size":       c.LogMaxSize,
+		"max_backups":    c.LogMaxBackups,
+		"max_age":        c.LogMaxAge,
+		"compress":       c.LogCompress,
+		"console_format": c.LogConsoleFormat,
+		"show_caller":    c.LogShowCaller,
+		"show_time":      c.LogShowTime,
+	}
+}
+
+// PrintConfigInfo 打印配置信息（需要在logger初始化后调用）
+func (c *Config) PrintConfigInfo() {
+	// 这个函数需要在logger初始化后调用
+	// 在main.go中调用这个函数
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -10,6 +9,7 @@ import (
 	"stock-a-future/config"
 	"stock-a-future/internal/client"
 	"stock-a-future/internal/handler"
+	"stock-a-future/internal/logger"
 	"stock-a-future/internal/service"
 	"strings"
 	"syscall"
@@ -31,8 +31,43 @@ func main() {
 	// 加载配置
 	cfg := config.Load()
 
-	log.Printf("启动Stock-A-Future API服务器...")
-	log.Printf("服务器地址: %s:%s", cfg.ServerHost, cfg.ServerPort)
+	// 初始化日志系统
+	logConfig := &logger.Config{
+		Level:         cfg.LogLevel,
+		Format:        cfg.LogFormat,
+		Output:        cfg.LogOutput,
+		Filename:      cfg.LogFilename,
+		MaxSize:       cfg.LogMaxSize,
+		MaxBackups:    cfg.LogMaxBackups,
+		MaxAge:        cfg.LogMaxAge,
+		Compress:      cfg.LogCompress,
+		ConsoleFormat: cfg.LogConsoleFormat,
+		ShowCaller:    cfg.LogShowCaller,
+		ShowTime:      cfg.LogShowTime,
+	}
+
+	if err := logger.InitGlobalLogger(logConfig); err != nil {
+		fmt.Printf("初始化日志系统失败: %v\n", err)
+		os.Exit(1)
+	}
+
+	logger.Info("启动Stock-A-Future API服务器...")
+	logger.Info("服务器地址", logger.String("host", cfg.ServerHost), logger.String("port", cfg.ServerPort))
+
+	// 打印数据源配置信息
+	logger.Info("=== 数据源配置信息 ===")
+	logger.Info("数据源类型", logger.String("type", cfg.DataSourceType))
+	logger.Info("Tushare基础URL", logger.String("url", cfg.TushareBaseURL))
+	logger.Info("AKTools基础URL", logger.String("url", cfg.AKToolsBaseURL))
+	if cfg.DataSourceType == "tushare" {
+		logger.Info("Tushare Token", logger.String("token", maskTokenLocal(cfg.TushareToken)))
+	}
+	logger.Info("模式预测时间窗口", logger.Int("days", cfg.PatternPredictionDays))
+	logger.Info("数据清理配置:")
+	logger.Info("  启用", logger.Bool("enabled", cfg.CleanupEnabled))
+	logger.Info("  间隔", logger.Duration("interval", cfg.CleanupInterval))
+	logger.Info("  股票信号保留", logger.Int("retention_days", cfg.CleanupRetentionDays))
+	logger.Info("=====================")
 
 	// 使用数据源工厂创建客户端
 	factory := client.NewDataSourceFactory()
@@ -42,7 +77,7 @@ func main() {
 
 	switch cfg.DataSourceType {
 	case "tushare":
-		log.Printf("Tushare API: %s", cfg.TushareBaseURL)
+		logger.Info("配置Tushare数据源", logger.String("base_url", cfg.TushareBaseURL))
 
 		config := map[string]string{
 			"token":    cfg.TushareToken,
@@ -50,34 +85,34 @@ func main() {
 		}
 		dataSourceClient, err = factory.CreateClient(client.DataSourceTushare, config)
 		if err != nil {
-			log.Fatalf("创建Tushare客户端失败: %v", err)
+			logger.Fatal("创建Tushare客户端失败", logger.ErrorField(err))
 		}
 
 		// 启动时测试Tushare连接
-		log.Printf("正在测试Tushare API连接...")
+		logger.Info("正在测试Tushare API连接...")
 		if err := dataSourceClient.TestConnection(); err != nil {
-			log.Fatalf("Tushare API连接测试失败: %v", err)
+			logger.Fatal("Tushare API连接测试失败", logger.ErrorField(err))
 		}
-		log.Printf("✓ Tushare API连接测试成功")
+		logger.Info("✓ Tushare API连接测试成功")
 	case "aktools":
-		log.Printf("AKTools API: %s", cfg.AKToolsBaseURL)
+		logger.Info("配置AKTools数据源", logger.String("base_url", cfg.AKToolsBaseURL))
 
 		config := map[string]string{
 			"base_url": cfg.AKToolsBaseURL,
 		}
 		dataSourceClient, err = factory.CreateClient(client.DataSourceAKTools, config)
 		if err != nil {
-			log.Fatalf("创建AKTools客户端失败: %v", err)
+			logger.Fatal("创建AKTools客户端失败", logger.ErrorField(err))
 		}
 
 		// 启动时测试AKTools连接
-		log.Printf("正在测试AKTools API连接...")
+		logger.Info("正在测试AKTools API连接...")
 		if err := dataSourceClient.TestConnection(); err != nil {
-			log.Fatalf("AKTools API连接测试失败: %v", err)
+			logger.Fatal("AKTools API连接测试失败", logger.ErrorField(err))
 		}
-		log.Printf("✓ AKTools API连接测试成功")
+		logger.Info("✓ AKTools API连接测试成功")
 	default:
-		log.Fatalf("不支持的数据源类型: %s", cfg.DataSourceType)
+		logger.Fatal("不支持的数据源类型", logger.String("type", cfg.DataSourceType))
 	}
 
 	// 创建缓存服务
@@ -89,21 +124,21 @@ func main() {
 			CleanupInterval: cfg.CacheCleanupInterval,
 		}
 		cacheService = service.NewDailyCacheService(cacheConfig)
-		log.Printf("日线数据缓存已启用")
+		logger.Info("日线数据缓存已启用")
 	} else {
-		log.Printf("日线数据缓存已禁用")
+		logger.Info("日线数据缓存已禁用")
 	}
 
 	// 创建收藏服务
 	favoriteService, err := service.NewFavoriteService("data")
 	if err != nil {
-		log.Fatalf("创建收藏服务失败: %v", err)
+		logger.Fatal("创建收藏服务失败", logger.ErrorField(err))
 	}
 
 	// 创建数据库服务
 	databaseService, err := service.NewDatabaseService("data")
 	if err != nil {
-		log.Fatalf("创建数据库服务失败: %v", err)
+		logger.Fatal("创建数据库服务失败", logger.ErrorField(err))
 	}
 
 	// 创建数据清理服务
@@ -114,9 +149,9 @@ func main() {
 			cfg.CleanupInterval,
 			cfg.CleanupRetentionDays,
 		)
-		log.Printf("数据清理服务已创建，清理间隔: %v", cfg.CleanupInterval)
+		logger.Info("数据清理服务已创建", logger.Duration("interval", cfg.CleanupInterval))
 	} else {
-		log.Printf("数据清理服务已禁用")
+		logger.Info("数据清理服务已禁用")
 	}
 
 	// 创建图形识别服务
@@ -128,7 +163,7 @@ func main() {
 	// 创建信号计算服务
 	signalService, err := service.NewSignalService("data", patternService, dataSourceClient, favoriteService)
 	if err != nil {
-		log.Fatalf("创建信号计算服务失败: %v", err)
+		logger.Fatal("创建信号计算服务失败", logger.ErrorField(err))
 	}
 
 	// 注册服务到应用上下文
@@ -139,12 +174,12 @@ func main() {
 
 	// 启动异步信号计算服务
 	signalService.Start()
-	log.Printf("✓ 异步信号计算服务已启动")
+	logger.Info("✓ 异步信号计算服务已启动")
 
 	// 启动数据清理服务
 	if cleanupService != nil {
 		cleanupService.Start()
-		log.Printf("✓ 数据清理服务已启动")
+		logger.Info("✓ 数据清理服务已启动")
 	}
 
 	// 创建处理器
@@ -172,41 +207,41 @@ func main() {
 
 	// 启动服务器
 	addr := fmt.Sprintf("%s:%s", cfg.ServerHost, cfg.ServerPort)
-	log.Printf("服务器正在监听 %s", addr)
-	log.Printf("API文档:")
-	log.Printf("  健康检查: GET http://%s/api/v1/health", addr)
-	log.Printf("  股票基本信息: GET http://%s/api/v1/stocks/{code}/basic", addr)
-	log.Printf("  股票日线: GET http://%s/api/v1/stocks/{code}/daily?start_date=20240101&end_date=20240131", addr)
-	log.Printf("  技术指标: GET http://%s/api/v1/stocks/{code}/indicators", addr)
-	log.Printf("  买卖预测: GET http://%s/api/v1/stocks/{code}/predictions", addr)
-	log.Printf("  本地股票列表: GET http://%s/api/v1/stocks", addr)
-	log.Printf("  股票搜索: GET http://%s/api/v1/stocks/search?q=keyword", addr)
-	log.Printf("  刷新本地数据: POST http://%s/api/v1/stocks/refresh", addr)
-	log.Printf("  收藏列表: GET http://%s/api/v1/favorites", addr)
-	log.Printf("  添加收藏: POST http://%s/api/v1/favorites", addr)
-	log.Printf("  删除收藏: DELETE http://%s/api/v1/favorites/{id}", addr)
-	log.Printf("  检查收藏: GET http://%s/api/v1/favorites/check/{code}", addr)
-	log.Printf("  图形识别: GET http://%s/api/v1/patterns/recognize?ts_code=000001.SZ", addr)
-	log.Printf("  图形搜索: POST http://%s/api/v1/patterns/search", addr)
-	log.Printf("  图形摘要: GET http://%s/api/v1/patterns/summary?ts_code=000001.SZ", addr)
-	log.Printf("  最近信号: GET http://%s/api/v1/patterns/recent?ts_code=000001.SZ", addr)
-	log.Printf("  可用图形: GET http://%s/api/v1/patterns/available", addr)
-	log.Printf("  图形统计: GET http://%s/api/v1/patterns/statistics?ts_code=000001.SZ", addr)
-	log.Printf("  计算信号: POST http://%s/api/v1/signals/calculate", addr)
-	log.Printf("  批量计算: POST http://%s/api/v1/signals/batch", addr)
-	log.Printf("  获取信号: GET http://%s/api/v1/signals/{code}?signal_date=20240101", addr)
-	log.Printf("  最新信号: GET http://%s/api/v1/signals?limit=20", addr)
+	logger.Info("服务器正在监听", logger.String("address", addr))
+	logger.Info("API文档:")
+	logger.Info("  健康检查: GET http://" + addr + "/api/v1/health")
+	logger.Info("  股票基本信息: GET http://" + addr + "/api/v1/stocks/{code}/basic")
+	logger.Info("  股票日线: GET http://" + addr + "/api/v1/stocks/{code}/daily?start_date=20240101&end_date=20240131")
+	logger.Info("  技术指标: GET http://" + addr + "/api/v1/stocks/{code}/indicators")
+	logger.Info("  买卖预测: GET http://" + addr + "/api/v1/stocks/{code}/predictions")
+	logger.Info("  本地股票列表: GET http://" + addr + "/api/v1/stocks")
+	logger.Info("  股票搜索: GET http://" + addr + "/api/v1/stocks/search?q=keyword")
+	logger.Info("  刷新本地数据: POST http://" + addr + "/api/v1/stocks/refresh")
+	logger.Info("  收藏列表: GET http://" + addr + "/api/v1/favorites")
+	logger.Info("  添加收藏: POST http://" + addr + "/api/v1/favorites")
+	logger.Info("  删除收藏: DELETE http://" + addr + "/api/v1/favorites/{id}")
+	logger.Info("  检查收藏: GET http://" + addr + "/api/v1/favorites/check/{code}")
+	logger.Info("  图形识别: GET http://" + addr + "/api/v1/patterns/recognize?ts_code=000001.SZ")
+	logger.Info("  图形搜索: POST http://" + addr + "/api/v1/patterns/search")
+	logger.Info("  图形摘要: GET http://" + addr + "/api/v1/patterns/summary?ts_code=000001.SZ")
+	logger.Info("  最近信号: GET http://" + addr + "/api/v1/patterns/recent?ts_code=000001.SZ")
+	logger.Info("  可用图形: GET http://" + addr + "/api/v1/patterns/available")
+	logger.Info("  图形统计: GET http://" + addr + "/api/v1/patterns/statistics?ts_code=000001.SZ")
+	logger.Info("  计算信号: POST http://" + addr + "/api/v1/signals/calculate")
+	logger.Info("  批量计算: POST http://" + addr + "/api/v1/signals/batch")
+	logger.Info("  获取信号: GET http://" + addr + "/api/v1/signals/{code}?signal_date=20240101")
+	logger.Info("  最新信号: GET http://" + addr + "/api/v1/signals?limit=20")
 	if cfg.CacheEnabled {
-		log.Printf("  缓存统计: GET http://%s/api/v1/cache/stats", addr)
-		log.Printf("  清空缓存: DELETE http://%s/api/v1/cache", addr)
+		logger.Info("  缓存统计: GET http://" + addr + "/api/v1/cache/stats")
+		logger.Info("  清空缓存: DELETE http://" + addr + "/api/v1/cache")
 	}
 	if cfg.CleanupEnabled {
-		log.Printf("  清理状态: GET http://%s/api/v1/cleanup/status", addr)
-		log.Printf("  手动清理: POST http://%s/api/v1/cleanup/manual", addr)
-		log.Printf("  更新配置: PUT http://%s/api/v1/cleanup/config", addr)
+		logger.Info("  清理状态: GET http://" + addr + "/api/v1/cleanup/status")
+		logger.Info("  手动清理: POST http://" + addr + "/api/v1/cleanup/manual")
+		logger.Info("  更新配置: PUT http://" + addr + "/api/v1/cleanup/config")
 	}
-	log.Printf("  Web客户端: http://%s/", addr)
-	log.Printf("示例: curl http://%s/api/v1/stocks/000001.SZ/daily", addr)
+	logger.Info("  Web客户端: http://" + addr + "/")
+	logger.Info("示例: curl http://" + addr + "/api/v1/stocks/000001.SZ/daily")
 
 	// 设置信号处理，用于优雅关闭
 	sigChan := make(chan os.Signal, 1)
@@ -215,13 +250,13 @@ func main() {
 	// 在单独的goroutine中启动服务器
 	go func() {
 		if err := http.ListenAndServe(addr, handler); err != nil {
-			log.Fatalf("服务器启动失败: %v", err)
+			logger.Fatal("服务器启动失败", logger.ErrorField(err))
 		}
 	}()
 
 	// 等待退出信号
 	<-sigChan
-	log.Printf("收到退出信号，开始优雅关闭...")
+	logger.Info("收到退出信号，开始优雅关闭...")
 
 	// 停止信号计算服务
 	signalService.Stop()
@@ -233,20 +268,20 @@ func main() {
 
 	// 关闭收藏服务
 	if err := favoriteService.Close(); err != nil {
-		log.Printf("关闭收藏服务失败: %v", err)
+		logger.Warn("关闭收藏服务失败", logger.ErrorField(err))
 	}
 
 	// 关闭信号服务
 	if err := signalService.Close(); err != nil {
-		log.Printf("关闭信号服务失败: %v", err)
+		logger.Warn("关闭信号服务失败", logger.ErrorField(err))
 	}
 
 	// 关闭数据库服务
 	if err := databaseService.Close(); err != nil {
-		log.Printf("关闭数据库服务失败: %v", err)
+		logger.Warn("关闭数据库服务失败", logger.ErrorField(err))
 	}
 
-	log.Printf("服务器已优雅关闭")
+	logger.Info("服务器已优雅关闭")
 }
 
 // registerRoutes 注册路由
@@ -307,6 +342,14 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patt
 	}
 }
 
+// maskTokenLocal 掩码Token，只显示前4位和后4位
+func maskTokenLocal(token string) string {
+	if len(token) <= 8 {
+		return "***"
+	}
+	return token[:4] + "..." + token[len(token)-4:]
+}
+
 // registerStaticRoutes 注册静态文件路由
 func registerStaticRoutes(mux *http.ServeMux) {
 	// 获取静态文件目录的绝对路径
@@ -355,7 +398,7 @@ func registerStaticRoutes(mux *http.ServeMux) {
 				"web_client": "GET /",
 				"example": "curl http://localhost:8080/api/v1/stocks/{code}/daily"
 			}`)); err != nil {
-				log.Printf("写入API路径响应失败: %v", err)
+				logger.Warn("写入API路径响应失败", logger.ErrorField(err))
 			}
 			return
 		}
@@ -375,6 +418,11 @@ func withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
 
+		// 生成请求ID
+		requestID := logger.GenerateRequestID()
+		ctx := logger.WithRequestIDContext(r.Context(), requestID)
+		r = r.WithContext(ctx)
+
 		// 检查是否跳过日志记录
 		for _, path := range skipLogPaths {
 			if r.URL.Path == path {
@@ -392,8 +440,12 @@ func withLogging(next http.Handler) http.Handler {
 		}
 
 		// 记录请求开始
-		log.Printf("[Middleware] %s %s %s - 开始时间: %v",
-			r.Method, r.URL.Path, r.RemoteAddr, startTime.Format("15:04:05.000"))
+		logger.GetGlobalLogger().InfoCtx(ctx, "HTTP请求开始",
+			logger.String("method", r.Method),
+			logger.String("path", r.URL.Path),
+			logger.String("remote_addr", r.RemoteAddr),
+			logger.String("user_agent", r.UserAgent()),
+		)
 
 		// 包装ResponseWriter以捕获状态码
 		wrappedWriter := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
@@ -409,8 +461,13 @@ func withLogging(next http.Handler) http.Handler {
 		}
 
 		// 记录响应信息
-		log.Printf("[Middleware] %s %s %s - 状态码: %d, 响应时间: %v",
-			r.Method, r.URL.Path, r.RemoteAddr, wrappedWriter.statusCode, responseTime)
+		logger.GetGlobalLogger().InfoCtx(ctx, "HTTP请求完成",
+			logger.String("method", r.Method),
+			logger.String("path", r.URL.Path),
+			logger.String("remote_addr", r.RemoteAddr),
+			logger.Int("status_code", wrappedWriter.statusCode),
+			logger.Duration("response_time", responseTime),
+		)
 	})
 }
 
