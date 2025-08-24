@@ -43,6 +43,53 @@ func (m *MockDataSourceClient) TestConnection() error {
 	return nil
 }
 
+// Fundamental data methods - return nil/empty for mock
+func (m *MockDataSourceClient) GetIncomeStatement(symbol, period, reportType string) (*models.IncomeStatement, error) {
+	return nil, nil
+}
+func (m *MockDataSourceClient) GetIncomeStatements(symbol, startPeriod, endPeriod, reportType string) ([]models.IncomeStatement, error) {
+	return nil, nil
+}
+func (m *MockDataSourceClient) GetBalanceSheet(symbol, period, reportType string) (*models.BalanceSheet, error) {
+	return nil, nil
+}
+func (m *MockDataSourceClient) GetBalanceSheets(symbol, startPeriod, endPeriod, reportType string) ([]models.BalanceSheet, error) {
+	return nil, nil
+}
+func (m *MockDataSourceClient) GetCashFlowStatement(symbol, period, reportType string) (*models.CashFlowStatement, error) {
+	return nil, nil
+}
+func (m *MockDataSourceClient) GetCashFlowStatements(symbol, startPeriod, endPeriod, reportType string) ([]models.CashFlowStatement, error) {
+	return nil, nil
+}
+func (m *MockDataSourceClient) GetFinancialIndicator(symbol, period, reportType string) (*models.FinancialIndicator, error) {
+	return nil, nil
+}
+func (m *MockDataSourceClient) GetFinancialIndicators(symbol, startPeriod, endPeriod, reportType string) ([]models.FinancialIndicator, error) {
+	return nil, nil
+}
+func (m *MockDataSourceClient) GetDailyBasic(symbol, tradeDate string) (*models.DailyBasic, error) {
+	return nil, nil
+}
+func (m *MockDataSourceClient) GetDailyBasicByDate(tradeDate string) ([]models.DailyBasic, error) {
+	return nil, nil
+}
+func (m *MockDataSourceClient) GetFundamentalFactor(symbol, tradeDate string) (*models.FundamentalFactor, error) {
+	return nil, nil
+}
+func (m *MockDataSourceClient) GetFundamentalFactorsByDate(tradeDate string) ([]models.FundamentalFactor, error) {
+	return nil, nil
+}
+func (m *MockDataSourceClient) GetDailyBasics(symbol, startDate, endDate string) ([]models.DailyBasic, error) {
+	return nil, nil
+}
+func (m *MockDataSourceClient) GetDailyBasicsByDate(tradeDate string) ([]models.DailyBasic, error) {
+	return nil, nil
+}
+func (m *MockDataSourceClient) GetFundamentalFactors(symbol, startDate, endDate string) ([]models.FundamentalFactor, error) {
+	return nil, nil
+}
+
 func TestStockHandler_GetHealthStatus(t *testing.T) {
 	tests := []struct {
 		name            string

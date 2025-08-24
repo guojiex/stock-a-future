@@ -100,6 +100,57 @@ func (c *AKToolsClient) DetermineTSCode(symbol string) string {
 	return symbol + ".SH"
 }
 
+// DetermineAKShareSymbol 转换为AKShare财务报表API需要的股票代码格式
+func (c *AKToolsClient) DetermineAKShareSymbol(symbol string) string {
+	// 清理股票代码
+	cleanSymbol := c.CleanStockSymbol(symbol)
+
+	// 根据股票代码规则判断市场并返回AKShare格式
+	// 600xxx, 601xxx, 603xxx, 688xxx -> SH600xxx
+	// 000xxx, 002xxx, 300xxx -> SZ000xxx
+	// 430xxx, 830xxx, 870xxx -> BJ430xxx
+	if strings.HasPrefix(cleanSymbol, "600") || strings.HasPrefix(cleanSymbol, "601") ||
+		strings.HasPrefix(cleanSymbol, "603") || strings.HasPrefix(cleanSymbol, "688") {
+		return "SH" + cleanSymbol
+	} else if strings.HasPrefix(cleanSymbol, "000") || strings.HasPrefix(cleanSymbol, "002") ||
+		strings.HasPrefix(cleanSymbol, "300") {
+		return "SZ" + cleanSymbol
+	} else if strings.HasPrefix(cleanSymbol, "430") || strings.HasPrefix(cleanSymbol, "830") ||
+		strings.HasPrefix(cleanSymbol, "870") {
+		return "BJ" + cleanSymbol
+	}
+
+	// 默认返回上海市场格式
+	return "SH" + cleanSymbol
+}
+
+// saveResponseToFile 保存HTTP响应到JSON文件用于调试 - 已完成调试，暂时保留代码
+/*
+func (c *AKToolsClient) saveResponseToFile(responseBody []byte, apiName, symbol string) error {
+	// 创建debug目录（如果不存在）
+	debugDir := "debug"
+	if _, err := os.Stat(debugDir); os.IsNotExist(err) {
+		err := os.Mkdir(debugDir, 0755)
+		if err != nil {
+			return fmt.Errorf("创建debug目录失败: %v", err)
+		}
+	}
+
+	// 生成文件名: api名称_股票代码_时间戳.json
+	timestamp := time.Now().Format("20060102_150405")
+	filename := fmt.Sprintf("%s/%s_%s_%s.json", debugDir, apiName, symbol, timestamp)
+
+	// 写入文件
+	err := os.WriteFile(filename, responseBody, 0644)
+	if err != nil {
+		return fmt.Errorf("写入响应文件失败: %v", err)
+	}
+
+	log.Printf("HTTP响应已保存到文件: %s", filename)
+	return nil
+}
+*/
+
 // GetDailyData 获取股票日线数据
 func (c *AKToolsClient) GetDailyData(symbol, startDate, endDate, adjust string) ([]models.StockDaily, error) {
 	// 清理股票代码，移除市场后缀
@@ -470,87 +521,933 @@ func (c *AKToolsClient) TestConnection() error {
 // ===== 基本面数据接口实现 =====
 
 // GetIncomeStatement 获取利润表数据
-// TODO: 实现AKTools利润表数据获取
 func (c *AKToolsClient) GetIncomeStatement(symbol, period, reportType string) (*models.IncomeStatement, error) {
-	panic("TODO: 实现AKTools利润表数据获取 - GetIncomeStatement")
+	// 转换为AKShare财务报表API需要的股票代码格式
+	akshareSymbol := c.DetermineAKShareSymbol(symbol)
+
+	// 构建查询参数 - 不传递period参数，因为AKShare API不支持
+	params := url.Values{}
+	params.Set("symbol", akshareSymbol)
+
+	// 构建完整URL - 使用利润表API
+	apiURL := fmt.Sprintf("%s/api/public/stock_profit_sheet_by_report_em?%s", c.baseURL, params.Encode())
+
+	// 创建带context的请求
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	// 发送HTTP请求
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("请求AKTools利润表API失败: %w, URL: %s", err, apiURL)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("关闭响应体失败: %v", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("AKTools API返回非200状态码: %d, URL: %s", resp.StatusCode, apiURL)
+	}
+
+	// 读取响应体
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应体失败: %w", err)
+	}
+
+	// 保存响应到文件用于调试 - 已完成调试
+	// cleanSymbol := c.CleanStockSymbol(symbol)
+	// if err := c.saveResponseToFile(body, "income_statement", cleanSymbol); err != nil {
+	// 	log.Printf("保存响应文件失败: %v", err)
+	// }
+
+	// 解析JSON响应
+	var rawData []map[string]interface{}
+	if err := json.Unmarshal(body, &rawData); err != nil {
+		return nil, fmt.Errorf("解析AKTools利润表响应失败: %w", err)
+	}
+
+	if len(rawData) == 0 {
+		return nil, fmt.Errorf("未找到利润表数据: %s, 期间: %s", symbol, period)
+	}
+
+	// 如果指定了period，尝试找到匹配的记录
+	if period != "" {
+		for _, data := range rawData {
+			if reportDate, ok := data["报告期"].(string); ok {
+				formattedDate := c.formatDateForFrontend(reportDate)
+				if formattedDate == period {
+					return c.convertToIncomeStatement(data, symbol, period, reportType)
+				}
+			}
+		}
+		// 如果没有找到匹配的period，返回错误
+		return nil, fmt.Errorf("未找到指定期间的利润表数据: %s, 期间: %s", symbol, period)
+	}
+
+	// 如果没有指定period，返回最新的一条数据
+	return c.convertToIncomeStatement(rawData[0], symbol, period, reportType)
 }
 
 // GetIncomeStatements 批量获取利润表数据
-// TODO: 实现AKTools批量利润表数据获取
 func (c *AKToolsClient) GetIncomeStatements(symbol, startPeriod, endPeriod, reportType string) ([]models.IncomeStatement, error) {
-	panic("TODO: 实现AKTools批量利润表数据获取 - GetIncomeStatements")
+	// 转换为AKShare财务报表API需要的股票代码格式
+	akshareSymbol := c.DetermineAKShareSymbol(symbol)
+
+	// 构建查询参数
+	params := url.Values{}
+	params.Set("symbol", akshareSymbol)
+
+	// 构建完整URL
+	apiURL := fmt.Sprintf("%s/api/public/stock_profit_sheet_by_report_em?%s", c.baseURL, params.Encode())
+
+	// 创建带context的请求
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	// 发送HTTP请求
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("请求AKTools利润表API失败: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("关闭响应体失败: %v", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("AKTools API返回非200状态码: %d", resp.StatusCode)
+	}
+
+	// 读取响应体
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应体失败: %w", err)
+	}
+
+	// 解析JSON响应
+	var rawData []map[string]interface{}
+	if err := json.Unmarshal(body, &rawData); err != nil {
+		return nil, fmt.Errorf("解析AKTools利润表响应失败: %w", err)
+	}
+
+	// 保存响应到文件用于调试 - 已完成调试
+	// cleanSymbol := c.CleanStockSymbol(symbol)
+	// if err := c.saveResponseToFile(body, "income_statements", cleanSymbol); err != nil {
+	// 	log.Printf("保存响应文件失败: %v", err)
+	// }
+
+	// 转换为内部模型
+	var results []models.IncomeStatement
+	for _, data := range rawData {
+		// 从数据中提取期间信息 - 使用实际API字段名
+		period := ""
+		if reportDate, ok := data["REPORT_DATE"].(string); ok {
+			period = c.formatDateForFrontend(reportDate)
+		}
+
+		// 过滤期间范围（如果指定了）
+		if startPeriod != "" && period < startPeriod {
+			continue
+		}
+		if endPeriod != "" && period > endPeriod {
+			continue
+		}
+
+		incomeStatement, err := c.convertToIncomeStatement(data, symbol, period, reportType)
+		if err != nil {
+			continue // 跳过转换失败的数据
+		}
+		results = append(results, *incomeStatement)
+	}
+
+	return results, nil
 }
 
 // GetBalanceSheet 获取资产负债表数据
-// TODO: 实现AKTools资产负债表数据获取
 func (c *AKToolsClient) GetBalanceSheet(symbol, period, reportType string) (*models.BalanceSheet, error) {
-	panic("TODO: 实现AKTools资产负债表数据获取 - GetBalanceSheet")
+	// 转换为AKShare财务报表API需要的股票代码格式
+	akshareSymbol := c.DetermineAKShareSymbol(symbol)
+
+	// 构建查询参数 - 不传递period参数，因为AKShare API不支持
+	params := url.Values{}
+	params.Set("symbol", akshareSymbol)
+
+	// 构建完整URL - 使用资产负债表API
+	apiURL := fmt.Sprintf("%s/api/public/stock_balance_sheet_by_report_em?%s", c.baseURL, params.Encode())
+
+	// 创建带context的请求
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	// 发送HTTP请求
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("请求AKTools资产负债表API失败: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("关闭响应体失败: %v", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("AKTools API返回非200状态码: %d", resp.StatusCode)
+	}
+
+	// 读取响应体
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应体失败: %w", err)
+	}
+
+	// 保存响应到文件用于调试 - 已完成调试
+	// cleanSymbol := c.CleanStockSymbol(symbol)
+	// if err := c.saveResponseToFile(body, "balance_sheet", cleanSymbol); err != nil {
+	// 	log.Printf("保存响应文件失败: %v", err)
+	// }
+
+	// 解析JSON响应
+	var rawData []map[string]interface{}
+	if err := json.Unmarshal(body, &rawData); err != nil {
+		return nil, fmt.Errorf("解析AKTools资产负债表响应失败: %w", err)
+	}
+
+	if len(rawData) == 0 {
+		return nil, fmt.Errorf("未找到资产负债表数据: %s, 期间: %s", symbol, period)
+	}
+
+	// 如果指定了period，尝试找到匹配的记录
+	if period != "" {
+		for _, data := range rawData {
+			if reportDate, ok := data["报告期"].(string); ok {
+				formattedDate := c.formatDateForFrontend(reportDate)
+				if formattedDate == period {
+					return c.convertToBalanceSheet(data, symbol, period, reportType)
+				}
+			}
+		}
+		// 如果没有找到匹配的period，返回错误
+		return nil, fmt.Errorf("未找到指定期间的资产负债表数据: %s, 期间: %s", symbol, period)
+	}
+
+	// 如果没有指定period，返回最新的一条数据
+	return c.convertToBalanceSheet(rawData[0], symbol, period, reportType)
 }
 
 // GetBalanceSheets 批量获取资产负债表数据
-// TODO: 实现AKTools批量资产负债表数据获取
 func (c *AKToolsClient) GetBalanceSheets(symbol, startPeriod, endPeriod, reportType string) ([]models.BalanceSheet, error) {
-	panic("TODO: 实现AKTools批量资产负债表数据获取 - GetBalanceSheets")
+	// 转换为AKShare财务报表API需要的股票代码格式
+	akshareSymbol := c.DetermineAKShareSymbol(symbol)
+	params := url.Values{}
+	params.Set("symbol", akshareSymbol)
+	apiURL := fmt.Sprintf("%s/api/public/stock_balance_sheet_by_report_em?%s", c.baseURL, params.Encode())
+
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("请求AKTools资产负债表API失败: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("关闭响应体失败: %v", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("AKTools API返回非200状态码: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应体失败: %w", err)
+	}
+
+	var rawData []map[string]interface{}
+	if err := json.Unmarshal(body, &rawData); err != nil {
+		return nil, fmt.Errorf("解析AKTools资产负债表响应失败: %w", err)
+	}
+
+	// 保存响应到文件用于调试 - 已完成调试
+	// cleanSymbol := c.CleanStockSymbol(symbol)
+	// if err := c.saveResponseToFile(body, "balance_sheets", cleanSymbol); err != nil {
+	// 	log.Printf("保存响应文件失败: %v", err)
+	// }
+
+	var results []models.BalanceSheet
+	for _, data := range rawData {
+		// 使用实际API字段名
+		period := ""
+		if reportDate, ok := data["REPORT_DATE"].(string); ok {
+			period = c.formatDateForFrontend(reportDate)
+		}
+
+		if startPeriod != "" && period < startPeriod {
+			continue
+		}
+		if endPeriod != "" && period > endPeriod {
+			continue
+		}
+
+		balanceSheet, err := c.convertToBalanceSheet(data, symbol, period, reportType)
+		if err != nil {
+			continue
+		}
+		results = append(results, *balanceSheet)
+	}
+
+	return results, nil
 }
 
 // GetCashFlowStatement 获取现金流量表数据
-// TODO: 实现AKTools现金流量表数据获取
 func (c *AKToolsClient) GetCashFlowStatement(symbol, period, reportType string) (*models.CashFlowStatement, error) {
-	panic("TODO: 实现AKTools现金流量表数据获取 - GetCashFlowStatement")
+	// 转换为AKShare财务报表API需要的股票代码格式
+	akshareSymbol := c.DetermineAKShareSymbol(symbol)
+	params := url.Values{}
+	params.Set("symbol", akshareSymbol)
+	// 不传递period参数，因为AKShare API不支持
+
+	apiURL := fmt.Sprintf("%s/api/public/stock_cash_flow_sheet_by_report_em?%s", c.baseURL, params.Encode())
+
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("请求AKTools现金流量表API失败: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("关闭响应体失败: %v", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("AKTools API返回非200状态码: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应体失败: %w", err)
+	}
+
+	// 保存响应到文件用于调试 - 已完成调试
+	// cleanSymbol := c.CleanStockSymbol(symbol)
+	// if err := c.saveResponseToFile(body, "cash_flow_statement", cleanSymbol); err != nil {
+	// 	log.Printf("保存响应文件失败: %v", err)
+	// }
+
+	var rawData []map[string]interface{}
+	if err := json.Unmarshal(body, &rawData); err != nil {
+		return nil, fmt.Errorf("解析AKTools现金流量表响应失败: %w", err)
+	}
+
+	if len(rawData) == 0 {
+		return nil, fmt.Errorf("未找到现金流量表数据: %s, 期间: %s", symbol, period)
+	}
+
+	// 如果指定了period，尝试找到匹配的记录
+	if period != "" {
+		for _, data := range rawData {
+			if reportDate, ok := data["报告期"].(string); ok {
+				formattedDate := c.formatDateForFrontend(reportDate)
+				if formattedDate == period {
+					return c.convertToCashFlowStatement(data, symbol, period, reportType)
+				}
+			}
+		}
+		// 如果没有找到匹配的period，返回错误
+		return nil, fmt.Errorf("未找到指定期间的现金流量表数据: %s, 期间: %s", symbol, period)
+	}
+
+	// 如果没有指定period，返回最新的一条数据
+	return c.convertToCashFlowStatement(rawData[0], symbol, period, reportType)
 }
 
 // GetCashFlowStatements 批量获取现金流量表数据
-// TODO: 实现AKTools批量现金流量表数据获取
 func (c *AKToolsClient) GetCashFlowStatements(symbol, startPeriod, endPeriod, reportType string) ([]models.CashFlowStatement, error) {
-	panic("TODO: 实现AKTools批量现金流量表数据获取 - GetCashFlowStatements")
+	// 转换为AKShare财务报表API需要的股票代码格式
+	akshareSymbol := c.DetermineAKShareSymbol(symbol)
+	params := url.Values{}
+	params.Set("symbol", akshareSymbol)
+	apiURL := fmt.Sprintf("%s/api/public/stock_cash_flow_sheet_by_report_em?%s", c.baseURL, params.Encode())
+
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("请求AKTools现金流量表API失败: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("关闭响应体失败: %v", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("AKTools API返回非200状态码: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应体失败: %w", err)
+	}
+
+	var rawData []map[string]interface{}
+	if err := json.Unmarshal(body, &rawData); err != nil {
+		return nil, fmt.Errorf("解析AKTools现金流量表响应失败: %w", err)
+	}
+
+	// 保存响应到文件用于调试 - 已完成调试
+	// cleanSymbol := c.CleanStockSymbol(symbol)
+	// if err := c.saveResponseToFile(body, "cash_flow_statements", cleanSymbol); err != nil {
+	// 	log.Printf("保存响应文件失败: %v", err)
+	// }
+
+	var results []models.CashFlowStatement
+	for _, data := range rawData {
+		// 使用实际API字段名
+		period := ""
+		if reportDate, ok := data["REPORT_DATE"].(string); ok {
+			period = c.formatDateForFrontend(reportDate)
+		}
+
+		if startPeriod != "" && period < startPeriod {
+			continue
+		}
+		if endPeriod != "" && period > endPeriod {
+			continue
+		}
+
+		cashFlowStatement, err := c.convertToCashFlowStatement(data, symbol, period, reportType)
+		if err != nil {
+			continue
+		}
+		results = append(results, *cashFlowStatement)
+	}
+
+	return results, nil
 }
 
 // GetFinancialIndicator 获取财务指标数据
-// TODO: 实现AKTools财务指标数据获取
 func (c *AKToolsClient) GetFinancialIndicator(symbol, period, reportType string) (*models.FinancialIndicator, error) {
-	panic("TODO: 实现AKTools财务指标数据获取 - GetFinancialIndicator")
+	// AKTools暂不支持直接的财务指标API，返回空实现
+	// 可以通过其他API组合计算得出
+	return &models.FinancialIndicator{
+		FinancialStatement: models.FinancialStatement{
+			TSCode:     c.DetermineTSCode(symbol),
+			FDate:      period,
+			EndDate:    period,
+			ReportType: reportType,
+		},
+	}, nil
 }
 
 // GetFinancialIndicators 批量获取财务指标数据
-// TODO: 实现AKTools批量财务指标数据获取
 func (c *AKToolsClient) GetFinancialIndicators(symbol, startPeriod, endPeriod, reportType string) ([]models.FinancialIndicator, error) {
-	panic("TODO: 实现AKTools批量财务指标数据获取 - GetFinancialIndicators")
+	// AKTools暂不支持直接的财务指标API，返回空切片
+	return []models.FinancialIndicator{}, nil
 }
 
 // GetDailyBasic 获取每日基本面指标
-// TODO: 实现AKTools每日基本面指标获取
 func (c *AKToolsClient) GetDailyBasic(symbol, tradeDate string) (*models.DailyBasic, error) {
-	panic("TODO: 实现AKTools每日基本面指标获取 - GetDailyBasic")
+	cleanSymbol := c.CleanStockSymbol(symbol)
+
+	// stock_zh_a_spot_em 不接受任何参数，返回所有A股实时数据
+	// 我们需要在返回的数据中找到对应的股票
+	apiURL := fmt.Sprintf("%s/api/public/stock_zh_a_spot_em", c.baseURL)
+
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("请求AKTools每日基本面API失败: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("关闭响应体失败: %v", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("AKTools API返回非200状态码: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应体失败: %w", err)
+	}
+
+	// 保存响应到文件用于调试 - 已完成调试
+	// cleanSymbol = c.CleanStockSymbol(symbol)
+	// if err := c.saveResponseToFile(body, "daily_basic", cleanSymbol); err != nil {
+	// 	log.Printf("保存响应文件失败: %v", err)
+	// }
+
+	var rawData []map[string]interface{}
+	if err := json.Unmarshal(body, &rawData); err != nil {
+		return nil, fmt.Errorf("解析AKTools每日基本面响应失败: %w", err)
+	}
+
+	if len(rawData) == 0 {
+		return nil, fmt.Errorf("未找到每日基本面数据: %s, 日期: %s", symbol, tradeDate)
+	}
+
+	// 在返回的所有股票数据中查找指定的股票
+	for _, data := range rawData {
+		if code, ok := data["代码"].(string); ok {
+			// 比较清理后的代码
+			if code == cleanSymbol {
+				return c.convertToDailyBasic(data, symbol, tradeDate)
+			}
+		}
+		// 也尝试匹配带后缀的代码
+		if code, ok := data["代码"].(string); ok {
+			expectedTSCode := c.DetermineTSCode(cleanSymbol)
+			if code == expectedTSCode {
+				return c.convertToDailyBasic(data, symbol, tradeDate)
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("未找到指定股票的每日基本面数据: %s, 日期: %s", symbol, tradeDate)
 }
 
 // GetDailyBasics 批量获取每日基本面指标
-// TODO: 实现AKTools批量每日基本面指标获取
 func (c *AKToolsClient) GetDailyBasics(symbol, startDate, endDate string) ([]models.DailyBasic, error) {
-	panic("TODO: 实现AKTools批量每日基本面指标获取 - GetDailyBasics")
+	// AKTools不支持历史每日基本面数据批量获取，返回空切片
+	// 实际应用中需要逐日调用GetDailyBasic
+	return []models.DailyBasic{}, nil
 }
 
 // GetDailyBasicsByDate 根据交易日期获取所有股票的每日基本面指标
-// TODO: 实现AKTools按日期获取所有股票每日基本面指标
 func (c *AKToolsClient) GetDailyBasicsByDate(tradeDate string) ([]models.DailyBasic, error) {
-	panic("TODO: 实现AKTools按日期获取所有股票每日基本面指标 - GetDailyBasicsByDate")
+	// AKTools不支持按日期获取所有股票数据，返回空切片
+	return []models.DailyBasic{}, nil
 }
 
 // ===== 基本面因子接口实现 =====
 
 // GetFundamentalFactor 获取基本面因子数据
-// TODO: 实现AKTools基本面因子数据获取
 func (c *AKToolsClient) GetFundamentalFactor(symbol, tradeDate string) (*models.FundamentalFactor, error) {
-	panic("TODO: 实现AKTools基本面因子数据获取 - GetFundamentalFactor")
+	// AKTools不直接提供基本面因子，需要通过计算服务生成
+	// 这里返回基础结构，实际计算由FundamentalFactorCalculator完成
+	return &models.FundamentalFactor{
+		TSCode:    c.DetermineTSCode(symbol),
+		TradeDate: tradeDate,
+		UpdatedAt: time.Now(),
+	}, nil
 }
 
 // GetFundamentalFactors 批量获取基本面因子数据
-// TODO: 实现AKTools批量基本面因子数据获取
 func (c *AKToolsClient) GetFundamentalFactors(symbol, startDate, endDate string) ([]models.FundamentalFactor, error) {
-	panic("TODO: 实现AKTools批量基本面因子数据获取 - GetFundamentalFactors")
+	// AKTools不直接提供基本面因子，返回空切片
+	return []models.FundamentalFactor{}, nil
 }
 
 // GetFundamentalFactorsByDate 根据交易日期获取所有股票的基本面因子
-// TODO: 实现AKTools按日期获取所有股票基本面因子
 func (c *AKToolsClient) GetFundamentalFactorsByDate(tradeDate string) ([]models.FundamentalFactor, error) {
-	panic("TODO: 实现AKTools按日期获取所有股票基本面因子 - GetFundamentalFactorsByDate")
+	// AKTools不直接提供基本面因子，返回空切片
+	return []models.FundamentalFactor{}, nil
+}
+
+// ===== 数据转换辅助函数 =====
+
+// convertToIncomeStatement 将AKTools利润表数据转换为内部模型
+func (c *AKToolsClient) convertToIncomeStatement(data map[string]interface{}, symbol, period, reportType string) (*models.IncomeStatement, error) {
+	incomeStatement := &models.IncomeStatement{}
+
+	// 设置基础字段 - 根据实际API响应
+	if secucode, ok := data["SECUCODE"].(string); ok {
+		incomeStatement.TSCode = secucode
+	} else {
+		incomeStatement.TSCode = c.DetermineTSCode(symbol)
+	}
+
+	// 报告期 - 从REPORT_DATE字段提取
+	if reportDate, ok := data["REPORT_DATE"].(string); ok {
+		// 格式化日期: "2025-06-30 00:00:00" -> "20250630"
+		incomeStatement.FDate = c.formatDateForFrontend(reportDate)
+		incomeStatement.EndDate = c.formatDateForFrontend(reportDate)
+	} else {
+		incomeStatement.FDate = period
+		incomeStatement.EndDate = period
+	}
+
+	// 从REPORT_TYPE字段获取报告类型
+	if rptType, ok := data["REPORT_TYPE"].(string); ok {
+		incomeStatement.ReportType = rptType
+	} else {
+		incomeStatement.ReportType = reportType
+	}
+
+	// 提取公告日期 - 从NOTICE_DATE字段
+	if noticeDate, ok := data["NOTICE_DATE"].(string); ok {
+		incomeStatement.AnnDate = c.formatDateForFrontend(noticeDate)
+	}
+
+	// 营业收入相关 - 使用实际API字段名
+	if totalOperIncome, ok := data["TOTAL_OPERATE_INCOME"]; ok {
+		incomeStatement.Revenue = models.NewJSONDecimal(c.parseDecimalFromInterface(totalOperIncome))
+		incomeStatement.OperRevenue = models.NewJSONDecimal(c.parseDecimalFromInterface(totalOperIncome))
+	}
+	if operIncome, ok := data["OPERATE_INCOME"]; ok {
+		incomeStatement.OperRevenue = models.NewJSONDecimal(c.parseDecimalFromInterface(operIncome))
+	}
+
+	// 成本费用 - 使用实际API字段名
+	if totalOperCost, ok := data["TOTAL_OPERATE_COST"]; ok {
+		incomeStatement.OperCost = models.NewJSONDecimal(c.parseDecimalFromInterface(totalOperCost))
+	}
+	if operCost, ok := data["OPERATE_COST"]; ok {
+		incomeStatement.OperCost = models.NewJSONDecimal(c.parseDecimalFromInterface(operCost))
+	}
+	if manageExp, ok := data["MANAGE_EXPENSE"]; ok {
+		incomeStatement.AdminExp = models.NewJSONDecimal(c.parseDecimalFromInterface(manageExp))
+	}
+	if financeExp, ok := data["FINANCE_EXPENSE"]; ok {
+		incomeStatement.FinExp = models.NewJSONDecimal(c.parseDecimalFromInterface(financeExp))
+	}
+	if researchExp, ok := data["RESEARCH_EXPENSE"]; ok {
+		incomeStatement.RdExp = models.NewJSONDecimal(c.parseDecimalFromInterface(researchExp))
+	}
+	if saleExp, ok := data["SALE_EXPENSE"]; ok {
+		incomeStatement.OperExp = models.NewJSONDecimal(c.parseDecimalFromInterface(saleExp))
+	}
+
+	// 利润相关 - 使用实际API字段名
+	if operProfit, ok := data["OPERATE_PROFIT"]; ok {
+		incomeStatement.OperProfit = models.NewJSONDecimal(c.parseDecimalFromInterface(operProfit))
+	}
+	if totalProfit, ok := data["TOTAL_PROFIT"]; ok {
+		incomeStatement.TotalProfit = models.NewJSONDecimal(c.parseDecimalFromInterface(totalProfit))
+	}
+	if netProfit, ok := data["NETPROFIT"]; ok {
+		incomeStatement.NetProfit = models.NewJSONDecimal(c.parseDecimalFromInterface(netProfit))
+	}
+	if deductParentNetProfit, ok := data["DEDUCT_PARENT_NETPROFIT"]; ok {
+		incomeStatement.NetProfitDedt = models.NewJSONDecimal(c.parseDecimalFromInterface(deductParentNetProfit))
+	}
+
+	// 每股收益 - 使用实际API字段名
+	if basicEps, ok := data["BASIC_EPS"]; ok {
+		incomeStatement.BasicEps = models.NewJSONDecimal(c.parseDecimalFromInterface(basicEps))
+	}
+	if dilutedEps, ok := data["DILUTED_EPS"]; ok {
+		incomeStatement.DilutedEps = models.NewJSONDecimal(c.parseDecimalFromInterface(dilutedEps))
+	}
+
+	return incomeStatement, nil
+}
+
+// convertToBalanceSheet 将AKTools资产负债表数据转换为内部模型
+func (c *AKToolsClient) convertToBalanceSheet(data map[string]interface{}, symbol, period, reportType string) (*models.BalanceSheet, error) {
+	balanceSheet := &models.BalanceSheet{}
+
+	// 设置基础字段 - 根据实际API响应
+	if secucode, ok := data["SECUCODE"].(string); ok {
+		balanceSheet.TSCode = secucode
+	} else {
+		balanceSheet.TSCode = c.DetermineTSCode(symbol)
+	}
+
+	// 报告期 - 从REPORT_DATE字段提取
+	if reportDate, ok := data["REPORT_DATE"].(string); ok {
+		balanceSheet.FDate = c.formatDateForFrontend(reportDate)
+		balanceSheet.EndDate = c.formatDateForFrontend(reportDate)
+	} else {
+		balanceSheet.FDate = period
+		balanceSheet.EndDate = period
+	}
+
+	// 从REPORT_TYPE字段获取报告类型
+	if rptType, ok := data["REPORT_TYPE"].(string); ok {
+		balanceSheet.ReportType = rptType
+	} else {
+		balanceSheet.ReportType = reportType
+	}
+
+	// 提取公告日期 - 从NOTICE_DATE字段
+	if noticeDate, ok := data["NOTICE_DATE"].(string); ok {
+		balanceSheet.AnnDate = c.formatDateForFrontend(noticeDate)
+	}
+
+	// 资产 - 使用实际API字段名
+	if totalAssets, ok := data["TOTAL_ASSETS"]; ok {
+		balanceSheet.TotalAssets = models.NewJSONDecimal(c.parseDecimalFromInterface(totalAssets))
+	}
+	if totalCurAssets, ok := data["TOTAL_CURRENT_ASSETS"]; ok {
+		balanceSheet.TotalCurAssets = models.NewJSONDecimal(c.parseDecimalFromInterface(totalCurAssets))
+	}
+	if money, ok := data["MONEY_CAP"]; ok {
+		balanceSheet.Money = models.NewJSONDecimal(c.parseDecimalFromInterface(money))
+	}
+	if tradAssets, ok := data["TRADE_FINASSET"]; ok {
+		balanceSheet.TradAssets = models.NewJSONDecimal(c.parseDecimalFromInterface(tradAssets))
+	}
+	if notesReceiv, ok := data["NOTE_ACCOUNTS_RECE"]; ok {
+		balanceSheet.NotesReceiv = models.NewJSONDecimal(c.parseDecimalFromInterface(notesReceiv))
+	}
+	if accountsReceiv, ok := data["ACCOUNTS_RECE"]; ok {
+		balanceSheet.AccountsReceiv = models.NewJSONDecimal(c.parseDecimalFromInterface(accountsReceiv))
+	}
+	if inventoryAssets, ok := data["INVENTORY"]; ok {
+		balanceSheet.InventoryAssets = models.NewJSONDecimal(c.parseDecimalFromInterface(inventoryAssets))
+	}
+	if totalNcaAssets, ok := data["TOTAL_NONCURRENT_ASSETS"]; ok {
+		balanceSheet.TotalNcaAssets = models.NewJSONDecimal(c.parseDecimalFromInterface(totalNcaAssets))
+	}
+	if fixAssets, ok := data["FIXED_ASSET"]; ok {
+		balanceSheet.FixAssets = models.NewJSONDecimal(c.parseDecimalFromInterface(fixAssets))
+	}
+	if cipAssets, ok := data["CIP"]; ok {
+		balanceSheet.CipAssets = models.NewJSONDecimal(c.parseDecimalFromInterface(cipAssets))
+	}
+	if intangAssets, ok := data["INTANGIBLE_ASSET"]; ok {
+		balanceSheet.IntangAssets = models.NewJSONDecimal(c.parseDecimalFromInterface(intangAssets))
+	}
+
+	// 负债 - 使用实际API字段名
+	if totalLiab, ok := data["TOTAL_LIABILITIES"]; ok {
+		balanceSheet.TotalLiab = models.NewJSONDecimal(c.parseDecimalFromInterface(totalLiab))
+	}
+	if totalCurLiab, ok := data["TOTAL_CURRENT_LIAB"]; ok {
+		balanceSheet.TotalCurLiab = models.NewJSONDecimal(c.parseDecimalFromInterface(totalCurLiab))
+	}
+	if shortLoan, ok := data["SHORT_LOAN"]; ok {
+		balanceSheet.ShortLoan = models.NewJSONDecimal(c.parseDecimalFromInterface(shortLoan))
+	}
+	if notesPayable, ok := data["NOTE_ACCOUNTS_PAYABLE"]; ok {
+		balanceSheet.NotesPayable = models.NewJSONDecimal(c.parseDecimalFromInterface(notesPayable))
+	}
+	if accountsPayable, ok := data["ACCOUNTS_PAYABLE"]; ok {
+		balanceSheet.AccountsPayable = models.NewJSONDecimal(c.parseDecimalFromInterface(accountsPayable))
+	}
+	if totalNcaLiab, ok := data["TOTAL_NONCURRENT_LIAB"]; ok {
+		balanceSheet.TotalNcaLiab = models.NewJSONDecimal(c.parseDecimalFromInterface(totalNcaLiab))
+	}
+	if longLoan, ok := data["LONG_LOAN"]; ok {
+		balanceSheet.LongLoan = models.NewJSONDecimal(c.parseDecimalFromInterface(longLoan))
+	}
+
+	// 所有者权益 - 使用实际API字段名
+	if totalHldrEqy, ok := data["TOTAL_EQUITY"]; ok {
+		balanceSheet.TotalHldrEqy = models.NewJSONDecimal(c.parseDecimalFromInterface(totalHldrEqy))
+	}
+	if capRese, ok := data["CAP_RESE"]; ok {
+		balanceSheet.CapRese = models.NewJSONDecimal(c.parseDecimalFromInterface(capRese))
+	}
+	if undistrProfit, ok := data["UNDISTR_PORFIT"]; ok {
+		balanceSheet.UndistrProfit = models.NewJSONDecimal(c.parseDecimalFromInterface(undistrProfit))
+	}
+	if totalShare, ok := data["SHARE_CAP"]; ok {
+		balanceSheet.TotalShare = models.NewJSONDecimal(c.parseDecimalFromInterface(totalShare))
+	}
+
+	return balanceSheet, nil
+}
+
+// convertToCashFlowStatement 将AKTools现金流量表数据转换为内部模型
+func (c *AKToolsClient) convertToCashFlowStatement(data map[string]interface{}, symbol, period, reportType string) (*models.CashFlowStatement, error) {
+	cashFlowStatement := &models.CashFlowStatement{}
+
+	// 设置基础字段 - 根据实际API响应
+	if secucode, ok := data["SECUCODE"].(string); ok {
+		cashFlowStatement.TSCode = secucode
+	} else {
+		cashFlowStatement.TSCode = c.DetermineTSCode(symbol)
+	}
+
+	// 报告期 - 从REPORT_DATE字段提取
+	if reportDate, ok := data["REPORT_DATE"].(string); ok {
+		cashFlowStatement.FDate = c.formatDateForFrontend(reportDate)
+		cashFlowStatement.EndDate = c.formatDateForFrontend(reportDate)
+	} else {
+		cashFlowStatement.FDate = period
+		cashFlowStatement.EndDate = period
+	}
+
+	// 从REPORT_TYPE字段获取报告类型
+	if rptType, ok := data["REPORT_TYPE"].(string); ok {
+		cashFlowStatement.ReportType = rptType
+	} else {
+		cashFlowStatement.ReportType = reportType
+	}
+
+	// 提取公告日期 - 从NOTICE_DATE字段
+	if noticeDate, ok := data["NOTICE_DATE"].(string); ok {
+		cashFlowStatement.AnnDate = c.formatDateForFrontend(noticeDate)
+	}
+
+	// 经营活动现金流量 - 使用实际API字段名
+	if netCashOperAct, ok := data["NETCASH_OPERATE"]; ok {
+		cashFlowStatement.NetCashOperAct = models.NewJSONDecimal(c.parseDecimalFromInterface(netCashOperAct))
+	}
+	if salesCash, ok := data["SALES_SERVICES"]; ok {
+		cashFlowStatement.CashRecrSale = models.NewJSONDecimal(c.parseDecimalFromInterface(salesCash))
+	}
+	if buyCash, ok := data["BUY_SERVICES"]; ok {
+		cashFlowStatement.CashPayGoods = models.NewJSONDecimal(c.parseDecimalFromInterface(buyCash))
+	}
+	if payStaffCash, ok := data["PAY_STAFF_CASH"]; ok {
+		cashFlowStatement.CashPayBehalfEmpl = models.NewJSONDecimal(c.parseDecimalFromInterface(payStaffCash))
+	}
+	if payTaxCash, ok := data["PAY_ALL_TAX"]; ok {
+		cashFlowStatement.CashPayTax = models.NewJSONDecimal(c.parseDecimalFromInterface(payTaxCash))
+	}
+
+	// 投资活动现金流量 - 使用实际API字段名
+	if netCashInvAct, ok := data["NETCASH_INVEST"]; ok {
+		cashFlowStatement.NetCashInvAct = models.NewJSONDecimal(c.parseDecimalFromInterface(netCashInvAct))
+	}
+	if withdrawInvest, ok := data["WITHDRAW_INVEST"]; ok {
+		cashFlowStatement.CashRecvDisp = models.NewJSONDecimal(c.parseDecimalFromInterface(withdrawInvest))
+	}
+	if investPayCash, ok := data["INVEST_PAY_CASH"]; ok {
+		cashFlowStatement.CashPayAcq = models.NewJSONDecimal(c.parseDecimalFromInterface(investPayCash))
+	}
+
+	// 筹资活动现金流量 - 使用实际API字段名
+	if netCashFinAct, ok := data["NETCASH_FINANCE"]; ok {
+		cashFlowStatement.NetCashFinAct = models.NewJSONDecimal(c.parseDecimalFromInterface(netCashFinAct))
+	}
+	if acceptInvestCash, ok := data["ACCEPT_INVEST_CASH"]; ok {
+		cashFlowStatement.CashRecvInvest = models.NewJSONDecimal(c.parseDecimalFromInterface(acceptInvestCash))
+	}
+	if assignDividend, ok := data["ASSIGN_DIVIDEND_PORFIT"]; ok {
+		cashFlowStatement.CashPayDist = models.NewJSONDecimal(c.parseDecimalFromInterface(assignDividend))
+	}
+
+	// 汇率变动影响 - 使用实际API字段名
+	if fxEffectCash, ok := data["RATE_CHANGE_EFFECT"]; ok {
+		cashFlowStatement.FxEffectCash = models.NewJSONDecimal(c.parseDecimalFromInterface(fxEffectCash))
+	}
+
+	// 现金净增加额和期初期末余额
+	if netIncrCash, ok := data["CCE_ADD"]; ok {
+		cashFlowStatement.NetIncrCashCce = models.NewJSONDecimal(c.parseDecimalFromInterface(netIncrCash))
+	}
+	if beginCash, ok := data["BEGIN_CCE"]; ok {
+		cashFlowStatement.CashBegPeriod = models.NewJSONDecimal(c.parseDecimalFromInterface(beginCash))
+	}
+	if endCash, ok := data["END_CCE"]; ok {
+		cashFlowStatement.CashEndPeriod = models.NewJSONDecimal(c.parseDecimalFromInterface(endCash))
+	}
+
+	return cashFlowStatement, nil
+}
+
+// convertToDailyBasic 将AKTools每日基本面数据转换为内部模型
+func (c *AKToolsClient) convertToDailyBasic(data map[string]interface{}, symbol, tradeDate string) (*models.DailyBasic, error) {
+	dailyBasic := &models.DailyBasic{}
+
+	// 设置基础字段
+	dailyBasic.TSCode = c.DetermineTSCode(symbol)
+	dailyBasic.TradeDate = tradeDate
+
+	// 基本数据 - 使用实际API字段名
+	if close, ok := data["最新价"]; ok {
+		dailyBasic.Close = models.NewJSONDecimal(c.parseDecimalFromInterface(close))
+	}
+	if turnover, ok := data["换手率"]; ok {
+		dailyBasic.Turnover = models.NewJSONDecimal(c.parseDecimalFromInterface(turnover))
+	}
+	if volumeRatio, ok := data["量比"]; ok {
+		dailyBasic.VolumeRatio = models.NewJSONDecimal(c.parseDecimalFromInterface(volumeRatio))
+	}
+
+	// 估值指标 - 使用实际API字段名
+	if pe, ok := data["市盈率-动态"]; ok {
+		dailyBasic.Pe = models.NewJSONDecimal(c.parseDecimalFromInterface(pe))
+	}
+	if peTtm, ok := data["市盈率TTM"]; ok {
+		dailyBasic.PeTtm = models.NewJSONDecimal(c.parseDecimalFromInterface(peTtm))
+	}
+	if pb, ok := data["市净率"]; ok {
+		dailyBasic.Pb = models.NewJSONDecimal(c.parseDecimalFromInterface(pb))
+	}
+	if ps, ok := data["市销率"]; ok {
+		dailyBasic.Ps = models.NewJSONDecimal(c.parseDecimalFromInterface(ps))
+	}
+	if psTtm, ok := data["市销率TTM"]; ok {
+		dailyBasic.PsTtm = models.NewJSONDecimal(c.parseDecimalFromInterface(psTtm))
+	}
+
+	// 股本和市值
+	if totalShare, ok := data["总股本"]; ok {
+		dailyBasic.TotalShare = models.NewJSONDecimal(c.parseDecimalFromInterface(totalShare))
+	}
+	if floatShare, ok := data["流通股本"]; ok {
+		dailyBasic.FloatShare = models.NewJSONDecimal(c.parseDecimalFromInterface(floatShare))
+	}
+	if totalMv, ok := data["总市值"]; ok {
+		dailyBasic.TotalMv = models.NewJSONDecimal(c.parseDecimalFromInterface(totalMv))
+	}
+	if circMv, ok := data["流通市值"]; ok {
+		dailyBasic.CircMv = models.NewJSONDecimal(c.parseDecimalFromInterface(circMv))
+	}
+
+	// 分红指标
+	if dvRatio, ok := data["股息率"]; ok {
+		dailyBasic.DvRatio = models.NewJSONDecimal(c.parseDecimalFromInterface(dvRatio))
+	}
+	if dvTtm, ok := data["股息率TTM"]; ok {
+		dailyBasic.DvTtm = models.NewJSONDecimal(c.parseDecimalFromInterface(dvTtm))
+	}
+
+	return dailyBasic, nil
+}
+
+// parseDecimalFromInterface 从interface{}解析decimal值
+func (c *AKToolsClient) parseDecimalFromInterface(value interface{}) decimal.Decimal {
+	if value == nil {
+		return decimal.Zero
+	}
+
+	switch v := value.(type) {
+	case float64:
+		return decimal.NewFromFloat(v)
+	case float32:
+		return decimal.NewFromFloat(float64(v))
+	case int:
+		return decimal.NewFromInt(int64(v))
+	case int64:
+		return decimal.NewFromInt(v)
+	case string:
+		if v == "" || v == "-" || v == "--" {
+			return decimal.Zero
+		}
+		if d, err := decimal.NewFromString(v); err == nil {
+			return d
+		}
+	}
+	return decimal.Zero
 }
