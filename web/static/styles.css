@@ -586,6 +586,80 @@ body {
     gap: var(--spacing-lg);
 }
 
+/* 第一行指标的tooltip向下显示 */
+.indicators-grid .indicator-item:nth-child(-n+4) .indicator-tooltip::before {
+    bottom: auto;
+    top: 130%;
+    transform: translateX(-50%);
+}
+
+.indicators-grid .indicator-item:nth-child(-n+4) .indicator-tooltip::after {
+    bottom: auto;
+    top: 120%;
+    border-top-color: transparent;
+    border-bottom-color: rgba(0, 0, 0, 0.9);
+}
+
+/* 响应式调整 - 小屏幕第一行只有1-2个指标 */
+@media (max-width: 768px) {
+    .indicators-grid .indicator-item:nth-child(-n+2) .indicator-tooltip::before {
+        bottom: auto;
+        top: 130%;
+        transform: translateX(-50%);
+    }
+    
+    .indicators-grid .indicator-item:nth-child(-n+2) .indicator-tooltip::after {
+        bottom: auto;
+        top: 120%;
+        border-top-color: transparent;
+        border-bottom-color: rgba(0, 0, 0, 0.9);
+    }
+    
+    /* 重置其他指标为向上显示 */
+    .indicators-grid .indicator-item:nth-child(n+3) .indicator-tooltip::before {
+        bottom: 130%;
+        top: auto;
+        transform: translateX(-50%);
+    }
+    
+    .indicators-grid .indicator-item:nth-child(n+3) .indicator-tooltip::after {
+        bottom: 120%;
+        top: auto;
+        border-top-color: rgba(0, 0, 0, 0.9);
+        border-bottom-color: transparent;
+    }
+}
+
+/* 中等屏幕第一行有2-3个指标 */
+@media (min-width: 769px) and (max-width: 1200px) {
+    .indicators-grid .indicator-item:nth-child(-n+3) .indicator-tooltip::before {
+        bottom: auto;
+        top: 130%;
+        transform: translateX(-50%);
+    }
+    
+    .indicators-grid .indicator-item:nth-child(-n+3) .indicator-tooltip::after {
+        bottom: auto;
+        top: 120%;
+        border-top-color: transparent;
+        border-bottom-color: rgba(0, 0, 0, 0.9);
+    }
+    
+    /* 重置其他指标为向上显示 */
+    .indicators-grid .indicator-item:nth-child(n+4) .indicator-tooltip::before {
+        bottom: 130%;
+        top: auto;
+        transform: translateX(-50%);
+    }
+    
+    .indicators-grid .indicator-item:nth-child(n+4) .indicator-tooltip::after {
+        bottom: 120%;
+        top: auto;
+        border-top-color: rgba(0, 0, 0, 0.9);
+        border-bottom-color: transparent;
+    }
+}
+
 .indicator-item {
     padding: var(--spacing-lg);
     background: var(--bg-secondary);
@@ -597,6 +671,9 @@ body {
     font-size: 1.125rem;
     margin-bottom: var(--spacing-md);
     color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
 }
 
 .indicator-values {
@@ -619,13 +696,98 @@ body {
 
 .indicator-value .value {
     font-weight: 500;
-    color: var(--text-primary);
+}
+
+/* 技术指标tooltip样式 */
+.indicator-tooltip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+    cursor: help;
+    font-size: 1.1rem;
+    opacity: 0.7;
+    transition: all 0.2s ease;
+    color: var(--primary-color);
+    font-weight: 500;
+    position: relative;
+    vertical-align: middle;
+    line-height: 1;
+}
+
+.indicator-tooltip:hover {
+    opacity: 1;
+    transform: scale(1.1);
+    color: var(--accent-color);
+}
+
+/* 自定义tooltip内容 - 默认向上显示 */
+.indicator-tooltip::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 130%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.4;
+    white-space: normal;
+    width: max-content;
+    max-width: 350px;
+    text-align: left;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+}
+
+/* tooltip箭头 - 默认向上 */
+.indicator-tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: rgba(0, 0, 0, 0.9);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 10000;
+    pointer-events: none;
+}
+
+/* 当tooltip需要向下显示时 */
+.indicator-tooltip.tooltip-bottom::before {
+    bottom: auto;
+    top: 130%;
+    transform: translateX(-50%);
+}
+
+.indicator-tooltip.tooltip-bottom::after {
+    bottom: auto;
+    top: 120%;
+    border-top-color: transparent;
+    border-bottom-color: rgba(0, 0, 0, 0.9);
+}
+
+.indicator-tooltip:hover::before,
+.indicator-tooltip:hover::after {
+    opacity: 1;
+    visibility: visible;
 }
 
 .signal {
     display: inline-flex;
     align-items: center;
     gap: var(--spacing-xs);
+    vertical-align: middle;
     padding: 2px 8px;
     border-radius: var(--radius-sm);
     font-size: 0.75rem;

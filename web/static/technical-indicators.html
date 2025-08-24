@@ -269,6 +269,35 @@
                         <li><a href="#kdj">KDJ指标</a></li>
                     </ul>
                 </li>
+                <li><a href="#momentum-indicators">动量因子指标</a>
+                    <ul style="margin-left: 20px;">
+                        <li><a href="#wr">威廉指标 (%R)</a></li>
+                        <li><a href="#momentum">动量指标 (Momentum)</a></li>
+                        <li><a href="#roc">变化率指标 (ROC)</a></li>
+                    </ul>
+                </li>
+                <li><a href="#trend-indicators">趋势因子指标</a>
+                    <ul style="margin-left: 20px;">
+                        <li><a href="#adx">平均方向指数 (ADX)</a></li>
+                        <li><a href="#sar">抛物线转向 (SAR)</a></li>
+                        <li><a href="#ichimoku">一目均衡表 (Ichimoku)</a></li>
+                    </ul>
+                </li>
+                <li><a href="#volatility-indicators">波动率因子指标</a>
+                    <ul style="margin-left: 20px;">
+                        <li><a href="#atr">平均真实范围 (ATR)</a></li>
+                        <li><a href="#stddev">标准差 (StdDev)</a></li>
+                        <li><a href="#hv">历史波动率 (HV)</a></li>
+                    </ul>
+                </li>
+                <li><a href="#volume-indicators">成交量因子指标</a>
+                    <ul style="margin-left: 20px;">
+                        <li><a href="#vwap">成交量加权平均价 (VWAP)</a></li>
+                        <li><a href="#adline">累积/派发线 (A/D Line)</a></li>
+                        <li><a href="#emv">简易波动指标 (EMV)</a></li>
+                        <li><a href="#vpt">量价确认指标 (VPT)</a></li>
+                    </ul>
+                </li>
                 <li><a href="#pattern-recognition">图形模式识别</a>
                     <ul style="margin-left: 20px;">
                         <li><a href="#candlestick-patterns">蜡烛图模式</a></li>
@@ -288,7 +317,7 @@
             
             <h3>主要特性</h3>
             <ul>
-                <li>✅ <strong>5种核心技术指标</strong>：MA、MACD、RSI、BOLL、KDJ</li>
+                <li>✅ <strong>18种核心技术指标</strong>：MA、MACD、RSI、BOLL、KDJ、WR、Momentum、ROC、ADX、SAR、Ichimoku、ATR、StdDev、HV、VWAP、A/D Line、EMV、VPT</li>
                 <li>✅ <strong>6种蜡烛图模式识别</strong>：双响炮、红三兵、乌云盖顶等</li>
                 <li>✅ <strong>3种量价图形识别</strong>：量价齐升、量价背离、放量突破</li>
                 <li>✅ <strong>智能信号强度评级</strong>：STRONG、MEDIUM、WEAK</li>
@@ -466,6 +495,395 @@
                     D = (2/3) × 前一日D值 + (1/3) × K值<br>
                     J = 3K - 2D
                 </div>
+            </div>
+        </div>
+
+        <!-- 动量因子指标 -->
+        <div class="indicator-section" id="momentum-indicators">
+            <h2>⚡ 动量因子指标</h2>
+            <p>动量因子指标用于衡量价格变化的速度和力度，帮助识别超买超卖状态和趋势强度。</p>
+            
+            <!-- 威廉指标 -->
+            <div id="wr">
+                <h3>📊 威廉指标 (Williams %R)</h3>
+                <p>威廉指标是一个动量振荡器，用于确定股票的超买和超卖水平。</p>
+                
+                <div class="parameters">
+                    <h5>参数设置：</h5>
+                    <ul>
+                        <li><strong>默认周期</strong>：14日</li>
+                        <li><strong>取值范围</strong>：-100 到 0</li>
+                    </ul>
+                </div>
+                
+                <div class="signal-box sell">
+                    <strong>🔴 超买状态</strong>：%R > -20，可能出现回调
+                </div>
+                
+                <div class="signal-box buy">
+                    <strong>🟢 超卖状态</strong>：%R < -80，可能出现反弹
+                </div>
+                
+                <div class="formula">
+                    <strong>计算公式：</strong><br>
+                    %R = (最高价 - 收盘价) / (最高价 - 最低价) × (-100)
+                </div>
+            </div>
+
+            <!-- 动量指标 -->
+            <div id="momentum">
+                <h3>🚀 动量指标 (Momentum)</h3>
+                <p>动量指标通过比较当前价格与过去价格的差值，衡量价格变化的速度。</p>
+                
+                <div class="parameters">
+                    <h5>计算周期：</h5>
+                    <ul>
+                        <li><strong>10日动量</strong>：短期动量</li>
+                        <li><strong>20日动量</strong>：中期动量</li>
+                    </ul>
+                </div>
+                
+                <div class="signal-box buy">
+                    <strong>🟢 双重正动量</strong>：10日和20日动量均为正，买入信号
+                </div>
+                
+                <div class="signal-box sell">
+                    <strong>🔴 双重负动量</strong>：10日和20日动量均为负，卖出信号
+                </div>
+                
+                <div class="formula">
+                    <strong>计算公式：</strong><br>
+                    动量 = 当前收盘价 - N日前收盘价
+                </div>
+            </div>
+
+            <!-- 变化率指标 -->
+            <div id="roc">
+                <h3>📈 变化率指标 (Rate of Change - ROC)</h3>
+                <p>ROC指标衡量价格在特定时间段内的百分比变化，用于识别趋势强度。</p>
+                
+                <div class="parameters">
+                    <h5>计算周期：</h5>
+                    <ul>
+                        <li><strong>10日ROC</strong>：短期变化率</li>
+                        <li><strong>20日ROC</strong>：中期变化率</li>
+                    </ul>
+                </div>
+                
+                <div class="signal-box buy">
+                    <strong>🟢 强势上涨</strong>：10日ROC > 5% 且 20日ROC > 10%
+                </div>
+                
+                <div class="signal-box sell">
+                    <strong>🔴 强势下跌</strong>：10日ROC < -5% 且 20日ROC < -10%
+                </div>
+                
+                <div class="formula">
+                    <strong>计算公式：</strong><br>
+                    ROC = (当前收盘价 - N日前收盘价) / N日前收盘价 × 100%
+                </div>
+            </div>
+        </div>
+
+        <!-- 趋势因子指标 -->
+        <div class="indicator-section" id="trend-indicators">
+            <h2>📊 趋势因子指标</h2>
+            <p>趋势因子指标用于识别和确认价格趋势的方向和强度。</p>
+            
+            <!-- ADX指标 -->
+            <div id="adx">
+                <h3>🎯 平均方向指数 (Average Directional Index - ADX)</h3>
+                <p>ADX用于衡量趋势的强度，不考虑趋势方向。</p>
+                
+                <div class="parameters">
+                    <h5>组成部分：</h5>
+                    <ul>
+                        <li><strong>ADX</strong>：趋势强度指数</li>
+                        <li><strong>+DI</strong>：正方向指数</li>
+                        <li><strong>-DI</strong>：负方向指数</li>
+                    </ul>
+                </div>
+                
+                <div class="signal-box buy">
+                    <strong>🟢 强势上涨趋势</strong>：ADX > 25 且 +DI > -DI
+                </div>
+                
+                <div class="signal-box sell">
+                    <strong>🔴 强势下跌趋势</strong>：ADX > 25 且 +DI < -DI
+                </div>
+                
+                <h4>趋势强度判断：</h4>
+                <ul>
+                    <li>ADX < 25：趋势较弱或横盘整理</li>
+                    <li>ADX 25-50：中等强度趋势</li>
+                    <li>ADX > 50：强势趋势</li>
+                </ul>
+            </div>
+
+            <!-- SAR指标 -->
+            <div id="sar">
+                <h3>🔄 抛物线转向 (Parabolic SAR)</h3>
+                <p>SAR指标用于确定趋势转换点，提供止损和入场信号。</p>
+                
+                <div class="parameters">
+                    <h5>参数设置：</h5>
+                    <ul>
+                        <li><strong>初始加速因子</strong>：0.02</li>
+                        <li><strong>最大加速因子</strong>：0.2</li>
+                    </ul>
+                </div>
+                
+                <div class="signal-box buy">
+                    <strong>🟢 趋势反转向上</strong>：SAR从上方转到价格下方
+                </div>
+                
+                <div class="signal-box sell">
+                    <strong>🔴 趋势反转向下</strong>：SAR从下方转到价格上方
+                </div>
+                
+                <h4>应用方法：</h4>
+                <ul>
+                    <li>SAR在价格下方：上升趋势，持有多头</li>
+                    <li>SAR在价格上方：下降趋势，持有空头</li>
+                    <li>SAR转换位置：趋势可能反转</li>
+                </ul>
+            </div>
+
+            <!-- 一目均衡表 -->
+            <div id="ichimoku">
+                <h3>☁️ 一目均衡表 (Ichimoku Cloud)</h3>
+                <p>一目均衡表是一个综合性技术指标，提供支撑阻力、趋势方向和动量信息。</p>
+                
+                <div class="parameters">
+                    <h5>组成部分：</h5>
+                    <ul>
+                        <li><strong>转换线</strong>：(9日最高+最低)/2</li>
+                        <li><strong>基准线</strong>：(26日最高+最低)/2</li>
+                        <li><strong>先行带A</strong>：(转换线+基准线)/2</li>
+                        <li><strong>先行带B</strong>：(52日最高+最低)/2</li>
+                        <li><strong>滞后线</strong>：当前收盘价</li>
+                    </ul>
+                </div>
+                
+                <div class="signal-box buy">
+                    <strong>🟢 多头排列</strong>：转换线>基准线，价格>云带上沿
+                </div>
+                
+                <div class="signal-box sell">
+                    <strong>🔴 空头排列</strong>：转换线<基准线，价格<云带下沿
+                </div>
+                
+                <h4>云带分析：</h4>
+                <ul>
+                    <li>价格在云带上方：强势上涨趋势</li>
+                    <li>价格在云带内部：震荡整理</li>
+                    <li>价格在云带下方：弱势下跌趋势</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 波动率因子指标 -->
+        <div class="indicator-section" id="volatility-indicators">
+            <h2>📊 波动率因子指标</h2>
+            <p>波动率因子指标用于衡量价格波动的程度和市场的不确定性。</p>
+            
+            <!-- ATR指标 -->
+            <div id="atr">
+                <h3>📏 平均真实范围 (Average True Range - ATR)</h3>
+                <p>ATR衡量价格波动的幅度，常用于设置止损位和仓位管理。</p>
+                
+                <div class="parameters">
+                    <h5>参数设置：</h5>
+                    <ul>
+                        <li><strong>默认周期</strong>：14日</li>
+                        <li><strong>计算方式</strong>：真实范围的移动平均</li>
+                    </ul>
+                </div>
+                
+                <div class="signal-box neutral">
+                    <strong>🟡 高波动率</strong>：ATR显著增加，市场波动加剧
+                </div>
+                
+                <div class="signal-box neutral">
+                    <strong>🟡 低波动率</strong>：ATR显著减少，市场趋于平静
+                </div>
+                
+                <div class="formula">
+                    <strong>真实范围计算：</strong><br>
+                    TR = MAX(高-低, |高-昨收|, |低-昨收|)<br>
+                    ATR = TR的N日移动平均
+                </div>
+            </div>
+
+            <!-- 标准差指标 -->
+            <div id="stddev">
+                <h3>📊 标准差 (Standard Deviation)</h3>
+                <p>标准差衡量价格相对于平均价格的离散程度。</p>
+                
+                <div class="parameters">
+                    <h5>参数设置：</h5>
+                    <ul>
+                        <li><strong>默认周期</strong>：20日</li>
+                        <li><strong>应用</strong>：波动率分析、风险评估</li>
+                    </ul>
+                </div>
+                
+                <div class="signal-box neutral">
+                    <strong>🟡 高波动率</strong>：标准差 > 平均价格的5%
+                </div>
+                
+                <div class="signal-box neutral">
+                    <strong>🟡 低波动率</strong>：标准差 < 平均价格的2%
+                </div>
+                
+                <div class="formula">
+                    <strong>计算公式：</strong><br>
+                    σ = √(Σ(价格-平均价格)² / N)
+                </div>
+            </div>
+
+            <!-- 历史波动率 -->
+            <div id="hv">
+                <h3>📈 历史波动率 (Historical Volatility)</h3>
+                <p>历史波动率基于过去的价格变动计算年化波动率。</p>
+                
+                <div class="parameters">
+                    <h5>计算周期：</h5>
+                    <ul>
+                        <li><strong>20日HV</strong>：短期波动率</li>
+                        <li><strong>60日HV</strong>：中期波动率</li>
+                    </ul>
+                </div>
+                
+                <div class="signal-box neutral">
+                    <strong>🟡 高波动率</strong>：HV > 30%，市场不确定性高
+                </div>
+                
+                <div class="signal-box neutral">
+                    <strong>🟡 低波动率</strong>：HV < 15%，市场相对稳定
+                </div>
+                
+                <div class="formula">
+                    <strong>计算公式：</strong><br>
+                    日收益率 = ln(今日收盘价/昨日收盘价)<br>
+                    HV = 收益率标准差 × √252
+                </div>
+            </div>
+        </div>
+
+        <!-- 成交量因子指标 -->
+        <div class="indicator-section" id="volume-indicators">
+            <h2>📊 成交量因子指标</h2>
+            <p>成交量因子指标结合价格和成交量信息，提供更全面的市场分析。</p>
+            
+            <!-- VWAP指标 -->
+            <div id="vwap">
+                <h3>⚖️ 成交量加权平均价 (Volume Weighted Average Price - VWAP)</h3>
+                <p>VWAP是基于成交量加权的平均价格，反映真实的市场交易成本。</p>
+                
+                <div class="signal-box buy">
+                    <strong>🟢 价格强势</strong>：当前价格 > VWAP，买盘积极
+                </div>
+                
+                <div class="signal-box sell">
+                    <strong>🔴 价格弱势</strong>：当前价格 < VWAP，卖盘压力大
+                </div>
+                
+                <div class="formula">
+                    <strong>计算公式：</strong><br>
+                    典型价格 = (最高价+最低价+收盘价)/3<br>
+                    VWAP = Σ(典型价格×成交量) / Σ成交量
+                </div>
+                
+                <h4>应用场景：</h4>
+                <ul>
+                    <li>机构交易成本基准</li>
+                    <li>日内交易参考点</li>
+                    <li>支撑阻力位判断</li>
+                </ul>
+            </div>
+
+            <!-- A/D线 -->
+            <div id="adline">
+                <h3>📊 累积/派发线 (Accumulation/Distribution Line)</h3>
+                <p>A/D线通过价格和成交量的关系，判断资金的流入流出。</p>
+                
+                <div class="signal-box buy">
+                    <strong>🟢 资金流入</strong>：A/D线上升且价格上涨，确认上涨趋势
+                </div>
+                
+                <div class="signal-box sell">
+                    <strong>🔴 资金流出</strong>：A/D线下降且价格下跌，确认下跌趋势
+                </div>
+                
+                <div class="formula">
+                    <strong>计算公式：</strong><br>
+                    资金流量乘数 = ((收盘-最低)-(最高-收盘))/(最高-最低)<br>
+                    资金流量 = 资金流量乘数 × 成交量<br>
+                    A/D线 = 前期A/D线 + 当期资金流量
+                </div>
+                
+                <h4>背离分析：</h4>
+                <ul>
+                    <li>价格创新高，A/D线不创新高：顶背离</li>
+                    <li>价格创新低，A/D线不创新低：底背离</li>
+                </ul>
+            </div>
+
+            <!-- EMV指标 -->
+            <div id="emv">
+                <h3>🎯 简易波动指标 (Ease of Movement - EMV)</h3>
+                <p>EMV指标衡量价格变动的难易程度，结合价格变化和成交量。</p>
+                
+                <div class="parameters">
+                    <h5>参数设置：</h5>
+                    <ul>
+                        <li><strong>默认周期</strong>：14日</li>
+                        <li><strong>平滑处理</strong>：使用移动平均</li>
+                    </ul>
+                </div>
+                
+                <div class="signal-box buy">
+                    <strong>🟢 上涨容易</strong>：EMV > 0，价格上涨阻力小
+                </div>
+                
+                <div class="signal-box sell">
+                    <strong>🔴 下跌容易</strong>：EMV < 0，价格下跌压力大
+                </div>
+                
+                <div class="formula">
+                    <strong>计算公式：</strong><br>
+                    距离移动 = (今日中点价-昨日中点价)<br>
+                    盒子高度 = 成交量/(最高价-最低价)<br>
+                    EMV = 距离移动/盒子高度
+                </div>
+            </div>
+
+            <!-- VPT指标 -->
+            <div id="vpt">
+                <h3>📈 量价确认指标 (Volume Price Trend - VPT)</h3>
+                <p>VPT指标基于价格变化率和成交量，确认价格趋势的可靠性。</p>
+                
+                <div class="signal-box buy">
+                    <strong>🟢 趋势确认</strong>：VPT上升且价格上涨，确认上涨趋势
+                </div>
+                
+                <div class="signal-box sell">
+                    <strong>🔴 趋势确认</strong>：VPT下降且价格下跌，确认下跌趋势
+                </div>
+                
+                <div class="formula">
+                    <strong>计算公式：</strong><br>
+                    价格变化率 = (今日收盘-昨日收盘)/昨日收盘<br>
+                    VPT = 前期VPT + 成交量×价格变化率
+                </div>
+                
+                <h4>信号识别：</h4>
+                <ul>
+                    <li>VPT与价格同向：趋势可靠</li>
+                    <li>VPT与价格背离：趋势可能反转</li>
+                    <li>VPT突破前期高低点：趋势加速</li>
+                </ul>
             </div>
         </div>
 

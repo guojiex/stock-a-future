@@ -78,6 +78,23 @@ type TechnicalIndicators struct {
 	BOLL      *BollingerBandsIndicator `json:"boll,omitempty"`
 	MA        *MovingAverageIndicator  `json:"ma,omitempty"`
 	KDJ       *KDJIndicator            `json:"kdj,omitempty"`
+	// 新增动量因子
+	WR       *WilliamsRIndicator `json:"wr,omitempty"`
+	Momentum *MomentumIndicator  `json:"momentum,omitempty"`
+	ROC      *ROCIndicator       `json:"roc,omitempty"`
+	// 新增趋势因子
+	ADX      *ADXIndicator      `json:"adx,omitempty"`
+	SAR      *SARIndicator      `json:"sar,omitempty"`
+	Ichimoku *IchimokuIndicator `json:"ichimoku,omitempty"`
+	// 新增波动率因子
+	ATR    *ATRIndicator                  `json:"atr,omitempty"`
+	StdDev *StdDevIndicator               `json:"stddev,omitempty"`
+	HV     *HistoricalVolatilityIndicator `json:"hv,omitempty"`
+	// 新增成交量因子
+	VWAP   *VWAPIndicator   `json:"vwap,omitempty"`
+	ADLine *ADLineIndicator `json:"ad_line,omitempty"`
+	EMV    *EMVIndicator    `json:"emv,omitempty"`
+	VPT    *VPTIndicator    `json:"vpt,omitempty"`
 }
 
 // MACDIndicator MACD指标
@@ -384,4 +401,93 @@ type BatchSignalResponse struct {
 	StartTime time.Time                   `json:"start_time"`
 	EndTime   time.Time                   `json:"end_time"`
 	Duration  string                      `json:"duration"`
+}
+
+// 新增技术指标结构定义
+
+// WilliamsRIndicator 威廉指标 (%R)
+type WilliamsRIndicator struct {
+	WR14   JSONDecimal `json:"wr14"`   // 14日威廉指标
+	Signal string      `json:"signal"` // 超买/超卖信号
+}
+
+// MomentumIndicator 动量指标
+type MomentumIndicator struct {
+	Momentum10 JSONDecimal `json:"momentum10"` // 10日动量
+	Momentum20 JSONDecimal `json:"momentum20"` // 20日动量
+	Signal     string      `json:"signal"`     // 买卖信号
+}
+
+// ROCIndicator 变化率指标
+type ROCIndicator struct {
+	ROC10  JSONDecimal `json:"roc10"`  // 10日变化率
+	ROC20  JSONDecimal `json:"roc20"`  // 20日变化率
+	Signal string      `json:"signal"` // 买卖信号
+}
+
+// ADXIndicator 平均方向指数
+type ADXIndicator struct {
+	ADX    JSONDecimal `json:"adx"`    // 平均方向指数
+	PDI    JSONDecimal `json:"pdi"`    // 正方向指数
+	MDI    JSONDecimal `json:"mdi"`    // 负方向指数
+	Signal string      `json:"signal"` // 趋势强度信号
+}
+
+// SARIndicator 抛物线转向指标
+type SARIndicator struct {
+	SAR    JSONDecimal `json:"sar"`    // SAR值
+	Signal string      `json:"signal"` // 买卖信号
+}
+
+// IchimokuIndicator 一目均衡表
+type IchimokuIndicator struct {
+	TenkanSen   JSONDecimal `json:"tenkan_sen"`    // 转换线
+	KijunSen    JSONDecimal `json:"kijun_sen"`     // 基准线
+	SenkouSpanA JSONDecimal `json:"senkou_span_a"` // 先行带A
+	SenkouSpanB JSONDecimal `json:"senkou_span_b"` // 先行带B
+	ChikouSpan  JSONDecimal `json:"chikou_span"`   // 滞后线
+	Signal      string      `json:"signal"`        // 买卖信号
+}
+
+// ATRIndicator 平均真实范围
+type ATRIndicator struct {
+	ATR14  JSONDecimal `json:"atr14"`  // 14日ATR
+	Signal string      `json:"signal"` // 波动率信号
+}
+
+// StdDevIndicator 标准差指标
+type StdDevIndicator struct {
+	StdDev20 JSONDecimal `json:"stddev20"` // 20日标准差
+	Signal   string      `json:"signal"`   // 波动率信号
+}
+
+// HistoricalVolatilityIndicator 历史波动率
+type HistoricalVolatilityIndicator struct {
+	HV20   JSONDecimal `json:"hv20"`   // 20日历史波动率
+	HV60   JSONDecimal `json:"hv60"`   // 60日历史波动率
+	Signal string      `json:"signal"` // 波动率信号
+}
+
+// VWAPIndicator 成交量加权平均价
+type VWAPIndicator struct {
+	VWAP   JSONDecimal `json:"vwap"`   // 成交量加权平均价
+	Signal string      `json:"signal"` // 买卖信号
+}
+
+// ADLineIndicator 累积/派发线
+type ADLineIndicator struct {
+	ADLine JSONDecimal `json:"ad_line"` // 累积/派发线
+	Signal string      `json:"signal"`  // 买卖信号
+}
+
+// EMVIndicator 简易波动指标
+type EMVIndicator struct {
+	EMV14  JSONDecimal `json:"emv14"`  // 14日EMV
+	Signal string      `json:"signal"` // 买卖信号
+}
+
+// VPTIndicator 量价确认指标
+type VPTIndicator struct {
+	VPT    JSONDecimal `json:"vpt"`    // 量价确认指标
+	Signal string      `json:"signal"` // 买卖信号
 }

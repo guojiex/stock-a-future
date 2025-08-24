@@ -146,8 +146,9 @@ class DisplayModule {
     /**
      * 创建指标项HTML
      */
-    createIndicatorItem(title, values, signal = null) {
+    createIndicatorItem(title, values, signal = null, tooltip = null) {
         const signalHTML = signal ? `<span class="signal ${signal.toLowerCase()}">${this.getSignalText(signal)}</span>` : '';
+        const tooltipHTML = tooltip ? `<span class="indicator-tooltip" data-tooltip="${tooltip}">ℹ️</span>` : '';
         
         const valuesHTML = values.map(item => 
             `<div class="indicator-value">
@@ -158,7 +159,7 @@ class DisplayModule {
         
         return `
             <div class="indicator-item slide-in">
-                <h4>${title} ${signalHTML}</h4>
+                <h4>${title} ${signalHTML} ${tooltipHTML}</h4>
                 <div class="indicator-values">
                     ${valuesHTML}
                 </div>
@@ -427,14 +428,14 @@ class DisplayModule {
                 { name: 'DIF', value: data.macd.dif?.toFixed(4) || 'N/A' },
                 { name: 'DEA', value: data.macd.dea?.toFixed(4) || 'N/A' },
                 { name: '柱状图', value: data.macd.histogram?.toFixed(4) || 'N/A' }
-            ], data.macd.signal);
+            ], data.macd.signal, 'MACD是趋势跟踪指标，通过快慢均线的差值判断买卖时机。DIF上穿DEA为金叉买入信号，下穿为死叉卖出信号。');
         }
         
         // RSI指标
         if (data.rsi) {
             indicatorsHTML += this.createIndicatorItem('RSI', [
                 { name: 'RSI14', value: data.rsi.rsi14?.toFixed(2) || 'N/A' }
-            ], data.rsi.signal);
+            ], data.rsi.signal, 'RSI相对强弱指数衡量价格变动的速度和幅度。RSI>70为超买区域，RSI<30为超卖区域，可作为反转信号参考。');
         }
         
         // 布林带
@@ -443,7 +444,7 @@ class DisplayModule {
                 { name: '上轨', value: data.boll.upper?.toFixed(2) || 'N/A' },
                 { name: '中轨', value: data.boll.middle?.toFixed(2) || 'N/A' },
                 { name: '下轨', value: data.boll.lower?.toFixed(2) || 'N/A' }
-            ], data.boll.signal);
+            ], data.boll.signal, '布林带由移动平均线和标准差构成，价格触及上轨可能回调，触及下轨可能反弹。带宽收窄预示突破，扩张表示趋势延续。');
         }
         
         // 移动平均线
@@ -453,7 +454,7 @@ class DisplayModule {
                 { name: 'MA10', value: data.ma.ma10?.toFixed(2) || 'N/A' },
                 { name: 'MA20', value: data.ma.ma20?.toFixed(2) || 'N/A' },
                 { name: 'MA60', value: data.ma.ma60?.toFixed(2) || 'N/A' }
-            ]);
+            ], null, '移动平均线平滑价格波动，识别趋势方向。短期均线上穿长期均线为金叉买入信号，下穿为死叉卖出信号。');
         }
         
         // KDJ指标
@@ -462,7 +463,114 @@ class DisplayModule {
                 { name: 'K值', value: data.kdj.k?.toFixed(2) || 'N/A' },
                 { name: 'D值', value: data.kdj.d?.toFixed(2) || 'N/A' },
                 { name: 'J值', value: data.kdj.j?.toFixed(2) || 'N/A' }
-            ], data.kdj.signal);
+            ], data.kdj.signal, 'KDJ随机指标反映价格在一定周期内的相对位置。K>80且D>80为超买，K<20且D<20为超卖。J值更敏感，可提前预警。');
+        }
+        
+        // === 动量因子指标 ===
+        
+        // 威廉指标 (%R)
+        if (data.wr) {
+            indicatorsHTML += this.createIndicatorItem('威廉指标 (%R)', [
+                { name: 'WR14', value: data.wr.wr14?.toFixed(2) || 'N/A' }
+            ], data.wr.signal, '威廉指标衡量股价在一定周期内的相对位置。WR>-20为超买区域，WR<-80为超卖区域。数值越接近0越超买，越接近-100越超卖。');
+        }
+        
+        // 动量指标
+        if (data.momentum) {
+            indicatorsHTML += this.createIndicatorItem('动量指标', [
+                { name: 'Momentum10', value: data.momentum.momentum10?.toFixed(4) || 'N/A' },
+                { name: 'Momentum20', value: data.momentum.momentum20?.toFixed(4) || 'N/A' }
+            ], data.momentum.signal, '动量指标衡量价格变化的速度。正值表示上涨动量，负值表示下跌动量。数值越大表示趋势越强劲。');
+        }
+        
+        // 变化率指标 (ROC)
+        if (data.roc) {
+            indicatorsHTML += this.createIndicatorItem('变化率指标 (ROC)', [
+                { name: 'ROC10', value: data.roc.roc10?.toFixed(2) || 'N/A' },
+                { name: 'ROC20', value: data.roc.roc20?.toFixed(2) || 'N/A' }
+            ], data.roc.signal, 'ROC变化率指标衡量价格在一定周期内的百分比变化。正值表示上涨，负值表示下跌。可用于判断趋势强度和转折点。');
+        }
+        
+        // === 趋势因子指标 ===
+        
+        // 平均方向指数 (ADX)
+        if (data.adx) {
+            indicatorsHTML += this.createIndicatorItem('平均方向指数 (ADX)', [
+                { name: 'ADX', value: data.adx.adx?.toFixed(2) || 'N/A' },
+                { name: 'PDI', value: data.adx.pdi?.toFixed(2) || 'N/A' },
+                { name: 'MDI', value: data.adx.mdi?.toFixed(2) || 'N/A' }
+            ], data.adx.signal, 'ADX衡量趋势强度，不判断方向。ADX>25表示强趋势，<20表示弱趋势。PDI>MDI表示上升趋势，反之为下降趋势。');
+        }
+        
+        // 抛物线转向 (SAR)
+        if (data.sar) {
+            indicatorsHTML += this.createIndicatorItem('抛物线转向 (SAR)', [
+                { name: 'SAR', value: data.sar.sar?.toFixed(2) || 'N/A' }
+            ], data.sar.signal, 'SAR抛物线转向指标用于确定止损点和趋势转换。价格在SAR之上为上升趋势，之下为下降趋势。SAR点位可作为止损参考。');
+        }
+        
+        // 一目均衡表
+        if (data.ichimoku) {
+            indicatorsHTML += this.createIndicatorItem('一目均衡表', [
+                { name: '转换线', value: data.ichimoku.tenkan_sen?.toFixed(2) || 'N/A' },
+                { name: '基准线', value: data.ichimoku.kijun_sen?.toFixed(2) || 'N/A' },
+                { name: '先行带A', value: data.ichimoku.senkou_span_a?.toFixed(2) || 'N/A' },
+                { name: '先行带B', value: data.ichimoku.senkou_span_b?.toFixed(2) || 'N/A' }
+            ], data.ichimoku.signal, '一目均衡表是综合性技术指标。转换线上穿基准线为买入信号，价格突破云带(先行带)确认趋势。云带厚度反映支撑阻力强度。');
+        }
+        
+        // === 波动率因子指标 ===
+        
+        // 平均真实范围 (ATR)
+        if (data.atr) {
+            indicatorsHTML += this.createIndicatorItem('平均真实范围 (ATR)', [
+                { name: 'ATR14', value: data.atr.atr14?.toFixed(4) || 'N/A' }
+            ], data.atr.signal, 'ATR衡量价格波动幅度，数值越大表示波动越剧烈。可用于设置止损位和判断市场活跃度。高ATR适合趋势交易，低ATR适合区间交易。');
+        }
+        
+        // 标准差
+        if (data.stddev) {
+            indicatorsHTML += this.createIndicatorItem('标准差', [
+                { name: 'StdDev20', value: data.stddev.stddev20?.toFixed(4) || 'N/A' }
+            ], data.stddev.signal, '标准差衡量价格偏离平均值的程度。数值越大表示价格波动越不稳定。可用于评估投资风险和市场不确定性。');
+        }
+        
+        // 历史波动率
+        if (data.hv) {
+            indicatorsHTML += this.createIndicatorItem('历史波动率', [
+                { name: 'HV20', value: data.hv.hv20?.toFixed(2) || 'N/A' },
+                { name: 'HV60', value: data.hv.hv60?.toFixed(2) || 'N/A' }
+            ], data.hv.signal, '历史波动率反映股价在过去一段时间的波动程度。高波动率意味着高风险高收益，低波动率表示价格相对稳定。');
+        }
+        
+        // === 成交量因子指标 ===
+        
+        // 成交量加权平均价 (VWAP)
+        if (data.vwap) {
+            indicatorsHTML += this.createIndicatorItem('成交量加权平均价 (VWAP)', [
+                { name: 'VWAP', value: data.vwap.vwap?.toFixed(2) || 'N/A' }
+            ], data.vwap.signal, 'VWAP是成交量加权的平均价格，反映真实的平均成交成本。价格高于VWAP表示买盘强劲，低于VWAP表示卖盘压力大。');
+        }
+        
+        // 累积/派发线 (A/D Line)
+        if (data.ad_line) {
+            indicatorsHTML += this.createIndicatorItem('累积/派发线 (A/D Line)', [
+                { name: 'A/D Line', value: data.ad_line.ad_line?.toFixed(0) || 'N/A' }
+            ], data.ad_line.signal, 'A/D线结合价格和成交量，衡量资金流向。上升表示资金流入(累积)，下降表示资金流出(派发)。可用于确认价格趋势。');
+        }
+        
+        // 简易波动指标 (EMV)
+        if (data.emv) {
+            indicatorsHTML += this.createIndicatorItem('简易波动指标 (EMV)', [
+                { name: 'EMV14', value: data.emv.emv14?.toFixed(4) || 'N/A' }
+            ], data.emv.signal, 'EMV衡量价格变动的难易程度。正值表示价格上涨容易，负值表示下跌容易。结合成交量分析，判断价格变动的可持续性。');
+        }
+        
+        // 量价确认指标 (VPT)
+        if (data.vpt) {
+            indicatorsHTML += this.createIndicatorItem('量价确认指标 (VPT)', [
+                { name: 'VPT', value: data.vpt.vpt?.toFixed(2) || 'N/A' }
+            ], data.vpt.signal, 'VPT将成交量与价格变化相结合，确认价格趋势。VPT与价格同向运动确认趋势，背离时可能预示反转。');
         }
         
         return indicatorsHTML;

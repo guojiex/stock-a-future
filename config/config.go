@@ -50,6 +50,9 @@ type Config struct {
 	CleanupEnabled       bool          // 是否启用数据清理
 	CleanupInterval      time.Duration // 数据清理间隔，默认每天清理一次
 	CleanupRetentionDays int           // 股票信号数据保留天数，默认90天
+
+	// 数据窗口配置
+	DefaultDataWindowDays int // 默认日线数据窗口大小（天数），默认90天
 }
 
 // Load 加载配置
@@ -89,6 +92,9 @@ func Load() *Config {
 		CleanupEnabled:       getBoolEnv("CLEANUP_ENABLED", false),             // 默认不启用数据清理
 		CleanupInterval:      getDurationEnv("CLEANUP_INTERVAL", 24*time.Hour), // 默认每天清理一次
 		CleanupRetentionDays: getIntEnv("CLEANUP_RETENTION_DAYS", 90),          // 默认90天
+
+		// 数据窗口配置 - 默认值
+		DefaultDataWindowDays: getIntEnv("DEFAULT_DATA_WINDOW_DAYS", 90), // 默认90天
 	}
 
 	// 验证必要配置

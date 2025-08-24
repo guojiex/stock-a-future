@@ -71,9 +71,10 @@ func (h *StockHandler) GetDailyData(w http.ResponseWriter, r *http.Request) {
 	endDate := query.Get("end_date")
 	adjust := query.Get("adjust") // 复权方式：qfq(前复权), hfq(后复权), none(不复权)
 
-	// 默认获取最近30天数据
+	// 默认获取配置中指定天数的数据，确保所有技术指标都有足够的数据
+	// 一目均衡表需要52天，历史波动率需要60天，所以默认设置为90天比较安全
 	if startDate == "" {
-		startDate = time.Now().AddDate(0, 0, -30).Format("20060102")
+		startDate = time.Now().AddDate(0, 0, -h.config.DefaultDataWindowDays).Format("20060102")
 	}
 	if endDate == "" {
 		endDate = time.Now().Format("20060102")
@@ -272,10 +273,178 @@ func (h *StockHandler) GetIndicators(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GetIndicators] 布林带计算完成 - 股票代码: %s, 最新值: %v", stockCode, indicators.BOLL)
 	}
 
+	// 计算移动平均线
+	if len(data) >= 120 {
+		ma5 := h.calculator.CalculateMA(data, 5)
+		ma10 := h.calculator.CalculateMA(data, 10)
+		ma20 := h.calculator.CalculateMA(data, 20)
+		ma60 := h.calculator.CalculateMA(data, 60)
+		ma120 := h.calculator.CalculateMA(data, 120)
+
+		if len(ma5) > 0 && len(ma10) > 0 && len(ma20) > 0 && len(ma60) > 0 && len(ma120) > 0 {
+			indicators.MA = &models.MovingAverageIndicator{
+				MA5:   models.NewJSONDecimal(ma5[len(ma5)-1]),
+				MA10:  models.NewJSONDecimal(ma10[len(ma10)-1]),
+				MA20:  models.NewJSONDecimal(ma20[len(ma20)-1]),
+				MA60:  models.NewJSONDecimal(ma60[len(ma60)-1]),
+				MA120: models.NewJSONDecimal(ma120[len(ma120)-1]),
+			}
+		}
+	}
+
+	// 计算KDJ
+	kdjResults := h.calculator.CalculateKDJ(data, 9)
+	if len(kdjResults) > 0 {
+		indicators.KDJ = &kdjResults[len(kdjResults)-1]
+	}
+
+	// ===== 新增动量因子 =====
+
+	// 计算威廉指标
+	wrResults := h.calculator.CalculateWilliamsR(data, 14)
+	if len(wrResults) > 0 {
+		indicators.WR = &wrResults[len(wrResults)-1]
+	}
+
+	// 计算动量指标
+	momentumResults := h.calculator.CalculateMomentum(data)
+	if len(momentumResults) > 0 {
+		indicators.Momentum = &momentumResults[len(momentumResults)-1]
+	}
+
+	// 计算变化率指标
+	rocResults := h.calculator.CalculateROC(data)
+	if len(rocResults) > 0 {
+		indicators.ROC = &rocResults[len(rocResults)-1]
+	}
+
+	// ===== 新增趋势因子 =====
+
+	// 计算ADX
+	adxResults := h.calculator.CalculateADX(data, 14)
+	if len(adxResults) > 0 {
+		indicators.ADX = &adxResults[len(adxResults)-1]
+	}
+
+	// 计算SAR
+	sarResults := h.calculator.CalculateSAR(data)
+	if len(sarResults) > 0 {
+		indicators.SAR = &sarResults[len(sarResults)-1]
+	}
+
+	// 计算一目均衡表
+	ichimokuResults := h.calculator.CalculateIchimoku(data)
+	if len(ichimokuResults) > 0 {
+		indicators.Ichimoku = &ichimokuResults[len(ichimokuResults)-1]
+	}
+
+	// ===== 新增波动率因子 =====
+
+	// 计算ATR
+	atrResults := h.calculator.CalculateATR(data, 14)
+	if len(atrResults) > 0 {
+		indicators.ATR = &atrResults[len(atrResults)-1]
+	}
+
+	// 计算标准差
+	stdDevResults := h.calculator.CalculateStdDev(data, 20)
+	if len(stdDevResults) > 0 {
+		indicators.StdDev = &stdDevResults[len(stdDevResults)-1]
+	}
+
+	// 计算历史波动率
+	hvResults := h.calculator.CalculateHistoricalVolatility(data)
+	if len(hvResults) > 0 {
+		indicators.HV = &hvResults[len(hvResults)-1]
+	}
+
+	// ===== 新增成交量因子 =====
+
+	// 计算VWAP
+	vwapResults := h.calculator.CalculateVWAP(data)
+	if len(vwapResults) > 0 {
+		indicators.VWAP = &vwapResults[len(vwapResults)-1]
+	}
+
+	// 计算A/D线
+	adLineResults := h.calculator.CalculateADLine(data)
+	if len(adLineResults) > 0 {
+		indicators.ADLine = &adLineResults[len(adLineResults)-1]
+	}
+
+	// 计算EMV
+	emvResults := h.calculator.CalculateEMV(data, 14)
+	if len(emvResults) > 0 {
+		indicators.EMV = &emvResults[len(emvResults)-1]
+	}
+
+	// 计算VPT
+	vptResults := h.calculator.CalculateVPT(data)
+	if len(vptResults) > 0 {
+		indicators.VPT = &vptResults[len(vptResults)-1]
+	}
+
+	// 统计实际计算的指标数量
+	indicatorCount := 0
+	if indicators.MACD != nil {
+		indicatorCount++
+	}
+	if indicators.RSI != nil {
+		indicatorCount++
+	}
+	if indicators.BOLL != nil {
+		indicatorCount++
+	}
+	if indicators.MA != nil {
+		indicatorCount++
+	}
+	if indicators.KDJ != nil {
+		indicatorCount++
+	}
+	if indicators.WR != nil {
+		indicatorCount++
+	}
+	if indicators.Momentum != nil {
+		indicatorCount++
+	}
+	if indicators.ROC != nil {
+		indicatorCount++
+	}
+	if indicators.ADX != nil {
+		indicatorCount++
+	}
+	if indicators.SAR != nil {
+		indicatorCount++
+	}
+	if indicators.Ichimoku != nil {
+		indicatorCount++
+	}
+	if indicators.ATR != nil {
+		indicatorCount++
+	}
+	if indicators.StdDev != nil {
+		indicatorCount++
+	}
+	if indicators.HV != nil {
+		indicatorCount++
+	}
+	if indicators.VWAP != nil {
+		indicatorCount++
+	}
+	if indicators.ADLine != nil {
+		indicatorCount++
+	}
+	if indicators.EMV != nil {
+		indicatorCount++
+	}
+	if indicators.VPT != nil {
+		indicatorCount++
+	}
+
 	// 记录响应信息
 	responseTime := time.Since(startTime)
 	log.Printf("[GetIndicators] 请求处理完成 - 股票代码: %s, 响应时间: %v, 指标数量: %d",
-		stockCode, responseTime, 3) // MACD, RSI, 布林带
+		stockCode, responseTime, indicatorCount)
 
 	h.writeSuccessResponse(w, indicators)
 }

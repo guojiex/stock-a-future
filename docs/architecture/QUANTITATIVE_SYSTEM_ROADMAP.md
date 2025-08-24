@@ -137,28 +137,28 @@ type FundamentalAnalyzer struct {
 **扩展现有技术指标**:
 
 - **动量因子**
-  - 相对强弱指数 (RSI)
-  - 威廉指标 (%R)
-  - 动量指标 (Momentum)
-  - 变化率指标 (ROC)
+  - ✅ 相对强弱指数 (RSI) - 已实现
+  - ✅ 威廉指标 (%R) - 已实现
+  - ✅ 动量指标 (Momentum) - 已实现
+  - ✅ 变化率指标 (ROC) - 已实现
 
 - **趋势因子**
-  - 移动平均收敛发散 (MACD)
-  - 平均方向指数 (ADX)
-  - 抛物线转向 (SAR)
-  - 一目均衡表 (Ichimoku)
+  - ✅ 移动平均收敛发散 (MACD) - 已实现
+  - ✅ 平均方向指数 (ADX) - 已实现
+  - ✅ 抛物线转向 (SAR) - 已实现
+  - ✅ 一目均衡表 (Ichimoku) - 已实现
 
 - **波动率因子**
-  - 布林带 (Bollinger Bands)
-  - 平均真实范围 (ATR)
-  - 标准差 (Standard Deviation)
-  - 历史波动率 (Historical Volatility)
+  - ✅ 布林带 (Bollinger Bands) - 已实现
+  - ✅ 平均真实范围 (ATR) - 已实现
+  - ✅ 标准差 (Standard Deviation) - 已实现
+  - ✅ 历史波动率 (Historical Volatility) - 已实现
 
 - **成交量因子**
-  - 成交量加权平均价 (VWAP)
-  - 累积/派发线 (A/D Line)
-  - 简易波动指标 (EMV)
-  - 量价确认指标 (VPT)
+  - ✅ 成交量加权平均价 (VWAP) - 已实现
+  - ✅ 累积/派发线 (A/D Line) - 已实现
+  - ✅ 简易波动指标 (EMV) - 已实现
+  - ✅ 量价确认指标 (VPT) - 已实现
 
 #### 2.3 市场情绪因子
 **数据来源**: 新闻、社交媒体、市场数据
