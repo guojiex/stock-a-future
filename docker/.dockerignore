@@ -1,0 +1,99 @@
+# Docker ignore file for Stock-A-Future
+
+# Git 相关
+.git
+.gitignore
+.gitattributes
+
+# IDE 和编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# 日志文件
+*.log
+logs/
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+
+# 构建产物
+bin/
+dist/
+build/
+
+# 依赖缓存
+node_modules/
+vendor/
+
+# 测试覆盖率
+coverage/
+*.cover
+*.py,cover
+
+# Python 相关
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Go 相关
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# 数据文件 (除了示例数据)
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+!data/test_data/
+
+# 缓存文件
+cache/
+*.cache
+
+# 配置文件 (保留示例配置)
+config.env
+!config.env.example
+!docker/config/
+
+# 文档和说明 (保留重要文档)
+README_*.md
+!README.md
+!docker/README.md
+
+# 脚本文件 (保留 docker 脚本)
+scripts/
+!docker/scripts/
+
+# Docker 相关
+docker/volumes/
+Dockerfile*
+!docker/Dockerfile
+!docker/aktools.Dockerfile
+docker-compose*.yml
+!docker/docker-compose*.yml
+
+# 其他
+*.bak
+*.backup
+*.orig
