@@ -491,3 +491,232 @@ type VPTIndicator struct {
 	VPT    JSONDecimal `json:"vpt"`    // 量价确认指标
 	Signal string      `json:"signal"` // 买卖信号
 }
+
+// ===== 基本面数据结构 =====
+
+// FinancialStatement 财务报表基础结构
+type FinancialStatement struct {
+	TSCode     string `json:"ts_code"`     // 股票代码
+	AnnDate    string `json:"ann_date"`    // 公告日期
+	FDate      string `json:"f_date"`      // 报告期
+	EndDate    string `json:"end_date"`    // 报告期结束日期
+	ReportType string `json:"report_type"` // 报告类型：1-年报，2-中报，3-季报
+	CompType   string `json:"comp_type"`   // 公司类型：1-一般工商业，2-银行，3-保险，4-证券
+}
+
+// IncomeStatement 利润表数据
+type IncomeStatement struct {
+	FinancialStatement
+	// 营业收入相关
+	Revenue       JSONDecimal `json:"revenue"`        // 营业总收入
+	OperRevenue   JSONDecimal `json:"oper_revenue"`   // 营业收入
+	IntIncome     JSONDecimal `json:"int_income"`     // 利息收入
+	CommissionInc JSONDecimal `json:"commission_inc"` // 手续费及佣金收入
+
+	// 成本费用
+	OperCost JSONDecimal `json:"oper_cost"` // 营业总成本
+	OperExp  JSONDecimal `json:"oper_exp"`  // 营业费用
+	AdminExp JSONDecimal `json:"admin_exp"` // 管理费用
+	FinExp   JSONDecimal `json:"fin_exp"`   // 财务费用
+	RdExp    JSONDecimal `json:"rd_exp"`    // 研发费用
+
+	// 利润相关
+	OperProfit    JSONDecimal `json:"oper_profit"`     // 营业利润
+	TotalProfit   JSONDecimal `json:"total_profit"`    // 利润总额
+	NetProfit     JSONDecimal `json:"net_profit"`      // 净利润
+	NetProfitDedt JSONDecimal `json:"net_profit_dedt"` // 扣非净利润
+
+	// 每股收益
+	BasicEps   JSONDecimal `json:"basic_eps"`   // 基本每股收益
+	DilutedEps JSONDecimal `json:"diluted_eps"` // 稀释每股收益
+}
+
+// BalanceSheet 资产负债表数据
+type BalanceSheet struct {
+	FinancialStatement
+	// 资产
+	TotalAssets     JSONDecimal `json:"total_assets"`     // 资产总计
+	TotalCurAssets  JSONDecimal `json:"total_cur_assets"` // 流动资产合计
+	Money           JSONDecimal `json:"money"`            // 货币资金
+	TradAssets      JSONDecimal `json:"trad_assets"`      // 交易性金融资产
+	NotesReceiv     JSONDecimal `json:"notes_receiv"`     // 应收票据
+	AccountsReceiv  JSONDecimal `json:"accounts_receiv"`  // 应收账款
+	InventoryAssets JSONDecimal `json:"inventory_assets"` // 存货
+	TotalNcaAssets  JSONDecimal `json:"total_nca_assets"` // 非流动资产合计
+	FixAssets       JSONDecimal `json:"fix_assets"`       // 固定资产
+	CipAssets       JSONDecimal `json:"cip_assets"`       // 在建工程
+	IntangAssets    JSONDecimal `json:"intang_assets"`    // 无形资产
+
+	// 负债
+	TotalLiab       JSONDecimal `json:"total_liab"`       // 负债合计
+	TotalCurLiab    JSONDecimal `json:"total_cur_liab"`   // 流动负债合计
+	ShortLoan       JSONDecimal `json:"short_loan"`       // 短期借款
+	NotesPayable    JSONDecimal `json:"notes_payable"`    // 应付票据
+	AccountsPayable JSONDecimal `json:"accounts_payable"` // 应付账款
+	TotalNcaLiab    JSONDecimal `json:"total_nca_liab"`   // 非流动负债合计
+	LongLoan        JSONDecimal `json:"long_loan"`        // 长期借款
+
+	// 所有者权益
+	TotalHldrEqy  JSONDecimal `json:"total_hldr_eqy"` // 所有者权益合计
+	CapRese       JSONDecimal `json:"cap_rese"`       // 资本公积
+	UndistrProfit JSONDecimal `json:"undistr_profit"` // 未分配利润
+	TotalShare    JSONDecimal `json:"total_share"`    // 实收资本(或股本)
+}
+
+// CashFlowStatement 现金流量表数据
+type CashFlowStatement struct {
+	FinancialStatement
+	// 经营活动现金流量
+	NetCashOperAct    JSONDecimal `json:"net_cash_oper_act"`    // 经营活动产生的现金流量净额
+	CashRecrSale      JSONDecimal `json:"cash_recr_sale"`       // 销售商品、提供劳务收到的现金
+	CashPayGoods      JSONDecimal `json:"cash_pay_goods"`       // 购买商品、接受劳务支付的现金
+	CashPayBehalfEmpl JSONDecimal `json:"cash_pay_behalf_empl"` // 支付给职工以及为职工支付的现金
+	CashPayTax        JSONDecimal `json:"cash_pay_tax"`         // 支付的各项税费
+
+	// 投资活动现金流量
+	NetCashInvAct JSONDecimal `json:"net_cash_inv_act"` // 投资活动产生的现金流量净额
+	CashRecvDisp  JSONDecimal `json:"cash_recv_disp"`   // 收回投资收到的现金
+	CashPayAcq    JSONDecimal `json:"cash_pay_acq"`     // 投资支付的现金
+
+	// 筹资活动现金流量
+	NetCashFinAct  JSONDecimal `json:"net_cash_fin_act"` // 筹资活动产生的现金流量净额
+	CashRecvInvest JSONDecimal `json:"cash_recv_invest"` // 吸收投资收到的现金
+	CashPayDist    JSONDecimal `json:"cash_pay_dist"`    // 分配股利、利润或偿付利息支付的现金
+
+	// 汇率变动影响
+	FxEffectCash JSONDecimal `json:"fx_effect_cash"` // 汇率变动对现金及现金等价物的影响
+
+	// 现金净增加额
+	NetIncrCashCce JSONDecimal `json:"net_incr_cash_cce"` // 现金及现金等价物净增加额
+	CashBegPeriod  JSONDecimal `json:"cash_beg_period"`   // 期初现金及现金等价物余额
+	CashEndPeriod  JSONDecimal `json:"cash_end_period"`   // 期末现金及现金等价物余额
+}
+
+// FinancialIndicator 财务指标数据
+type FinancialIndicator struct {
+	FinancialStatement
+	// 每股指标
+	Eps         JSONDecimal `json:"eps"`          // 每股收益
+	DtEps       JSONDecimal `json:"dt_eps"`       // 稀释每股收益
+	TotalRevPs  JSONDecimal `json:"total_rev_ps"` // 每股营业总收入
+	BvPs        JSONDecimal `json:"bv_ps"`        // 每股净资产
+	OcfPs       JSONDecimal `json:"ocf_ps"`       // 每股经营现金流
+	NetprofitPs JSONDecimal `json:"netprofit_ps"` // 每股净利润
+
+	// 成长能力指标
+	OrLastYear  JSONDecimal `json:"or_last_year"`  // 营业收入同比增长率(%)
+	OpLastYear  JSONDecimal `json:"op_last_year"`  // 营业利润同比增长率(%)
+	EpsLastYear JSONDecimal `json:"eps_last_year"` // 每股收益同比增长率(%)
+	NetprofitGr JSONDecimal `json:"netprofit_gr"`  // 净利润同比增长率(%)
+
+	// 盈利能力指标
+	Roe         JSONDecimal `json:"roe"`          // 净资产收益率
+	Roa         JSONDecimal `json:"roa"`          // 资产收益率
+	GrossMargin JSONDecimal `json:"gross_margin"` // 销售毛利率
+	NetMargin   JSONDecimal `json:"net_margin"`   // 销售净利率
+	OperMargin  JSONDecimal `json:"oper_margin"`  // 营业利润率
+	EbitMargin  JSONDecimal `json:"ebit_margin"`  // EBIT利润率
+
+	// 运营能力指标
+	InvTurn    JSONDecimal `json:"inv_turn"`    // 存货周转率
+	ArTurn     JSONDecimal `json:"ar_turn"`     // 应收账款周转率
+	CaTurn     JSONDecimal `json:"ca_turn"`     // 流动资产周转率
+	FaTurn     JSONDecimal `json:"fa_turn"`     // 固定资产周转率
+	AssetsTurn JSONDecimal `json:"assets_turn"` // 总资产周转率
+
+	// 偿债能力指标
+	CurrentRatio JSONDecimal `json:"current_ratio"`  // 流动比率
+	QuickRatio   JSONDecimal `json:"quick_ratio"`    // 速动比率
+	CashRatio    JSONDecimal `json:"cash_ratio"`     // 现金比率
+	LrRatio      JSONDecimal `json:"lr_ratio"`       // 资产负债率
+	DebtToAssets JSONDecimal `json:"debt_to_assets"` // 负债合计/资产总计
+	DebtToEqt    JSONDecimal `json:"debt_to_eqt"`    // 产权比率
+
+	// 现金流指标
+	CfPs          JSONDecimal `json:"cf_ps"`           // 每股现金流量净额
+	CfNetprofitPs JSONDecimal `json:"cf_netprofit_ps"` // 每股经营现金流净额
+	CfLiab        JSONDecimal `json:"cf_liab"`         // 现金流量负债比
+}
+
+// DailyBasic 每日基本面指标
+type DailyBasic struct {
+	TSCode      string      `json:"ts_code"`      // 股票代码
+	TradeDate   string      `json:"trade_date"`   // 交易日期
+	Close       JSONDecimal `json:"close"`        // 当日收盘价
+	Turnover    JSONDecimal `json:"turnover"`     // 换手率（%）
+	VolumeRatio JSONDecimal `json:"volume_ratio"` // 量比
+	Pe          JSONDecimal `json:"pe"`           // 市盈率（总市值/净利润，亏损的PE为空）
+	PeTtm       JSONDecimal `json:"pe_ttm"`       // 市盈率（TTM，亏损的PE为空）
+	Pb          JSONDecimal `json:"pb"`           // 市净率（总市值/净资产）
+	Ps          JSONDecimal `json:"ps"`           // 市销率
+	PsTtm       JSONDecimal `json:"ps_ttm"`       // 市销率（TTM）
+	DvRatio     JSONDecimal `json:"dv_ratio"`     // 股息率（%）
+	DvTtm       JSONDecimal `json:"dv_ttm"`       // 股息率（TTM）（%）
+	TotalShare  JSONDecimal `json:"total_share"`  // 总股本（万股）
+	FloatShare  JSONDecimal `json:"float_share"`  // 流通股本（万股）
+	FreeShare   JSONDecimal `json:"free_share"`   // 自由流通股本（万）
+	TotalMv     JSONDecimal `json:"total_mv"`     // 总市值（万元）
+	CircMv      JSONDecimal `json:"circ_mv"`      // 流通市值（万元）
+}
+
+// FundamentalFactor 基本面因子
+type FundamentalFactor struct {
+	TSCode    string `json:"ts_code"`    // 股票代码
+	TradeDate string `json:"trade_date"` // 计算日期
+
+	// 价值因子
+	PE         JSONDecimal `json:"pe"`           // 市盈率
+	PB         JSONDecimal `json:"pb"`           // 市净率
+	PS         JSONDecimal `json:"ps"`           // 市销率
+	PCF        JSONDecimal `json:"pcf"`          // 市现率
+	EVToEBITDA JSONDecimal `json:"ev_to_ebitda"` // EV/EBITDA
+
+	// 成长因子
+	RevenueGrowth   JSONDecimal `json:"revenue_growth"`    // 营收增长率
+	NetProfitGrowth JSONDecimal `json:"net_profit_growth"` // 净利润增长率
+	EPSGrowth       JSONDecimal `json:"eps_growth"`        // EPS增长率
+	ROEGrowth       JSONDecimal `json:"roe_growth"`        // ROE增长率
+
+	// 质量因子
+	ROE          JSONDecimal `json:"roe"`            // 净资产收益率
+	ROA          JSONDecimal `json:"roa"`            // 资产收益率
+	GrossMargin  JSONDecimal `json:"gross_margin"`   // 毛利率
+	NetMargin    JSONDecimal `json:"net_margin"`     // 净利率
+	DebtToAssets JSONDecimal `json:"debt_to_assets"` // 资产负债率
+	CurrentRatio JSONDecimal `json:"current_ratio"`  // 流动比率
+	QuickRatio   JSONDecimal `json:"quick_ratio"`    // 速动比率
+
+	// 盈利因子
+	ROIC            JSONDecimal `json:"roic"`             // 投入资本回报率
+	OperatingMargin JSONDecimal `json:"operating_margin"` // 营业利润率
+	EBITDAMargin    JSONDecimal `json:"ebitda_margin"`    // EBITDA利润率
+
+	// 运营效率因子
+	AssetTurnover      JSONDecimal `json:"asset_turnover"`      // 总资产周转率
+	InventoryTurnover  JSONDecimal `json:"inventory_turnover"`  // 存货周转率
+	ReceivableTurnover JSONDecimal `json:"receivable_turnover"` // 应收账款周转率
+
+	// 现金流因子
+	OCFToRevenue   JSONDecimal `json:"ocf_to_revenue"`    // 经营现金流/营收比
+	OCFToNetProfit JSONDecimal `json:"ocf_to_net_profit"` // 经营现金流/净利润比
+	FCFYield       JSONDecimal `json:"fcf_yield"`         // 自由现金流收益率
+
+	// 分红因子
+	DividendYield JSONDecimal `json:"dividend_yield"` // 股息率
+	PayoutRatio   JSONDecimal `json:"payout_ratio"`   // 分红率
+
+	// 因子标准化得分
+	ValueScore         JSONDecimal `json:"value_score"`         // 价值因子得分
+	GrowthScore        JSONDecimal `json:"growth_score"`        // 成长因子得分
+	QualityScore       JSONDecimal `json:"quality_score"`       // 质量因子得分
+	ProfitabilityScore JSONDecimal `json:"profitability_score"` // 盈利因子得分
+	CompositeScore     JSONDecimal `json:"composite_score"`     // 综合得分
+
+	// 行业和市场相对位置
+	IndustryRank       int         `json:"industry_rank"`       // 行业排名
+	MarketRank         int         `json:"market_rank"`         // 全市场排名
+	IndustryPercentile JSONDecimal `json:"industry_percentile"` // 行业分位数
+	MarketPercentile   JSONDecimal `json:"market_percentile"`   // 市场分位数
+
+	UpdatedAt time.Time `json:"updated_at"` // 更新时间
+}

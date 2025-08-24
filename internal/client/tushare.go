@@ -501,3 +501,91 @@ func (c *TushareClient) TestConnection() error {
 	log.Printf("Tushare连接测试成功 - 获取到股票数据: %v", tushareResp.Data.Items[0])
 	return nil
 }
+
+// ===== 基本面数据接口实现 =====
+
+// GetIncomeStatement 获取利润表数据
+// TODO: 实现Tushare利润表数据获取
+func (c *TushareClient) GetIncomeStatement(symbol, period, reportType string) (*models.IncomeStatement, error) {
+	panic("TODO: 实现Tushare利润表数据获取 - GetIncomeStatement")
+}
+
+// GetIncomeStatements 批量获取利润表数据
+// TODO: 实现Tushare批量利润表数据获取
+func (c *TushareClient) GetIncomeStatements(symbol, startPeriod, endPeriod, reportType string) ([]models.IncomeStatement, error) {
+	panic("TODO: 实现Tushare批量利润表数据获取 - GetIncomeStatements")
+}
+
+// GetBalanceSheet 获取资产负债表数据
+// TODO: 实现Tushare资产负债表数据获取
+func (c *TushareClient) GetBalanceSheet(symbol, period, reportType string) (*models.BalanceSheet, error) {
+	panic("TODO: 实现Tushare资产负债表数据获取 - GetBalanceSheet")
+}
+
+// GetBalanceSheets 批量获取资产负债表数据
+// TODO: 实现Tushare批量资产负债表数据获取
+func (c *TushareClient) GetBalanceSheets(symbol, startPeriod, endPeriod, reportType string) ([]models.BalanceSheet, error) {
+	panic("TODO: 实现Tushare批量资产负债表数据获取 - GetBalanceSheets")
+}
+
+// GetCashFlowStatement 获取现金流量表数据
+// TODO: 实现Tushare现金流量表数据获取
+func (c *TushareClient) GetCashFlowStatement(symbol, period, reportType string) (*models.CashFlowStatement, error) {
+	panic("TODO: 实现Tushare现金流量表数据获取 - GetCashFlowStatement")
+}
+
+// GetCashFlowStatements 批量获取现金流量表数据
+// TODO: 实现Tushare批量现金流量表数据获取
+func (c *TushareClient) GetCashFlowStatements(symbol, startPeriod, endPeriod, reportType string) ([]models.CashFlowStatement, error) {
+	panic("TODO: 实现Tushare批量现金流量表数据获取 - GetCashFlowStatements")
+}
+
+// GetFinancialIndicator 获取财务指标数据
+// TODO: 实现Tushare财务指标数据获取
+func (c *TushareClient) GetFinancialIndicator(symbol, period, reportType string) (*models.FinancialIndicator, error) {
+	panic("TODO: 实现Tushare财务指标数据获取 - GetFinancialIndicator")
+}
+
+// GetFinancialIndicators 批量获取财务指标数据
+// TODO: 实现Tushare批量财务指标数据获取
+func (c *TushareClient) GetFinancialIndicators(symbol, startPeriod, endPeriod, reportType string) ([]models.FinancialIndicator, error) {
+	panic("TODO: 实现Tushare批量财务指标数据获取 - GetFinancialIndicators")
+}
+
+// GetDailyBasic 获取每日基本面指标
+// TODO: 实现Tushare每日基本面指标获取
+func (c *TushareClient) GetDailyBasic(symbol, tradeDate string) (*models.DailyBasic, error) {
+	panic("TODO: 实现Tushare每日基本面指标获取 - GetDailyBasic")
+}
+
+// GetDailyBasics 批量获取每日基本面指标
+// TODO: 实现Tushare批量每日基本面指标获取
+func (c *TushareClient) GetDailyBasics(symbol, startDate, endDate string) ([]models.DailyBasic, error) {
+	panic("TODO: 实现Tushare批量每日基本面指标获取 - GetDailyBasics")
+}
+
+// GetDailyBasicsByDate 根据交易日期获取所有股票的每日基本面指标
+// TODO: 实现Tushare按日期获取所有股票每日基本面指标
+func (c *TushareClient) GetDailyBasicsByDate(tradeDate string) ([]models.DailyBasic, error) {
+	panic("TODO: 实现Tushare按日期获取所有股票每日基本面指标 - GetDailyBasicsByDate")
+}
+
+// ===== 基本面因子接口实现 =====
+
+// GetFundamentalFactor 获取基本面因子数据
+// TODO: 实现Tushare基本面因子数据获取
+func (c *TushareClient) GetFundamentalFactor(symbol, tradeDate string) (*models.FundamentalFactor, error) {
+	panic("TODO: 实现Tushare基本面因子数据获取 - GetFundamentalFactor")
+}
+
+// GetFundamentalFactors 批量获取基本面因子数据
+// TODO: 实现Tushare批量基本面因子数据获取
+func (c *TushareClient) GetFundamentalFactors(symbol, startDate, endDate string) ([]models.FundamentalFactor, error) {
+	panic("TODO: 实现Tushare批量基本面因子数据获取 - GetFundamentalFactors")
+}
+
+// GetFundamentalFactorsByDate 根据交易日期获取所有股票的基本面因子
+// TODO: 实现Tushare按日期获取所有股票基本面因子
+func (c *TushareClient) GetFundamentalFactorsByDate(tradeDate string) ([]models.FundamentalFactor, error) {
+	panic("TODO: 实现Tushare按日期获取所有股票基本面因子 - GetFundamentalFactorsByDate")
+}

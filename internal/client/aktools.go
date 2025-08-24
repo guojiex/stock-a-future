@@ -466,3 +466,91 @@ func (c *AKToolsClient) TestConnection() error {
 	log.Printf("AKTools连接测试成功 - 获取到股票日线数据，共%d条", len(dailyData))
 	return nil
 }
+
+// ===== 基本面数据接口实现 =====
+
+// GetIncomeStatement 获取利润表数据
+// TODO: 实现AKTools利润表数据获取
+func (c *AKToolsClient) GetIncomeStatement(symbol, period, reportType string) (*models.IncomeStatement, error) {
+	panic("TODO: 实现AKTools利润表数据获取 - GetIncomeStatement")
+}
+
+// GetIncomeStatements 批量获取利润表数据
+// TODO: 实现AKTools批量利润表数据获取
+func (c *AKToolsClient) GetIncomeStatements(symbol, startPeriod, endPeriod, reportType string) ([]models.IncomeStatement, error) {
+	panic("TODO: 实现AKTools批量利润表数据获取 - GetIncomeStatements")
+}
+
+// GetBalanceSheet 获取资产负债表数据
+// TODO: 实现AKTools资产负债表数据获取
+func (c *AKToolsClient) GetBalanceSheet(symbol, period, reportType string) (*models.BalanceSheet, error) {
+	panic("TODO: 实现AKTools资产负债表数据获取 - GetBalanceSheet")
+}
+
+// GetBalanceSheets 批量获取资产负债表数据
+// TODO: 实现AKTools批量资产负债表数据获取
+func (c *AKToolsClient) GetBalanceSheets(symbol, startPeriod, endPeriod, reportType string) ([]models.BalanceSheet, error) {
+	panic("TODO: 实现AKTools批量资产负债表数据获取 - GetBalanceSheets")
+}
+
+// GetCashFlowStatement 获取现金流量表数据
+// TODO: 实现AKTools现金流量表数据获取
+func (c *AKToolsClient) GetCashFlowStatement(symbol, period, reportType string) (*models.CashFlowStatement, error) {
+	panic("TODO: 实现AKTools现金流量表数据获取 - GetCashFlowStatement")
+}
+
+// GetCashFlowStatements 批量获取现金流量表数据
+// TODO: 实现AKTools批量现金流量表数据获取
+func (c *AKToolsClient) GetCashFlowStatements(symbol, startPeriod, endPeriod, reportType string) ([]models.CashFlowStatement, error) {
+	panic("TODO: 实现AKTools批量现金流量表数据获取 - GetCashFlowStatements")
+}
+
+// GetFinancialIndicator 获取财务指标数据
+// TODO: 实现AKTools财务指标数据获取
+func (c *AKToolsClient) GetFinancialIndicator(symbol, period, reportType string) (*models.FinancialIndicator, error) {
+	panic("TODO: 实现AKTools财务指标数据获取 - GetFinancialIndicator")
+}
+
+// GetFinancialIndicators 批量获取财务指标数据
+// TODO: 实现AKTools批量财务指标数据获取
+func (c *AKToolsClient) GetFinancialIndicators(symbol, startPeriod, endPeriod, reportType string) ([]models.FinancialIndicator, error) {
+	panic("TODO: 实现AKTools批量财务指标数据获取 - GetFinancialIndicators")
+}
+
+// GetDailyBasic 获取每日基本面指标
+// TODO: 实现AKTools每日基本面指标获取
+func (c *AKToolsClient) GetDailyBasic(symbol, tradeDate string) (*models.DailyBasic, error) {
+	panic("TODO: 实现AKTools每日基本面指标获取 - GetDailyBasic")
+}
+
+// GetDailyBasics 批量获取每日基本面指标
+// TODO: 实现AKTools批量每日基本面指标获取
+func (c *AKToolsClient) GetDailyBasics(symbol, startDate, endDate string) ([]models.DailyBasic, error) {
+	panic("TODO: 实现AKTools批量每日基本面指标获取 - GetDailyBasics")
+}
+
+// GetDailyBasicsByDate 根据交易日期获取所有股票的每日基本面指标
+// TODO: 实现AKTools按日期获取所有股票每日基本面指标
+func (c *AKToolsClient) GetDailyBasicsByDate(tradeDate string) ([]models.DailyBasic, error) {
+	panic("TODO: 实现AKTools按日期获取所有股票每日基本面指标 - GetDailyBasicsByDate")
+}
+
+// ===== 基本面因子接口实现 =====
+
+// GetFundamentalFactor 获取基本面因子数据
+// TODO: 实现AKTools基本面因子数据获取
+func (c *AKToolsClient) GetFundamentalFactor(symbol, tradeDate string) (*models.FundamentalFactor, error) {
+	panic("TODO: 实现AKTools基本面因子数据获取 - GetFundamentalFactor")
+}
+
+// GetFundamentalFactors 批量获取基本面因子数据
+// TODO: 实现AKTools批量基本面因子数据获取
+func (c *AKToolsClient) GetFundamentalFactors(symbol, startDate, endDate string) ([]models.FundamentalFactor, error) {
+	panic("TODO: 实现AKTools批量基本面因子数据获取 - GetFundamentalFactors")
+}
+
+// GetFundamentalFactorsByDate 根据交易日期获取所有股票的基本面因子
+// TODO: 实现AKTools按日期获取所有股票基本面因子
+func (c *AKToolsClient) GetFundamentalFactorsByDate(tradeDate string) ([]models.FundamentalFactor, error) {
+	panic("TODO: 实现AKTools按日期获取所有股票基本面因子 - GetFundamentalFactorsByDate")
+}
