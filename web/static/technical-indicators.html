@@ -318,8 +318,8 @@
             <h3>主要特性</h3>
             <ul>
                 <li>✅ <strong>18种核心技术指标</strong>：MA、MACD、RSI、BOLL、KDJ、WR、Momentum、ROC、ADX、SAR、Ichimoku、ATR、StdDev、HV、VWAP、A/D Line、EMV、VPT</li>
-                <li>✅ <strong>6种蜡烛图模式识别</strong>：双响炮、红三兵、乌云盖顶等</li>
-                <li>✅ <strong>3种量价图形识别</strong>：量价齐升、量价背离、放量突破</li>
+                <li>✅ <strong>15种蜡烛图模式识别</strong>：双响炮、红三兵、乌云盖顶、十字星、吞没模式、射击之星等</li>
+                <li>✅ <strong>7种量价图形识别</strong>：量价齐升、量价背离、放量突破、地量地价、天量天价等</li>
                 <li>✅ <strong>智能信号强度评级</strong>：STRONG、MEDIUM、WEAK</li>
                 <li>✅ <strong>风险等级评估</strong>：LOW、MEDIUM、HIGH</li>
                 <li>✅ <strong>多指标综合分析</strong>：提高信号可靠性</li>
@@ -967,6 +967,121 @@
                             <li>第三根：大阴线（跌幅 > 2%）</li>
                         </ul>
                     </div>
+
+                    <div class="pattern-card">
+                        <h4>✨ 十字星 (Doji)</h4>
+                        <div class="pattern-signal neutral" style="background: #f5f5f5; color: #495057;">观望信号</div>
+                        <p><strong>描述：</strong>开盘价和收盘价几乎相等，上下影线较长</p>
+                        <p><strong>识别条件：</strong></p>
+                        <ul>
+                            <li>实体很小（< 价格范围的5%）</li>
+                            <li>上下影线相对较长</li>
+                        </ul>
+                        <p><strong>意义：</strong>市场犹豫不决，可能变盘信号</p>
+                    </div>
+
+                    <div class="pattern-card">
+                        <h4>🌊 吞没模式 (Engulfing)</h4>
+                        <div class="pattern-signal buy">买入/卖出信号</div>
+                        <p><strong>描述：</strong>当前K线的实体完全包含前一根K线的实体</p>
+                        <p><strong>识别条件：</strong></p>
+                        <ul>
+                            <li>两根K线颜色相反</li>
+                            <li>当前K线实体完全吞没前一根</li>
+                            <li>当前实体大于前一根实体</li>
+                        </ul>
+                        <p><strong>类型：</strong>看涨吞没（买入）、看跌吞没（卖出）</p>
+                    </div>
+
+                    <div class="pattern-card">
+                        <h4>⭐ 射击之星 (Shooting Star)</h4>
+                        <div class="pattern-signal sell">卖出信号</div>
+                        <p><strong>描述：</strong>上影线很长，实体较小，下影线很短</p>
+                        <p><strong>识别条件：</strong></p>
+                        <ul>
+                            <li>上影线长度 > 实体长度的2倍</li>
+                            <li>下影线长度 ≤ 实体长度的0.5倍</li>
+                            <li>通常出现在上涨趋势末端</li>
+                        </ul>
+                        <p><strong>意义：</strong>可能见顶信号</p>
+                    </div>
+
+                    <div class="pattern-card">
+                        <h4>🔨 倒锤子线 (Inverted Hammer)</h4>
+                        <div class="pattern-signal buy">买入信号</div>
+                        <p><strong>描述：</strong>上影线很长，实体较小，下影线很短</p>
+                        <p><strong>识别条件：</strong></p>
+                        <ul>
+                            <li>上影线长度 > 实体长度的2倍</li>
+                            <li>下影线长度 ≤ 实体长度的0.5倍</li>
+                            <li>通常出现在下跌趋势末端</li>
+                        </ul>
+                        <p><strong>意义：</strong>可能见底反转信号</p>
+                    </div>
+
+                    <div class="pattern-card">
+                        <h4>🎯 纺锤线 (Spinning Top)</h4>
+                        <div class="pattern-signal neutral" style="background: #f5f5f5; color: #495057;">观望信号</div>
+                        <p><strong>描述：</strong>实体很小，上下影线都较长</p>
+                        <p><strong>识别条件：</strong></p>
+                        <ul>
+                            <li>实体 < 价格范围的30%</li>
+                            <li>上下影线都大于实体长度</li>
+                        </ul>
+                        <p><strong>意义：</strong>市场犹豫不决，观望为主</p>
+                    </div>
+
+                    <div class="pattern-card">
+                        <h4>🦅 三只乌鸦 (Three Black Crows)</h4>
+                        <div class="pattern-signal sell">卖出信号</div>
+                        <p><strong>描述：</strong>连续三根阴线，每根都在前一根实体内开盘</p>
+                        <p><strong>识别条件：</strong></p>
+                        <ul>
+                            <li>三根K线都是阴线</li>
+                            <li>收盘价逐渐走低</li>
+                            <li>平均跌幅 > 1.5%</li>
+                        </ul>
+                        <p><strong>意义：</strong>强烈下跌信号</p>
+                    </div>
+
+                    <div class="pattern-card">
+                        <h4>🤱 孕育线 (Harami)</h4>
+                        <div class="pattern-signal buy">买入/卖出信号</div>
+                        <p><strong>描述：</strong>当前K线实体完全包含在前一根K线实体内</p>
+                        <p><strong>识别条件：</strong></p>
+                        <ul>
+                            <li>两根K线颜色相反</li>
+                            <li>当前K线在前一根实体内</li>
+                            <li>当前实体小于前一根实体</li>
+                        </ul>
+                        <p><strong>类型：</strong>看涨孕育线（买入）、看跌孕育线（卖出）</p>
+                    </div>
+
+                    <div class="pattern-card">
+                        <h4>📐 三角形突破 (Triangle Breakout)</h4>
+                        <div class="pattern-signal buy">买入/卖出信号</div>
+                        <p><strong>描述：</strong>价格在收敛三角形后突破</p>
+                        <p><strong>识别条件：</strong></p>
+                        <ul>
+                            <li>波动范围明显放大</li>
+                            <li>突破近期高低点</li>
+                            <li>需要足够的历史数据支持</li>
+                        </ul>
+                        <p><strong>类型：</strong>向上突破（买入）、向下突破（卖出）</p>
+                    </div>
+
+                    <div class="pattern-card">
+                        <h4>👤 头肩顶 (Head and Shoulders)</h4>
+                        <div class="pattern-signal sell">卖出信号</div>
+                        <p><strong>描述：</strong>三个相对高点，中间最高，两肩高度相近</p>
+                        <p><strong>识别条件：</strong></p>
+                        <ul>
+                            <li>识别三个高点形成头肩形态</li>
+                            <li>头部比两肩高</li>
+                            <li>价格跌破颈线</li>
+                        </ul>
+                        <p><strong>意义：</strong>经典反转形态，强烈看跌信号</p>
+                    </div>
                 </div>
             </div>
 
@@ -1004,6 +1119,54 @@
                             <li>价格突破20日均线</li>
                             <li>成交量是20日平均成交量的2倍以上</li>
                         </ul>
+                    </div>
+
+                    <div class="pattern-card">
+                        <h4>🏔️ 地量地价</h4>
+                        <div class="pattern-signal buy">买入信号</div>
+                        <p><strong>描述：</strong>成交量和价格都处于相对低位</p>
+                        <p><strong>识别条件：</strong></p>
+                        <ul>
+                            <li>成交量 < 20日均量的50%</li>
+                            <li>价格 < 20日均价的95%</li>
+                        </ul>
+                        <p><strong>意义：</strong>可能是底部信号，抄底机会</p>
+                    </div>
+
+                    <div class="pattern-card">
+                        <h4>🌋 天量天价</h4>
+                        <div class="pattern-signal sell">卖出信号</div>
+                        <p><strong>描述：</strong>成交量和价格都处于相对高位</p>
+                        <p><strong>识别条件：</strong></p>
+                        <ul>
+                            <li>成交量 > 20日均量的200%</li>
+                            <li>价格 > 20日最高价的95%</li>
+                        </ul>
+                        <p><strong>意义：</strong>可能是顶部信号，获利了结</p>
+                    </div>
+
+                    <div class="pattern-card">
+                        <h4>📉 缩量上涨</h4>
+                        <div class="pattern-signal neutral" style="background: #fff3cd; color: #856404;">谨慎信号</div>
+                        <p><strong>描述：</strong>价格上涨但成交量减少</p>
+                        <p><strong>识别条件：</strong></p>
+                        <ul>
+                            <li>价格上涨 > 1%</li>
+                            <li>成交量下降 > 10%</li>
+                        </ul>
+                        <p><strong>意义：</strong>上涨可能乏力，需要谨慎</p>
+                    </div>
+
+                    <div class="pattern-card">
+                        <h4>💔 放量下跌</h4>
+                        <div class="pattern-signal sell">卖出信号</div>
+                        <p><strong>描述：</strong>价格下跌且成交量增加</p>
+                        <p><strong>识别条件：</strong></p>
+                        <ul>
+                            <li>价格下跌 > 1%</li>
+                            <li>成交量增加 > 20%</li>
+                        </ul>
+                        <p><strong>意义：</strong>恐慌性抛售，强烈看空</p>
                     </div>
                 </div>
             </div>
@@ -1056,24 +1219,42 @@
 
                 <h3>获取图形模式识别结果</h3>
                 <div class="api-endpoint">
-                    GET /api/pattern/recognize/{stock_code}?start_date={start}&end_date={end}
+                    GET /api/patterns/recognize?ts_code={stock_code}&start_date={start}&end_date={end}
                 </div>
-                <p>获取指定股票的图形模式识别结果。</p>
+                <p>获取指定股票的图形模式识别结果，包括15种蜡烛图模式和7种量价模式。</p>
+
+                <h3>获取可用模式列表</h3>
+                <div class="api-endpoint">
+                    GET /api/patterns/available
+                </div>
+                <p>获取系统支持的所有图形模式列表和描述。</p>
 
                 <h3>搜索特定图形模式</h3>
                 <div class="api-endpoint">
-                    POST /api/pattern/search
+                    POST /api/patterns/search
                 </div>
                 <div class="formula">
 {
   "ts_code": "000001.SZ",
   "start_date": "20240101",
   "end_date": "20241231",
-  "patterns": ["双响炮", "红三兵"],
+  "patterns": ["十字星", "吞没模式", "地量地价"],
   "min_confidence": 70
 }
                 </div>
-                <p>搜索符合条件的图形模式。</p>
+                <p>搜索符合条件的图形模式，支持按模式类型和置信度筛选。</p>
+
+                <h3>获取模式统计信息</h3>
+                <div class="api-endpoint">
+                    GET /api/patterns/statistics?ts_code={stock_code}&start_date={start}&end_date={end}
+                </div>
+                <p>获取指定时间段内的模式统计信息，包括各种模式的出现频率和信号分布。</p>
+
+                <h3>获取最近信号</h3>
+                <div class="api-endpoint">
+                    GET /api/patterns/recent?ts_code={stock_code}&limit={limit}
+                </div>
+                <p>获取最近的图形信号，按时间倒序排列。</p>
             </div>
         </div>
 
@@ -1109,9 +1290,25 @@
 
         <!-- 版本信息 -->
         <div class="indicator-section">
-            <p style="text-align: center; color: #6c757d; font-style: italic;">
-                本文档基于 Stock-A-Future v1.0 系统编写，技术指标的具体实现可能会随版本更新而调整。
-            </p>
+            <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 8px; margin-top: 30px;">
+                <h3 style="color: #495057; margin-bottom: 15px;">🚀 版本更新</h3>
+                <p style="color: #6c757d; margin-bottom: 10px;">
+                    <strong>Stock-A-Future v2.1.0</strong> - 2024年12月28日更新
+                </p>
+                <div style="background: white; border-radius: 6px; padding: 15px; margin: 10px 0;">
+                    <h4 style="color: #28a745; margin: 0 0 10px 0;">✨ 新增功能</h4>
+                    <ul style="text-align: left; margin: 0; padding-left: 20px; color: #495057;">
+                        <li>新增9种蜡烛图模式识别：十字星、吞没模式、射击之星、倒锤子线、纺锤线、三只乌鸦、孕育线、三角形突破、头肩顶</li>
+                        <li>新增4种量价模式识别：地量地价、天量天价、缩量上涨、放量下跌</li>
+                        <li>优化模式识别算法，提高识别准确性和稳定性</li>
+                        <li>增强API接口，支持模式搜索、统计和最近信号查询</li>
+                        <li>完善测试覆盖，包括模糊测试和基准测试</li>
+                    </ul>
+                </div>
+                <p style="color: #6c757d; font-style: italic; margin: 10px 0 0 0;">
+                    技术指标的具体实现可能会随版本更新而调整，请以最新版本为准。
+                </p>
+            </div>
         </div>
     </div>
 

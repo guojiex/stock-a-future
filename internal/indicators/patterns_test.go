@@ -363,3 +363,276 @@ func TestPatternRecognizer_RecognizeDoubleCannon_603093(t *testing.T) {
 		t.Log("✅ 成功识别出双响炮模式")
 	}
 }
+
+// TestPatternRecognizer_RecognizeDoji 测试十字星模式识别
+func TestPatternRecognizer_RecognizeDoji(t *testing.T) {
+	recognizer := NewPatternRecognizer()
+
+	// 创建测试数据：十字星模式
+	data := []models.StockDaily{
+		{
+			TSCode:    "000001.SZ",
+			TradeDate: "20240101",
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(10.0)),
+			High:      models.NewJSONDecimal(decimal.NewFromFloat(10.5)),
+			Low:       models.NewJSONDecimal(decimal.NewFromFloat(9.5)),
+			Close:     models.NewJSONDecimal(decimal.NewFromFloat(10.02)), // 几乎等于开盘价
+			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(1000)),
+		},
+	}
+
+	patterns := recognizer.RecognizeAllPatterns(data)
+	found := false
+	for _, pattern := range patterns {
+		for _, candlestick := range pattern.Candlestick {
+			if candlestick.Pattern == "十字星" {
+				found = true
+				if candlestick.Signal != "HOLD" {
+					t.Errorf("十字星应该是观望信号，实际是: %s", candlestick.Signal)
+				}
+				break
+			}
+		}
+	}
+
+	if !found {
+		t.Error("未找到十字星模式")
+	}
+}
+
+// TestPatternRecognizer_RecognizeEngulfing 测试吞没模式识别
+func TestPatternRecognizer_RecognizeEngulfing(t *testing.T) {
+	recognizer := NewPatternRecognizer()
+
+	// 创建测试数据：看涨吞没模式
+	data := []models.StockDaily{
+		{
+			TSCode:    "000001.SZ",
+			TradeDate: "20240101",
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(10.5)),
+			High:      models.NewJSONDecimal(decimal.NewFromFloat(10.6)),
+			Low:       models.NewJSONDecimal(decimal.NewFromFloat(10.0)),
+			Close:     models.NewJSONDecimal(decimal.NewFromFloat(10.1)), // 小阴线
+			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(1000)),
+		},
+		{
+			TSCode:    "000001.SZ",
+			TradeDate: "20240102",
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(9.9)),  // 低开
+			High:      models.NewJSONDecimal(decimal.NewFromFloat(11.0)),
+			Low:       models.NewJSONDecimal(decimal.NewFromFloat(9.8)),
+			Close:     models.NewJSONDecimal(decimal.NewFromFloat(10.8)), // 大阳线，吞没前一根
+			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(1500)),
+		},
+	}
+
+	patterns := recognizer.RecognizeAllPatterns(data)
+	found := false
+	for _, pattern := range patterns {
+		for _, candlestick := range pattern.Candlestick {
+			if candlestick.Pattern == "吞没模式" {
+				found = true
+				if candlestick.Signal != "BUY" {
+					t.Errorf("看涨吞没应该是买入信号，实际是: %s", candlestick.Signal)
+				}
+				break
+			}
+		}
+	}
+
+	if !found {
+		t.Error("未找到吞没模式")
+	}
+}
+
+// TestPatternRecognizer_RecognizeShootingStar 测试射击之星模式识别
+func TestPatternRecognizer_RecognizeShootingStar(t *testing.T) {
+	recognizer := NewPatternRecognizer()
+
+	// 创建测试数据：射击之星模式
+	data := []models.StockDaily{
+		{
+			TSCode:    "000001.SZ",
+			TradeDate: "20240101",
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(10.0)),
+			High:      models.NewJSONDecimal(decimal.NewFromFloat(11.0)), // 很长的上影线
+			Low:       models.NewJSONDecimal(decimal.NewFromFloat(9.95)), // 很短的下影线
+			Close:     models.NewJSONDecimal(decimal.NewFromFloat(10.1)), // 小实体
+			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(1000)),
+		},
+	}
+
+	patterns := recognizer.RecognizeAllPatterns(data)
+	found := false
+	for _, pattern := range patterns {
+		for _, candlestick := range pattern.Candlestick {
+			if candlestick.Pattern == "射击之星" {
+				found = true
+				if candlestick.Signal != "SELL" {
+					t.Errorf("射击之星应该是卖出信号，实际是: %s", candlestick.Signal)
+				}
+				break
+			}
+		}
+	}
+
+	if !found {
+		t.Error("未找到射击之星模式")
+	}
+}
+
+// TestPatternRecognizer_RecognizeThreeBlackCrows 测试三只乌鸦模式识别
+func TestPatternRecognizer_RecognizeThreeBlackCrows(t *testing.T) {
+	recognizer := NewPatternRecognizer()
+
+	// 创建测试数据：三只乌鸦模式
+	data := []models.StockDaily{
+		{
+			TSCode:    "000001.SZ",
+			TradeDate: "20240101",
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(11.0)),
+			High:      models.NewJSONDecimal(decimal.NewFromFloat(11.1)),
+			Low:       models.NewJSONDecimal(decimal.NewFromFloat(10.5)),
+			Close:     models.NewJSONDecimal(decimal.NewFromFloat(10.6)), // 第一根阴线
+			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(1000)),
+		},
+		{
+			TSCode:    "000001.SZ",
+			TradeDate: "20240102",
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(10.8)), // 在前一根实体内开盘
+			High:      models.NewJSONDecimal(decimal.NewFromFloat(10.9)),
+			Low:       models.NewJSONDecimal(decimal.NewFromFloat(10.0)),
+			Close:     models.NewJSONDecimal(decimal.NewFromFloat(10.1)), // 第二根阴线，收盘更低
+			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(1200)),
+		},
+		{
+			TSCode:    "000001.SZ",
+			TradeDate: "20240103",
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(10.3)), // 在前一根实体内开盘
+			High:      models.NewJSONDecimal(decimal.NewFromFloat(10.4)),
+			Low:       models.NewJSONDecimal(decimal.NewFromFloat(9.5)),
+			Close:     models.NewJSONDecimal(decimal.NewFromFloat(9.6)), // 第三根阴线，收盘再低
+			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(1500)),
+		},
+	}
+
+	patterns := recognizer.RecognizeAllPatterns(data)
+	found := false
+	for _, pattern := range patterns {
+		for _, candlestick := range pattern.Candlestick {
+			if candlestick.Pattern == "三只乌鸦" {
+				found = true
+				if candlestick.Signal != "SELL" {
+					t.Errorf("三只乌鸦应该是卖出信号，实际是: %s", candlestick.Signal)
+				}
+				break
+			}
+		}
+	}
+
+	if !found {
+		t.Error("未找到三只乌鸦模式")
+	}
+}
+
+// TestPatternRecognizer_RecognizeLowVolumePrice 测试地量地价模式识别
+func TestPatternRecognizer_RecognizeLowVolumePrice(t *testing.T) {
+	recognizer := NewPatternRecognizer()
+
+	// 创建测试数据：地量地价模式
+	// 需要至少20天的历史数据
+	data := make([]models.StockDaily, 21)
+	
+	// 填充前20天的数据（作为基准）
+	for i := 0; i < 20; i++ {
+		data[i] = models.StockDaily{
+			TSCode:    "000001.SZ",
+			TradeDate: "2024010" + string(rune('1'+i%10)),
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(10.0)),
+			High:      models.NewJSONDecimal(decimal.NewFromFloat(10.5)),
+			Low:       models.NewJSONDecimal(decimal.NewFromFloat(9.5)),
+			Close:     models.NewJSONDecimal(decimal.NewFromFloat(10.0)),
+			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(2000)), // 平均成交量
+		}
+	}
+	
+	// 最后一天：地量地价
+	data[20] = models.StockDaily{
+		TSCode:    "000001.SZ",
+		TradeDate: "20240121",
+		Open:      models.NewJSONDecimal(decimal.NewFromFloat(9.0)),
+		High:      models.NewJSONDecimal(decimal.NewFromFloat(9.2)),
+		Low:       models.NewJSONDecimal(decimal.NewFromFloat(8.8)),
+		Close:     models.NewJSONDecimal(decimal.NewFromFloat(9.0)), // 价格低于平均价格的95%
+		Vol:       models.NewJSONDecimal(decimal.NewFromFloat(800)), // 成交量低于平均的50%
+	}
+
+	patterns := recognizer.RecognizeAllPatterns(data)
+	found := false
+	for _, pattern := range patterns {
+		for _, volumePrice := range pattern.VolumePrice {
+			if volumePrice.Pattern == "地量地价" {
+				found = true
+				if volumePrice.Signal != "BUY" {
+					t.Errorf("地量地价应该是买入信号，实际是: %s", volumePrice.Signal)
+				}
+				break
+			}
+		}
+	}
+
+	if !found {
+		t.Error("未找到地量地价模式")
+	}
+}
+
+// TestPatternRecognizer_RecognizeHighVolumePrice 测试天量天价模式识别
+func TestPatternRecognizer_RecognizeHighVolumePrice(t *testing.T) {
+	recognizer := NewPatternRecognizer()
+
+	// 创建测试数据：天量天价模式
+	// 需要至少20天的历史数据
+	data := make([]models.StockDaily, 21)
+	
+	// 填充前20天的数据（作为基准）
+	for i := 0; i < 20; i++ {
+		data[i] = models.StockDaily{
+			TSCode:    "000001.SZ",
+			TradeDate: "2024010" + string(rune('1'+i%10)),
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(10.0)),
+			High:      models.NewJSONDecimal(decimal.NewFromFloat(10.5)),
+			Low:       models.NewJSONDecimal(decimal.NewFromFloat(9.5)),
+			Close:     models.NewJSONDecimal(decimal.NewFromFloat(10.0)),
+			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(1000)), // 平均成交量
+		}
+	}
+	
+	// 最后一天：天量天价
+	data[20] = models.StockDaily{
+		TSCode:    "000001.SZ",
+		TradeDate: "20240121",
+		Open:      models.NewJSONDecimal(decimal.NewFromFloat(10.4)),
+		High:      models.NewJSONDecimal(decimal.NewFromFloat(11.0)),
+		Low:       models.NewJSONDecimal(decimal.NewFromFloat(10.3)),
+		Close:     models.NewJSONDecimal(decimal.NewFromFloat(10.8)), // 价格接近最高价的95%以上
+		Vol:       models.NewJSONDecimal(decimal.NewFromFloat(3000)), // 成交量是平均的3倍
+	}
+
+	patterns := recognizer.RecognizeAllPatterns(data)
+	found := false
+	for _, pattern := range patterns {
+		for _, volumePrice := range pattern.VolumePrice {
+			if volumePrice.Pattern == "天量天价" {
+				found = true
+				if volumePrice.Signal != "SELL" {
+					t.Errorf("天量天价应该是卖出信号，实际是: %s", volumePrice.Signal)
+				}
+				break
+			}
+		}
+	}
+
+	if !found {
+		t.Error("未找到天量天价模式")
+	}
+}
