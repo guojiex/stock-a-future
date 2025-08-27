@@ -908,46 +908,41 @@ func (h *StockHandler) GetFavoritesSignals(w http.ResponseWriter, r *http.Reques
 	// 获取计算状态
 	calcStatus := signalService.GetCalculationStatus()
 
-	// 批量获取信号数据
+	// 获取最近一天有更新的买卖信号的股票
+	recentSignals, err := signalService.GetRecentUpdatedSignals(100) // 获取足够多的信号用于过滤
+	if err != nil {
+		log.Printf("获取最近更新的信号失败: %v", err)
+		h.writeErrorResponse(w, http.StatusInternalServerError, "获取信号数据失败")
+		return
+	}
+
+	// 创建收藏股票代码集合，用于快速查找
+	favoriteCodesMap := make(map[string]*models.FavoriteStock)
+	for _, favorite := range favorites {
+		favoriteCodesMap[favorite.TSCode] = favorite
+	}
+
+	// 过滤出收藏股票中有最近更新买卖信号的股票
 	var signals []models.FavoriteSignal
-	today := time.Now().Format("20060102")
+	addedStocks := make(map[string]bool) // 避免重复添加同一股票
 
 	// 如果当前正在计算中，显示计算状态
 	if calcStatus.IsCalculating {
 		log.Printf("信号正在计算中，已完成: %d/%d", calcStatus.Completed, calcStatus.Total)
 	}
 
-	for _, favorite := range favorites {
-		// 从数据库获取已计算好的信号（不触发计算）
-		stockSignal, err := signalService.GetSignal(favorite.TSCode, today)
-
-		// 如果没有找到信号，获取最新的股票数据用于显示基本信息
-		if err != nil {
-			stockData, err := h.dataSourceClient.GetDailyData(favorite.TSCode, "", "", "")
-			if err != nil || len(stockData) == 0 {
-				continue
-			}
-
-			// 构建简单信号（只有基本信息，没有预测）
-			signal := models.FavoriteSignal{
-				ID:           favorite.ID,
-				TSCode:       favorite.TSCode,
-				Name:         favorite.Name,
-				GroupID:      favorite.GroupID,
-				CurrentPrice: stockData[len(stockData)-1].Close.Decimal.String(),
-				TradeDate:    stockData[len(stockData)-1].TradeDate,
-				Indicators: models.SimpleIndicator{
-					MA5: "N/A", MA10: "N/A", MA20: "N/A",
-					CurrentPrice: stockData[len(stockData)-1].Close.Decimal.String(),
-					Trend:        "UNKNOWN",
-					LastUpdate:   "未计算",
-				},
-				Predictions: getCalculationMessage(calcStatus),
-				UpdatedAt:   getCalculationStatus(calcStatus),
-			}
-			signals = append(signals, signal)
+	for _, stockSignal := range recentSignals {
+		// 检查是否是收藏的股票
+		favorite, isFavorite := favoriteCodesMap[stockSignal.TSCode]
+		if !isFavorite {
 			continue
 		}
+
+		// 避免重复添加同一股票（可能有多个信号）
+		if addedStocks[stockSignal.TSCode] {
+			continue
+		}
+		addedStocks[stockSignal.TSCode] = true
 
 		// 从已计算的信号构建响应
 		indicators := h.buildIndicatorsFromSignal(stockSignal)

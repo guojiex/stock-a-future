@@ -734,3 +734,93 @@ func (s *SignalService) GetLatestSignals(limit int) ([]*models.StockSignal, erro
 
 	return signals, nil
 }
+
+// GetRecentUpdatedSignals 获取最近一天有更新的买卖信号的股票
+func (s *SignalService) GetRecentUpdatedSignals(limit int) ([]*models.StockSignal, error) {
+	// 获取最新的信号计算日期（优先今天，如果今天没有则取昨天）
+	today := time.Now().Format("20060102")
+
+	// 首先检查今天是否有信号
+	var latestSignalDate string
+	checkQuery := `
+		SELECT signal_date FROM stock_signals 
+		WHERE signal_date = ? AND signal_type IN ('BUY', 'SELL')
+		LIMIT 1
+	`
+
+	err := s.db.GetDB().QueryRow(checkQuery, today).Scan(&latestSignalDate)
+	if err != nil {
+		// 今天没有信号，检查昨天
+		yesterday := time.Now().AddDate(0, 0, -1).Format("20060102")
+		err = s.db.GetDB().QueryRow(checkQuery, yesterday).Scan(&latestSignalDate)
+		if err != nil {
+			// 最近两天都没有买卖信号
+			return []*models.StockSignal{}, nil
+		}
+		latestSignalDate = yesterday
+	} else {
+		latestSignalDate = today
+	}
+
+	// 获取最新信号日期的所有买卖信号
+	query := `
+		SELECT id, ts_code, name, trade_date, signal_date, signal_type, signal_strength,
+		       confidence, patterns, technical_indicators, predictions, description,
+		       created_at, updated_at
+		FROM stock_signals 
+		WHERE signal_date = ?
+		  AND signal_type IN ('BUY', 'SELL')
+		ORDER BY signal_strength DESC, confidence DESC, updated_at DESC
+		LIMIT ?
+	`
+
+	rows, err := s.db.GetDB().Query(query, latestSignalDate, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var signals []*models.StockSignal
+	for rows.Next() {
+		var signal models.StockSignal
+		var patternsJSON, indicatorsJSON, predictionsJSON string
+		var confidence float64
+
+		err := rows.Scan(
+			&signal.ID,
+			&signal.TSCode,
+			&signal.Name,
+			&signal.TradeDate,
+			&signal.SignalDate,
+			&signal.SignalType,
+			&signal.SignalStrength,
+			&confidence,
+			&patternsJSON,
+			&indicatorsJSON,
+			&predictionsJSON,
+			&signal.Description,
+			&signal.CreatedAt,
+			&signal.UpdatedAt,
+		)
+		if err != nil {
+			continue
+		}
+
+		signal.Confidence = models.NewJSONDecimal(decimal.NewFromFloat(confidence))
+
+		// 反序列化复杂字段
+		if patternsJSON != "" {
+			json.Unmarshal([]byte(patternsJSON), &signal.Patterns)
+		}
+		if indicatorsJSON != "" {
+			json.Unmarshal([]byte(indicatorsJSON), &signal.TechnicalIndicators)
+		}
+		if predictionsJSON != "" {
+			json.Unmarshal([]byte(predictionsJSON), &signal.Predictions)
+		}
+
+		signals = append(signals, &signal)
+	}
+
+	return signals, nil
+}
