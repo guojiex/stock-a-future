@@ -75,6 +75,7 @@
                             <button id="queryDaily" class="btn btn-primary">📈 获取日线数据</button>
                             <button id="queryIndicators" class="btn btn-secondary">📊 技术指标</button>
                             <button id="queryPredictions" class="btn btn-accent">🎯 买卖预测</button>
+                            <button id="queryFundamental" class="btn btn-info">💰 基本面数据</button>
                         </div>
                     </div>
                 </div>
@@ -101,6 +102,10 @@
                                 <span class="tab-icon">🎯</span>
                                 <span class="tab-text">买卖预测</span>
                             </button>
+                            <button class="tab-btn" data-tab="fundamental">
+                                <span class="tab-icon">💰</span>
+                                <span class="tab-text">基本面</span>
+                            </button>
                         </div>
 
                         <!-- Tab内容区域 -->
@@ -121,6 +126,122 @@
                             <!-- 买卖预测tab -->
                             <div class="tab-pane" id="predictions-tab">
                                 <div class="predictions-container" id="predictionsContainer"></div>
+                            </div>
+
+                            <!-- 基本面数据tab -->
+                            <div class="tab-pane" id="fundamental-tab">
+                                <div class="fundamental-container">
+                                    <!-- 基本面数据加载状态 -->
+                                    <div id="fundamentalLoading" class="loading-state" style="display: none;">
+                                        <div class="loading-spinner"></div>
+                                        <p>正在加载基本面数据...</p>
+                                    </div>
+
+                                    <!-- 基本面数据控制面板 -->
+                                    <div class="fundamental-controls" id="fundamentalControls">
+                                        <div class="control-group">
+                                            <label for="reportPeriod">报告期</label>
+                                            <select id="reportPeriod" class="form-select">
+                                                <option value="">最新报告期</option>
+                                                <option value="2024-09-30">2024年三季报</option>
+                                                <option value="2024-06-30">2024年半年报</option>
+                                                <option value="2024-03-31">2024年一季报</option>
+                                                <option value="2023-12-31">2023年年报</option>
+                                                <option value="2023-09-30">2023年三季报</option>
+                                                <option value="2023-06-30">2023年半年报</option>
+                                                <option value="2023-03-31">2023年一季报</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="control-group">
+                                            <label for="reportType">报告类型</label>
+                                            <select id="reportType" class="form-select">
+                                                <option value="">自动判断</option>
+                                                <option value="A">年报</option>
+                                                <option value="S">半年报</option>
+                                                <option value="Q1">一季报</option>
+                                                <option value="Q3">三季报</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <button id="loadFundamentalBtn" class="btn btn-primary">📊 加载基本面数据</button>
+                                    </div>
+
+                                    <!-- 基本面数据展示区域 -->
+                                    <div class="fundamental-data" id="fundamentalData" style="display: none;">
+                                        <!-- 股票基本信息 -->
+                                        <div class="fundamental-section">
+                                            <h4 class="section-title">📋 股票基本信息</h4>
+                                            <div id="stockBasicInfo" class="info-grid"></div>
+                                        </div>
+
+                                        <!-- 每日基本面指标 -->
+                                        <div class="fundamental-section">
+                                            <h4 class="section-title">📊 每日基本面指标</h4>
+                                            <div id="dailyBasicInfo" class="info-grid"></div>
+                                        </div>
+
+                                        <!-- 利润表 -->
+                                        <div class="fundamental-section">
+                                            <h4 class="section-title">💰 利润表</h4>
+                                            <div id="incomeStatementInfo" class="table-container">
+                                                <div class="table-wrapper">
+                                                    <table id="incomeStatementTable" class="fundamental-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>项目</th>
+                                                                <th>金额(万元)</th>
+                                                                <th>说明</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody></tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 资产负债表 -->
+                                        <div class="fundamental-section">
+                                            <h4 class="section-title">🏦 资产负债表</h4>
+                                            <div id="balanceSheetInfo" class="table-container">
+                                                <div class="table-wrapper">
+                                                    <table id="balanceSheetTable" class="fundamental-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>项目</th>
+                                                                <th>金额(万元)</th>
+                                                                <th>说明</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody></tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 现金流量表 -->
+                                        <div class="fundamental-section">
+                                            <h4 class="section-title">💸 现金流量表</h4>
+                                            <div id="cashFlowInfo" class="table-container">
+                                                <div class="table-wrapper">
+                                                    <table id="cashFlowTable" class="fundamental-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>项目</th>
+                                                                <th>金额(万元)</th>
+                                                                <th>说明</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody></tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 基本面数据错误信息 -->
+                                    <div id="fundamentalError" class="error-message" style="display: none;"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -220,6 +341,7 @@
     <script src="js/modules/config.js"></script>
     <script src="js/modules/display.js"></script>
     <script src="js/modules/dateShortcuts.js"></script>
+    <script src="js/modules/fundamental.js"></script>
     <script src="js/modules/events.js"></script>
     
     <!-- 工具函数 -->

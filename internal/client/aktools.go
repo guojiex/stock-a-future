@@ -222,7 +222,7 @@ func (c *AKToolsClient) GetStockBasic(symbol string) (*models.StockBasic, error)
 	params.Set("symbol", cleanSymbol)
 
 	// 构建完整URL - 使用股票基本信息API
-	apiURL := fmt.Sprintf("%s/api/public/stock_zh_a_info?%s", c.baseURL, params.Encode())
+	apiURL := fmt.Sprintf("%s/api/public/stock_individual_info_em?%s", c.baseURL, params.Encode())
 
 	// 创建带context的请求
 	ctx := context.Background()
@@ -252,18 +252,28 @@ func (c *AKToolsClient) GetStockBasic(symbol string) (*models.StockBasic, error)
 		return nil, fmt.Errorf("读取响应体失败: %w", err)
 	}
 
-	// 解析JSON响应
-	var aktoolsResp []AKToolsStockBasicResponse
-	if err := json.Unmarshal(body, &aktoolsResp); err != nil {
+	// 解析JSON响应 - stock_individual_info_em返回的是key-value对数组格式
+	var rawResp []map[string]interface{}
+	if err := json.Unmarshal(body, &rawResp); err != nil {
 		return nil, fmt.Errorf("解析AKTools股票信息响应失败: %w", err)
 	}
 
-	if len(aktoolsResp) == 0 {
+	if len(rawResp) == 0 {
 		return nil, fmt.Errorf("未找到股票基本信息: %s", symbol)
 	}
 
+	// 将key-value对数组转换为map
+	stockData := make(map[string]interface{})
+	for _, item := range rawResp {
+		if itemKey, ok := item["item"].(string); ok {
+			if itemValue, exists := item["value"]; exists {
+				stockData[itemKey] = itemValue
+			}
+		}
+	}
+
 	// 转换为内部模型
-	return c.convertToStockBasic(aktoolsResp[0], symbol), nil
+	return c.convertStockIndividualInfoToStockBasic(stockData, symbol), nil
 }
 
 // GetStockList 获取股票列表
@@ -382,6 +392,45 @@ func (c *AKToolsClient) convertToStockBasic(aktoolsData AKToolsStockBasicRespons
 		Market:   aktoolsData.Market,
 		ListDate: aktoolsData.ListDate,
 	}
+}
+
+// convertStockIndividualInfoToStockBasic 将stock_individual_info_em的响应转换为内部模型
+func (c *AKToolsClient) convertStockIndividualInfoToStockBasic(stockData map[string]interface{}, symbol string) *models.StockBasic {
+	// 智能判断市场后缀
+	tsCode := c.DetermineTSCode(symbol)
+
+	stockBasic := &models.StockBasic{
+		TSCode: tsCode,
+	}
+
+	// 从stockData中提取字段
+	if code, ok := stockData["股票代码"].(string); ok {
+		stockBasic.Symbol = code
+	}
+	if name, ok := stockData["股票简称"].(string); ok {
+		stockBasic.Name = name
+	}
+	// stock_individual_info_em 不提供地区信息，设为空
+	stockBasic.Area = ""
+
+	// stock_individual_info_em 不提供行业信息，设为空
+	stockBasic.Industry = ""
+
+	// stock_individual_info_em 不提供市场信息，根据股票代码判断
+	if strings.HasPrefix(stockBasic.Symbol, "60") || strings.HasPrefix(stockBasic.Symbol, "68") {
+		stockBasic.Market = "上海主板"
+	} else if strings.HasPrefix(stockBasic.Symbol, "00") {
+		stockBasic.Market = "深圳主板"
+	} else if strings.HasPrefix(stockBasic.Symbol, "30") {
+		stockBasic.Market = "创业板"
+	} else {
+		stockBasic.Market = "未知"
+	}
+
+	// stock_individual_info_em 不提供上市日期，设为空
+	stockBasic.ListDate = ""
+
+	return stockBasic
 }
 
 // GetBaseURL 获取AKTools API基础URL

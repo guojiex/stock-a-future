@@ -351,6 +351,237 @@ class ApiService {
     }
 
     /**
+     * 获取综合基本面数据
+     */
+    async getFundamentalData(stockCode, period = '', reportType = '', tradeDate = '') {
+        let endpoint = `/api/v1/stocks/${stockCode}/fundamental`;
+        const params = new URLSearchParams();
+        
+        if (period) params.append('period', period);
+        if (reportType) params.append('type', reportType);
+        if (tradeDate) params.append('trade_date', tradeDate);
+        
+        if (params.toString()) {
+            endpoint += `?${params.toString()}`;
+        }
+        
+        // 记录请求详情
+        console.log(`[API] 获取综合基本面数据请求:`, {
+            stockCode,
+            period,
+            reportType,
+            tradeDate,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint);
+            
+            // 记录响应详情
+            console.log(`[API] 综合基本面数据响应:`, {
+                success: response.success,
+                hasData: !!response.data,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            if (response.success && response.data) {
+                return response.data;
+            } else {
+                const errorDetails = {
+                    message: response.error || '获取基本面数据失败',
+                    stockCode,
+                    response: response,
+                    timestamp: new Date().toISOString()
+                };
+                
+                console.error(`[API] 获取基本面数据失败 - 详细信息:`, errorDetails);
+                throw new Error(response.error || '获取基本面数据失败');
+            }
+        } catch (error) {
+            const errorDetails = {
+                message: error.message,
+                stockCode,
+                endpoint,
+                errorType: error.constructor.name,
+                stack: error.stack,
+                timestamp: new Date().toISOString()
+            };
+            
+            console.error(`[API] 获取基本面数据异常 - 详细信息:`, errorDetails);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取利润表数据
+     */
+    async getIncomeStatement(stockCode, period = '', reportType = '') {
+        let endpoint = `/api/v1/stocks/${stockCode}/income`;
+        const params = new URLSearchParams();
+        
+        if (period) params.append('period', period);
+        if (reportType) params.append('type', reportType);
+        
+        if (params.toString()) {
+            endpoint += `?${params.toString()}`;
+        }
+        
+        console.log(`[API] 获取利润表请求:`, {
+            stockCode,
+            period,
+            reportType,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint);
+            
+            console.log(`[API] 利润表响应:`, {
+                success: response.success,
+                hasData: !!response.data,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            if (response.success && response.data) {
+                return response.data;
+            } else {
+                throw new Error(response.error || '获取利润表失败');
+            }
+        } catch (error) {
+            console.error(`[API] 获取利润表异常:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取资产负债表数据
+     */
+    async getBalanceSheet(stockCode, period = '', reportType = '') {
+        let endpoint = `/api/v1/stocks/${stockCode}/balance`;
+        const params = new URLSearchParams();
+        
+        if (period) params.append('period', period);
+        if (reportType) params.append('type', reportType);
+        
+        if (params.toString()) {
+            endpoint += `?${params.toString()}`;
+        }
+        
+        console.log(`[API] 获取资产负债表请求:`, {
+            stockCode,
+            period,
+            reportType,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint);
+            
+            console.log(`[API] 资产负债表响应:`, {
+                success: response.success,
+                hasData: !!response.data,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            if (response.success && response.data) {
+                return response.data;
+            } else {
+                throw new Error(response.error || '获取资产负债表失败');
+            }
+        } catch (error) {
+            console.error(`[API] 获取资产负债表异常:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取现金流量表数据
+     */
+    async getCashFlowStatement(stockCode, period = '', reportType = '') {
+        let endpoint = `/api/v1/stocks/${stockCode}/cashflow`;
+        const params = new URLSearchParams();
+        
+        if (period) params.append('period', period);
+        if (reportType) params.append('type', reportType);
+        
+        if (params.toString()) {
+            endpoint += `?${params.toString()}`;
+        }
+        
+        console.log(`[API] 获取现金流量表请求:`, {
+            stockCode,
+            period,
+            reportType,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint);
+            
+            console.log(`[API] 现金流量表响应:`, {
+                success: response.success,
+                hasData: !!response.data,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            if (response.success && response.data) {
+                return response.data;
+            } else {
+                throw new Error(response.error || '获取现金流量表失败');
+            }
+        } catch (error) {
+            console.error(`[API] 获取现金流量表异常:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取每日基本面指标
+     */
+    async getDailyBasic(stockCode, tradeDate = '') {
+        let endpoint = `/api/v1/stocks/${stockCode}/dailybasic`;
+        
+        if (tradeDate) {
+            endpoint += `?trade_date=${tradeDate}`;
+        }
+        
+        console.log(`[API] 获取每日基本面指标请求:`, {
+            stockCode,
+            tradeDate,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint);
+            
+            console.log(`[API] 每日基本面指标响应:`, {
+                success: response.success,
+                hasData: !!response.data,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            if (response.success && response.data) {
+                return response.data;
+            } else {
+                throw new Error(response.error || '获取每日基本面指标失败');
+            }
+        } catch (error) {
+            console.error(`[API] 获取每日基本面指标异常:`, error);
+            throw error;
+        }
+    }
+
+    /**
      * 从本地映射获取股票名称（备选方案）
      */
     getStockNameFromLocal(stockCode) {
@@ -411,3 +642,6 @@ class ApiService {
 
 // 导出API服务类
 window.ApiService = ApiService;
+
+// 版本标识 - 用于调试缓存问题
+console.log('[API] ApiService loaded - version 1.1 with fundamental data support');

@@ -139,6 +139,10 @@ class EventsModule {
                 case 'predictions':
                     await this.handlePredictionsQuery(false);
                     break;
+                case 'fundamental':
+                    // 基本面数据不需要预加载，由用户主动触发
+                    console.log(`[Events] 基本面tab无需预加载`);
+                    break;
             }
             console.log(`[Events] 预加载完成: ${tabName}`);
         } catch (error) {
@@ -316,6 +320,11 @@ class EventsModule {
                 case 'predictions':
                     data = await this.handlePredictionsQuery(false);
                     break;
+                case 'fundamental':
+                    // 基本面数据由专门的FundamentalModule处理，这里不需要加载数据
+                    console.log(`[Events] 基本面tab切换完成，由FundamentalModule处理数据加载`);
+                    this.showTabLoadingState(tabName, false); // 关闭加载状态
+                    return;
                 default:
                     console.warn(`[Events] 未知的tab类型: ${tabName}`);
                     this.showNoDataMessage(tabName, `未知的tab类型: ${tabName}`);
@@ -409,6 +418,10 @@ class EventsModule {
                         this.showNoDataMessage(tabName, '预测数据不完整');
                         return;
                     }
+                    break;
+                case 'fundamental':
+                    // 基本面数据由FundamentalModule专门处理，这里不需要显示
+                    console.log(`[Events] 基本面tab数据显示由FundamentalModule处理`);
                     break;
                 default:
                     console.warn(`[Events] 未知的tab类型: ${tabName}`);
@@ -524,7 +537,8 @@ class EventsModule {
         const nameMap = {
             'daily-data': '日线数据',
             'indicators': '技术指标',
-            'predictions': '买卖预测'
+            'predictions': '买卖预测',
+            'fundamental': '基本面数据'
         };
         return nameMap[tabName] || tabName;
     }

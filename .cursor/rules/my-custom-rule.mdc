@@ -88,6 +88,135 @@ alwaysApply: true
 - 使用表驱动测试模式
 - 添加测试数据清理逻辑
 
+### 网络调试最佳实践
+- **优先使用Go单元测试进行网络调用调试**，而不是curl等命令行工具
+- **跨平台兼容性**: Go单元测试在Windows/Linux/macOS上表现一致
+- **AKTools调试环境**: 默认假设AKTools服务运行在`http://127.0.0.1:8080`端口
+- **调试测试模板**:
+  ```go
+  func TestAPIDebugging(t *testing.T) {
+      client := NewAKToolsClient("http://127.0.0.1:8080")
+      
+      // 测试API连接
+      err := client.TestConnection()
+      if err != nil {
+          t.Fatalf("AKTools连接失败: %v", err)
+      }
+      
+      // 测试具体API调用
+      result, err := client.SomeAPIMethod("test_param")
+      if err != nil {
+          t.Logf("❌ API调用失败: %v", err)
+      } else {
+          t.Logf("✅ API调用成功: %+v", result)
+      }
+  }
+  ```
+- **测试驱动的API调试**: 当遇到API问题时，先写测试用例验证不同参数和格式
+- **详细的测试日志**: 使用`t.Logf()`输出详细的调试信息，包括请求URL、参数、响应等
+
+## 🔧 AKTools集成调试指南
+
+### AKTools服务配置
+- **默认端口**: AKTools服务默认运行在`http://127.0.0.1:8080`
+- **API格式**: 使用`/api/public/{interface_name}`格式访问AKShare接口
+- **股票代码格式**: 大多数API使用6位数字代码（如`600976`），不带市场后缀
+
+### 常见API接口映射
+```go
+// 正确的AKTools接口名称
+var aktoolsAPIMapping = map[string]string{
+    "股票基本信息": "stock_individual_info_em",  // 不是 stock_zh_a_info
+    "股票日线数据": "stock_zh_a_hist",
+    "股票列表":     "stock_zh_a_spot",
+    "利润表":      "stock_profit_sheet_by_report_em",
+    "资产负债表":   "stock_balance_sheet_by_report_em",
+    "现金流量表":   "stock_cash_flow_sheet_by_report_em",
+}
+```
+
+### 调试流程模板
+```go
+// 1. 先测试AKTools连接
+func TestAKToolsConnection(t *testing.T) {
+    client := NewAKToolsClient("http://127.0.0.1:8080")
+    err := client.TestConnection()
+    if err != nil {
+        t.Fatalf("AKTools连接失败: %v", err)
+    }
+    t.Logf("✅ AKTools连接成功")
+}
+
+// 2. 测试具体API接口
+func TestSpecificAPI(t *testing.T) {
+    client := NewAKToolsClient("http://127.0.0.1:8080")
+    
+    testCases := []struct {
+        name   string
+        symbol string
+    }{
+        {"健民集团", "600976"},
+        {"平安银行", "000001"},
+        {"海康威视", "002415"},
+    }
+    
+    for _, tc := range testCases {
+        t.Run(tc.name, func(t *testing.T) {
+            result, err := client.GetStockBasic(tc.symbol)
+            if err != nil {
+                t.Logf("❌ %s (%s) 失败: %v", tc.name, tc.symbol, err)
+            } else {
+                t.Logf("✅ %s (%s) 成功: %s", tc.name, tc.symbol, result.Name)
+            }
+        })
+    }
+}
+```
+
+### 数据格式适配注意事项
+- **stock_individual_info_em**: 返回key-value对数组格式，需要转换为map
+- **财务报表API**: 返回所有期间数据，需要客户端筛选
+- **实时数据API**: 返回所有股票数据，需要客户端根据代码筛选
+
+### 错误排查步骤
+1. **404错误**: 检查API接口名称是否正确，参考AKShare最新文档
+2. **500错误**: 检查参数格式，特别是股票代码格式
+3. **连接超时**: 确认AKTools服务是否正常运行，某些API响应较慢需要增加超时时间
+4. **数据解析错误**: 检查返回数据格式是否与预期一致
+
+### 性能注意事项
+- **API响应时间**: 某些API（如`stock_zh_a_spot`）响应较慢，可能需要10秒以上
+- **超时设置**: 建议设置30秒以上的超时时间进行调试测试
+- **并发限制**: AKTools可能有并发限制，避免同时发起过多请求
+- **缓存策略**: 对于相同请求，考虑实现客户端缓存减少API调用
+
+### 运行调试测试
+```bash
+# 运行特定的调试测试
+go test -v ./internal/client -run TestAKToolsConnection
+go test -v ./internal/client -run TestSpecificAPI
+
+# 运行所有AKTools相关测试
+go test -v ./internal/client -run TestAKTools
+
+# 使用调试模板进行全面测试
+go test -v ./internal/client -run TestAKToolsDebugTemplate
+go test -v ./internal/client -run TestAKToolsAPIDiscovery
+go test -v ./internal/client -run TestStockCodeFormatsDebug
+```
+
+### 调试模板文件
+- **文件位置**: `internal/client/aktools_debug_template_test.go`
+- **用途**: 提供完整的AKTools API调试测试模板
+- **包含功能**:
+  - 连接测试
+  - API接口发现
+  - 股票代码格式测试
+  - 原始API响应分析
+  - 多股票测试
+  - 性能测试
+- **使用方式**: 复制相关测试函数到实际测试文件中，根据需要修改参数
+
 ## 🔒 安全要求
 
 ### API安全

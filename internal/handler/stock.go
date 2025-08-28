@@ -973,10 +973,14 @@ func (h *StockHandler) GetFavoritesSignals(w http.ResponseWriter, r *http.Reques
 	// 不再需要日志
 
 	response := models.FavoritesSignalsResponse{
-		Total:             len(signals),
-		Signals:           signals,
-		Calculating:       calcStatus.IsCalculating,
-		CalculationStatus: calcStatus,
+		Total:       len(signals),
+		Signals:     signals,
+		Calculating: calcStatus.IsCalculating,
+		CalculationStatus: map[string]interface{}{
+			"status":  getCalculationStatus(calcStatus),
+			"message": getCalculationMessage(calcStatus),
+			"detail":  calcStatus,
+		},
 	}
 
 	h.writeSuccessResponse(w, response)
@@ -1234,6 +1238,201 @@ func (h *StockHandler) UpdateFavoritesOrder(w http.ResponseWriter, r *http.Reque
 
 	response := map[string]interface{}{
 		"message": "排序更新成功",
+	}
+
+	h.writeSuccessResponse(w, response)
+}
+
+// GetIncomeStatement 获取利润表数据
+func (h *StockHandler) GetIncomeStatement(w http.ResponseWriter, r *http.Request) {
+	// 解析路径参数
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 4 {
+		h.writeErrorResponse(w, http.StatusBadRequest, "无效的股票代码")
+		return
+	}
+
+	stockCode := pathParts[3] // /api/v1/stocks/{code}/income
+
+	// 解析查询参数
+	query := r.URL.Query()
+	period := query.Get("period")   // 报告期，如 2023-12-31
+	reportType := query.Get("type") // 报告类型：A（年报）、Q1（一季报）、S（半年报）、Q3（三季报）
+
+	log.Printf("[GetIncomeStatement] 请求参数 - 股票代码: %s, 期间: %s, 报告类型: %s", stockCode, period, reportType)
+
+	// 获取利润表数据
+	incomeStatement, err := h.dataSourceClient.GetIncomeStatement(stockCode, period, reportType)
+	if err != nil {
+		log.Printf("[GetIncomeStatement] 获取利润表失败 - 股票代码: %s, 错误: %v", stockCode, err)
+		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取利润表失败: %v", err))
+		return
+	}
+
+	h.writeSuccessResponse(w, incomeStatement)
+}
+
+// GetBalanceSheet 获取资产负债表数据
+func (h *StockHandler) GetBalanceSheet(w http.ResponseWriter, r *http.Request) {
+	// 解析路径参数
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 4 {
+		h.writeErrorResponse(w, http.StatusBadRequest, "无效的股票代码")
+		return
+	}
+
+	stockCode := pathParts[3] // /api/v1/stocks/{code}/balance
+
+	// 解析查询参数
+	query := r.URL.Query()
+	period := query.Get("period")   // 报告期，如 2023-12-31
+	reportType := query.Get("type") // 报告类型：A（年报）、Q1（一季报）、S（半年报）、Q3（三季报）
+
+	log.Printf("[GetBalanceSheet] 请求参数 - 股票代码: %s, 期间: %s, 报告类型: %s", stockCode, period, reportType)
+
+	// 获取资产负债表数据
+	balanceSheet, err := h.dataSourceClient.GetBalanceSheet(stockCode, period, reportType)
+	if err != nil {
+		log.Printf("[GetBalanceSheet] 获取资产负债表失败 - 股票代码: %s, 错误: %v", stockCode, err)
+		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取资产负债表失败: %v", err))
+		return
+	}
+
+	h.writeSuccessResponse(w, balanceSheet)
+}
+
+// GetCashFlowStatement 获取现金流量表数据
+func (h *StockHandler) GetCashFlowStatement(w http.ResponseWriter, r *http.Request) {
+	// 解析路径参数
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 4 {
+		h.writeErrorResponse(w, http.StatusBadRequest, "无效的股票代码")
+		return
+	}
+
+	stockCode := pathParts[3] // /api/v1/stocks/{code}/cashflow
+
+	// 解析查询参数
+	query := r.URL.Query()
+	period := query.Get("period")   // 报告期，如 2023-12-31
+	reportType := query.Get("type") // 报告类型：A（年报）、Q1（一季报）、S（半年报）、Q3（三季报）
+
+	log.Printf("[GetCashFlowStatement] 请求参数 - 股票代码: %s, 期间: %s, 报告类型: %s", stockCode, period, reportType)
+
+	// 获取现金流量表数据
+	cashFlowStatement, err := h.dataSourceClient.GetCashFlowStatement(stockCode, period, reportType)
+	if err != nil {
+		log.Printf("[GetCashFlowStatement] 获取现金流量表失败 - 股票代码: %s, 错误: %v", stockCode, err)
+		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取现金流量表失败: %v", err))
+		return
+	}
+
+	h.writeSuccessResponse(w, cashFlowStatement)
+}
+
+// GetDailyBasic 获取每日基本面指标
+func (h *StockHandler) GetDailyBasic(w http.ResponseWriter, r *http.Request) {
+	// 解析路径参数
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 4 {
+		h.writeErrorResponse(w, http.StatusBadRequest, "无效的股票代码")
+		return
+	}
+
+	stockCode := pathParts[3] // /api/v1/stocks/{code}/dailybasic
+
+	// 解析查询参数
+	query := r.URL.Query()
+	tradeDate := query.Get("trade_date") // 交易日期，如 20231231
+
+	// 如果没有指定日期，使用当前日期
+	if tradeDate == "" {
+		tradeDate = time.Now().Format("20060102")
+	}
+
+	log.Printf("[GetDailyBasic] 请求参数 - 股票代码: %s, 交易日期: %s", stockCode, tradeDate)
+
+	// 获取每日基本面指标
+	dailyBasic, err := h.dataSourceClient.GetDailyBasic(stockCode, tradeDate)
+	if err != nil {
+		log.Printf("[GetDailyBasic] 获取每日基本面指标失败 - 股票代码: %s, 错误: %v", stockCode, err)
+		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取每日基本面指标失败: %v", err))
+		return
+	}
+
+	h.writeSuccessResponse(w, dailyBasic)
+}
+
+// GetFundamentalData 获取综合基本面数据
+func (h *StockHandler) GetFundamentalData(w http.ResponseWriter, r *http.Request) {
+	// 解析路径参数
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 4 {
+		h.writeErrorResponse(w, http.StatusBadRequest, "无效的股票代码")
+		return
+	}
+
+	stockCode := pathParts[3] // /api/v1/stocks/{code}/fundamental
+
+	// 解析查询参数
+	query := r.URL.Query()
+	period := query.Get("period")        // 报告期，如 2023-12-31
+	reportType := query.Get("type")      // 报告类型
+	tradeDate := query.Get("trade_date") // 交易日期
+
+	// 如果没有指定交易日期，使用当前日期
+	if tradeDate == "" {
+		tradeDate = time.Now().Format("20060102")
+	}
+
+	log.Printf("[GetFundamentalData] 请求参数 - 股票代码: %s, 期间: %s, 报告类型: %s, 交易日期: %s",
+		stockCode, period, reportType, tradeDate)
+
+	// 并发获取各种基本面数据
+	type FundamentalDataResponse struct {
+		StockBasic        *models.StockBasic        `json:"stock_basic,omitempty"`
+		IncomeStatement   *models.IncomeStatement   `json:"income_statement,omitempty"`
+		BalanceSheet      *models.BalanceSheet      `json:"balance_sheet,omitempty"`
+		CashFlowStatement *models.CashFlowStatement `json:"cash_flow_statement,omitempty"`
+		DailyBasic        *models.DailyBasic        `json:"daily_basic,omitempty"`
+		Error             string                    `json:"error,omitempty"`
+	}
+
+	response := &FundamentalDataResponse{}
+
+	// 获取股票基本信息
+	if stockBasic, err := h.dataSourceClient.GetStockBasic(stockCode); err != nil {
+		log.Printf("[GetFundamentalData] 获取股票基本信息失败: %v", err)
+	} else {
+		response.StockBasic = stockBasic
+	}
+
+	// 获取利润表
+	if incomeStatement, err := h.dataSourceClient.GetIncomeStatement(stockCode, period, reportType); err != nil {
+		log.Printf("[GetFundamentalData] 获取利润表失败: %v", err)
+	} else {
+		response.IncomeStatement = incomeStatement
+	}
+
+	// 获取资产负债表
+	if balanceSheet, err := h.dataSourceClient.GetBalanceSheet(stockCode, period, reportType); err != nil {
+		log.Printf("[GetFundamentalData] 获取资产负债表失败: %v", err)
+	} else {
+		response.BalanceSheet = balanceSheet
+	}
+
+	// 获取现金流量表
+	if cashFlowStatement, err := h.dataSourceClient.GetCashFlowStatement(stockCode, period, reportType); err != nil {
+		log.Printf("[GetFundamentalData] 获取现金流量表失败: %v", err)
+	} else {
+		response.CashFlowStatement = cashFlowStatement
+	}
+
+	// 获取每日基本面指标
+	if dailyBasic, err := h.dataSourceClient.GetDailyBasic(stockCode, tradeDate); err != nil {
+		log.Printf("[GetFundamentalData] 获取每日基本面指标失败: %v", err)
+	} else {
+		response.DailyBasic = dailyBasic
 	}
 
 	h.writeSuccessResponse(w, response)

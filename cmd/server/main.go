@@ -213,6 +213,12 @@ func main() {
 	logger.Info("  股票日线: GET http://" + addr + "/api/v1/stocks/{code}/daily?start_date=20240101&end_date=20240131")
 	logger.Info("  技术指标: GET http://" + addr + "/api/v1/stocks/{code}/indicators")
 	logger.Info("  买卖预测: GET http://" + addr + "/api/v1/stocks/{code}/predictions")
+
+	logger.Info("  综合基本面: GET http://" + addr + "/api/v1/stocks/{code}/fundamental?period=2023-12-31")
+	logger.Info("  利润表: GET http://" + addr + "/api/v1/stocks/{code}/income?period=2023-12-31")
+	logger.Info("  资产负债表: GET http://" + addr + "/api/v1/stocks/{code}/balance?period=2023-12-31")
+	logger.Info("  现金流量表: GET http://" + addr + "/api/v1/stocks/{code}/cashflow?period=2023-12-31")
+	logger.Info("  每日基本面: GET http://" + addr + "/api/v1/stocks/{code}/dailybasic?trade_date=20240101")
 	logger.Info("  本地股票列表: GET http://" + addr + "/api/v1/stocks")
 	logger.Info("  股票搜索: GET http://" + addr + "/api/v1/stocks/search?q=keyword")
 	logger.Info("  刷新本地数据: POST http://" + addr + "/api/v1/stocks/refresh")
@@ -293,6 +299,13 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patt
 	mux.HandleFunc("GET /api/v1/stocks/{code}/daily", stockHandler.GetDailyData)
 	mux.HandleFunc("GET /api/v1/stocks/{code}/indicators", stockHandler.GetIndicators)
 	mux.HandleFunc("GET /api/v1/stocks/{code}/predictions", stockHandler.GetPredictions)
+
+	// 基本面数据API
+	mux.HandleFunc("GET /api/v1/stocks/{code}/fundamental", stockHandler.GetFundamentalData)
+	mux.HandleFunc("GET /api/v1/stocks/{code}/income", stockHandler.GetIncomeStatement)
+	mux.HandleFunc("GET /api/v1/stocks/{code}/balance", stockHandler.GetBalanceSheet)
+	mux.HandleFunc("GET /api/v1/stocks/{code}/cashflow", stockHandler.GetCashFlowStatement)
+	mux.HandleFunc("GET /api/v1/stocks/{code}/dailybasic", stockHandler.GetDailyBasic)
 
 	// 本地股票数据API
 	mux.HandleFunc("GET /api/v1/stocks", stockHandler.GetStockList)
