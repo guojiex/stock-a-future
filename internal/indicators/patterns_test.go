@@ -418,7 +418,7 @@ func TestPatternRecognizer_RecognizeEngulfing(t *testing.T) {
 		{
 			TSCode:    "000001.SZ",
 			TradeDate: "20240102",
-			Open:      models.NewJSONDecimal(decimal.NewFromFloat(9.9)),  // 低开
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(9.9)), // 低开
 			High:      models.NewJSONDecimal(decimal.NewFromFloat(11.0)),
 			Low:       models.NewJSONDecimal(decimal.NewFromFloat(9.8)),
 			Close:     models.NewJSONDecimal(decimal.NewFromFloat(10.8)), // 大阳线，吞没前一根
@@ -542,7 +542,7 @@ func TestPatternRecognizer_RecognizeLowVolumePrice(t *testing.T) {
 	// 创建测试数据：地量地价模式
 	// 需要至少20天的历史数据
 	data := make([]models.StockDaily, 21)
-	
+
 	// 填充前20天的数据（作为基准）
 	for i := 0; i < 20; i++ {
 		data[i] = models.StockDaily{
@@ -555,7 +555,7 @@ func TestPatternRecognizer_RecognizeLowVolumePrice(t *testing.T) {
 			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(2000)), // 平均成交量
 		}
 	}
-	
+
 	// 最后一天：地量地价
 	data[20] = models.StockDaily{
 		TSCode:    "000001.SZ",
@@ -593,7 +593,7 @@ func TestPatternRecognizer_RecognizeHighVolumePrice(t *testing.T) {
 	// 创建测试数据：天量天价模式
 	// 需要至少20天的历史数据
 	data := make([]models.StockDaily, 21)
-	
+
 	// 填充前20天的数据（作为基准）
 	for i := 0; i < 20; i++ {
 		data[i] = models.StockDaily{
@@ -606,7 +606,7 @@ func TestPatternRecognizer_RecognizeHighVolumePrice(t *testing.T) {
 			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(1000)), // 平均成交量
 		}
 	}
-	
+
 	// 最后一天：天量天价
 	data[20] = models.StockDaily{
 		TSCode:    "000001.SZ",
@@ -635,4 +635,178 @@ func TestPatternRecognizer_RecognizeHighVolumePrice(t *testing.T) {
 	if !found {
 		t.Error("未找到天量天价模式")
 	}
+}
+
+// TestCalculateEMV_NormalCase 测试EMV指标正常计算
+func TestCalculateEMV_NormalCase(t *testing.T) {
+	calc := NewCalculator()
+
+	// 创建正常的测试数据
+	data := []models.StockDaily{
+		{
+			TSCode:    "000001.SZ",
+			TradeDate: "20240101",
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(10.0)),
+			High:      models.NewJSONDecimal(decimal.NewFromFloat(10.5)),
+			Low:       models.NewJSONDecimal(decimal.NewFromFloat(9.8)),
+			Close:     models.NewJSONDecimal(decimal.NewFromFloat(10.2)),
+			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(1000)),
+		},
+		{
+			TSCode:    "000001.SZ",
+			TradeDate: "20240102",
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(10.2)),
+			High:      models.NewJSONDecimal(decimal.NewFromFloat(10.8)),
+			Low:       models.NewJSONDecimal(decimal.NewFromFloat(10.1)),
+			Close:     models.NewJSONDecimal(decimal.NewFromFloat(10.6)),
+			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(1500)),
+		},
+		{
+			TSCode:    "000001.SZ",
+			TradeDate: "20240103",
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(10.6)),
+			High:      models.NewJSONDecimal(decimal.NewFromFloat(11.2)),
+			Low:       models.NewJSONDecimal(decimal.NewFromFloat(10.5)),
+			Close:     models.NewJSONDecimal(decimal.NewFromFloat(11.0)),
+			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(2000)),
+		},
+	}
+
+	results := calc.CalculateEMV(data, 2)
+	if len(results) == 0 {
+		t.Error("EMV计算应该返回结果")
+	}
+
+	// 验证结果不为空且有信号
+	for i, result := range results {
+		t.Logf("EMV[%d]: EMV14=%s, Signal=%s", i, result.EMV14.String(), result.Signal)
+		if result.Signal != "BUY" && result.Signal != "SELL" && result.Signal != "HOLD" {
+			t.Errorf("EMV信号应该是BUY、SELL或HOLD，实际为: %s", result.Signal)
+		}
+	}
+}
+
+// TestCalculateEMV_ZeroPriceRange 测试EMV指标遇到零价格区间的情况
+func TestCalculateEMV_ZeroPriceRange(t *testing.T) {
+	calc := NewCalculator()
+
+	// 创建包含一字板（最高价=最低价）的测试数据
+	data := []models.StockDaily{
+		{
+			TSCode:    "000001.SZ",
+			TradeDate: "20240101",
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(10.0)),
+			High:      models.NewJSONDecimal(decimal.NewFromFloat(10.5)),
+			Low:       models.NewJSONDecimal(decimal.NewFromFloat(9.8)),
+			Close:     models.NewJSONDecimal(decimal.NewFromFloat(10.2)),
+			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(1000)),
+		},
+		{
+			// 一字板涨停：最高价=最低价
+			TSCode:    "000001.SZ",
+			TradeDate: "20240102",
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(11.22)),
+			High:      models.NewJSONDecimal(decimal.NewFromFloat(11.22)), // 相同价格
+			Low:       models.NewJSONDecimal(decimal.NewFromFloat(11.22)), // 相同价格
+			Close:     models.NewJSONDecimal(decimal.NewFromFloat(11.22)),
+			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(1500)),
+		},
+		{
+			TSCode:    "000001.SZ",
+			TradeDate: "20240103",
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(11.22)),
+			High:      models.NewJSONDecimal(decimal.NewFromFloat(11.8)),
+			Low:       models.NewJSONDecimal(decimal.NewFromFloat(11.1)),
+			Close:     models.NewJSONDecimal(decimal.NewFromFloat(11.5)),
+			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(2000)),
+		},
+	}
+
+	// 这个测试应该不会panic
+	results := calc.CalculateEMV(data, 2)
+
+	// 验证没有panic并且返回了结果
+	t.Logf("EMV计算完成，返回%d个结果", len(results))
+	for i, result := range results {
+		t.Logf("EMV[%d]: EMV14=%s, Signal=%s", i, result.EMV14.String(), result.Signal)
+	}
+}
+
+// TestCalculateEMV_ZeroVolume 测试EMV指标遇到零成交量的情况
+func TestCalculateEMV_ZeroVolume(t *testing.T) {
+	calc := NewCalculator()
+
+	// 创建包含零成交量的测试数据
+	data := []models.StockDaily{
+		{
+			TSCode:    "000001.SZ",
+			TradeDate: "20240101",
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(10.0)),
+			High:      models.NewJSONDecimal(decimal.NewFromFloat(10.5)),
+			Low:       models.NewJSONDecimal(decimal.NewFromFloat(9.8)),
+			Close:     models.NewJSONDecimal(decimal.NewFromFloat(10.2)),
+			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(1000)),
+		},
+		{
+			// 零成交量
+			TSCode:    "000001.SZ",
+			TradeDate: "20240102",
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(10.2)),
+			High:      models.NewJSONDecimal(decimal.NewFromFloat(10.8)),
+			Low:       models.NewJSONDecimal(decimal.NewFromFloat(10.1)),
+			Close:     models.NewJSONDecimal(decimal.NewFromFloat(10.6)),
+			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(0)), // 零成交量
+		},
+		{
+			TSCode:    "000001.SZ",
+			TradeDate: "20240103",
+			Open:      models.NewJSONDecimal(decimal.NewFromFloat(10.6)),
+			High:      models.NewJSONDecimal(decimal.NewFromFloat(11.2)),
+			Low:       models.NewJSONDecimal(decimal.NewFromFloat(10.5)),
+			Close:     models.NewJSONDecimal(decimal.NewFromFloat(11.0)),
+			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(2000)),
+		},
+	}
+
+	// 这个测试应该不会panic
+	results := calc.CalculateEMV(data, 2)
+
+	// 验证没有panic并且返回了结果
+	t.Logf("EMV计算完成，返回%d个结果", len(results))
+	for i, result := range results {
+		t.Logf("EMV[%d]: EMV14=%s, Signal=%s", i, result.EMV14.String(), result.Signal)
+	}
+}
+
+// TestCalculateEMV_EdgeCases 测试EMV指标的各种边界情况
+func TestCalculateEMV_EdgeCases(t *testing.T) {
+	calc := NewCalculator()
+
+	// 测试数据不足的情况
+	t.Run("insufficient_data", func(t *testing.T) {
+		data := []models.StockDaily{
+			{
+				TSCode:    "000001.SZ",
+				TradeDate: "20240101",
+				Open:      models.NewJSONDecimal(decimal.NewFromFloat(10.0)),
+				High:      models.NewJSONDecimal(decimal.NewFromFloat(10.5)),
+				Low:       models.NewJSONDecimal(decimal.NewFromFloat(9.8)),
+				Close:     models.NewJSONDecimal(decimal.NewFromFloat(10.2)),
+				Vol:       models.NewJSONDecimal(decimal.NewFromFloat(1000)),
+			},
+		}
+
+		results := calc.CalculateEMV(data, 14)
+		if len(results) != 0 {
+			t.Error("数据不足时应该返回空结果")
+		}
+	})
+
+	// 测试空数据
+	t.Run("empty_data", func(t *testing.T) {
+		results := calc.CalculateEMV([]models.StockDaily{}, 14)
+		if len(results) != 0 {
+			t.Error("空数据时应该返回空结果")
+		}
+	})
 }

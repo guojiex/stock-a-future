@@ -911,14 +911,19 @@ func (c *Calculator) CalculateEMV(data []models.StockDaily, period int) []models
 		distanceMove := data[i].High.Decimal.Add(data[i].Low.Decimal).Div(decimal.NewFromInt(2)).Sub(
 			data[i-1].High.Decimal.Add(data[i-1].Low.Decimal).Div(decimal.NewFromInt(2)))
 
-		// 计算盒子高度
-		boxHeight := data[i].Vol.Decimal.Div(data[i].High.Decimal.Sub(data[i].Low.Decimal))
-
 		// 计算EMV
 		var emv decimal.Decimal
-		if !boxHeight.IsZero() {
-			emv = distanceMove.Div(boxHeight)
+
+		// 检查最高价和最低价是否相等（避免除以零）
+		priceRange := data[i].High.Decimal.Sub(data[i].Low.Decimal)
+		if !priceRange.IsZero() && !data[i].Vol.Decimal.IsZero() {
+			// 计算盒子高度
+			boxHeight := data[i].Vol.Decimal.Div(priceRange)
+			if !boxHeight.IsZero() {
+				emv = distanceMove.Div(boxHeight)
+			}
 		}
+		// 如果价格区间为零或成交量为零，EMV保持为零
 
 		emvValues = append(emvValues, emv)
 	}
