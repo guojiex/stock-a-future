@@ -1,12 +1,10 @@
 package client
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"testing"
 	"time"
 )
@@ -97,137 +95,6 @@ func TestAKToolsStockCodeFormats(t *testing.T) {
 			t.Logf("---")
 		})
 	}
-}
-
-// testStockInfoAPI 测试股票基本信息API
-func testStockInfoAPI(symbol string) error {
-	// 构建查询参数
-	params := url.Values{}
-	params.Set("symbol", symbol)
-
-	// 构建完整URL
-	apiURL := fmt.Sprintf("http://127.0.0.1:8080/api/public/stock_zh_a_info?%s", params.Encode())
-
-	// 创建HTTP客户端
-	httpClient := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	// 创建带context的请求
-	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
-	if err != nil {
-		return fmt.Errorf("创建请求失败: %w", err)
-	}
-
-	// 发送HTTP请求
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("请求失败: %w, URL: %s", err, apiURL)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			fmt.Printf("关闭响应体失败: %v\n", err)
-		}
-	}()
-
-	// 检查状态码
-	if resp.StatusCode != http.StatusOK {
-		// 读取错误响应体
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("API返回非200状态码: %d, URL: %s, 响应: %s", resp.StatusCode, apiURL, string(body))
-	}
-
-	// 读取响应体
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("读取响应体失败: %w", err)
-	}
-
-	// 尝试解析JSON
-	var result []map[string]interface{}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return fmt.Errorf("解析JSON失败: %w, 响应: %s", err, string(body))
-	}
-
-	if len(result) == 0 {
-		return fmt.Errorf("API返回空数据")
-	}
-
-	// 打印第一条数据的部分字段
-	if len(result) > 0 {
-		data := result[0]
-		fmt.Printf("    股票信息: 代码=%v, 名称=%v\n", data["代码"], data["名称"])
-	}
-
-	return nil
-}
-
-// testStockHistAPI 测试日线数据API
-func testStockHistAPI(symbol string) error {
-	// 构建查询参数
-	params := url.Values{}
-	params.Set("symbol", symbol)
-	params.Set("start_date", "20241201") // 最近一个月的数据
-	params.Set("end_date", "20241231")
-	params.Set("adjust", "qfq") // 前复权
-
-	// 构建完整URL
-	apiURL := fmt.Sprintf("http://127.0.0.1:8080/api/public/stock_zh_a_hist?%s", params.Encode())
-
-	// 创建HTTP客户端
-	httpClient := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	// 创建带context的请求
-	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
-	if err != nil {
-		return fmt.Errorf("创建请求失败: %w", err)
-	}
-
-	// 发送HTTP请求
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("请求失败: %w, URL: %s", err, apiURL)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			fmt.Printf("关闭响应体失败: %v\n", err)
-		}
-	}()
-
-	// 检查状态码
-	if resp.StatusCode != http.StatusOK {
-		// 读取错误响应体
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("API返回非200状态码: %d, URL: %s, 响应: %s", resp.StatusCode, apiURL, string(body))
-	}
-
-	// 读取响应体
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("读取响应体失败: %w", err)
-	}
-
-	// 尝试解析JSON
-	var result []map[string]interface{}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return fmt.Errorf("解析JSON失败: %w, 响应: %s", err, string(body))
-	}
-
-	if len(result) == 0 {
-		return fmt.Errorf("API返回空数据")
-	}
-
-	// 打印数据条数和最后一条数据的部分字段
-	if len(result) > 0 {
-		lastData := result[len(result)-1]
-		fmt.Printf("    日线数据: 共%d条, 最新: 日期=%v, 收盘=%v\n", len(result), lastData["日期"], lastData["收盘"])
-	}
-
-	return nil
 }
 
 // TestAKToolsConnectionAndAPI 测试AKTools连接和API可用性

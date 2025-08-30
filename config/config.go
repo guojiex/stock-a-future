@@ -19,6 +19,7 @@ type Config struct {
 
 	// AKTools配置
 	AKToolsBaseURL string
+	Debug          bool // 调试模式，启用时会保存API响应到文件
 
 	// 服务器配置
 	ServerPort string
@@ -65,6 +66,7 @@ func Load() *Config {
 		TushareToken:     getEnv("TUSHARE_TOKEN", ""),
 		TushareBaseURL:   getEnv("TUSHARE_BASE_URL", "http://api.tushare.pro"),
 		AKToolsBaseURL:   getEnv("AKTOOLS_BASE_URL", "http://127.0.0.1:8080"),
+		Debug:            getBoolEnv("DEBUG", false),
 		ServerPort:       getEnv("SERVER_PORT", "8080"),
 		ServerHost:       getEnv("SERVER_HOST", "localhost"),
 		LogLevel:         getEnv("LOG_LEVEL", "info"),

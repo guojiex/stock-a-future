@@ -8,10 +8,12 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"strings"
 	"time"
 
+	"stock-a-future/config"
 	"stock-a-future/internal/models"
 
 	"github.com/shopspring/decimal"
@@ -21,6 +23,7 @@ import (
 type AKToolsClient struct {
 	baseURL string
 	client  *http.Client
+	config  *config.Config
 }
 
 // AKToolsDailyResponse AKTools日线数据响应结构
@@ -54,11 +57,15 @@ func NewAKToolsClient(baseURL string) *AKToolsClient {
 		baseURL = "http://127.0.0.1:8080"
 	}
 
+	// 加载配置
+	cfg := config.Load()
+
 	return &AKToolsClient{
 		baseURL: baseURL,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		config: cfg,
 	}
 }
 
@@ -124,9 +131,13 @@ func (c *AKToolsClient) DetermineAKShareSymbol(symbol string) string {
 	return "SH" + cleanSymbol
 }
 
-// saveResponseToFile 保存HTTP响应到JSON文件用于调试 - 已完成调试，暂时保留代码
-/*
-func (c *AKToolsClient) saveResponseToFile(responseBody []byte, apiName, symbol string) error {
+// saveResponseToFile 保存HTTP响应到JSON文件用于调试
+func (c *AKToolsClient) saveResponseToFile(responseBody []byte, apiName, symbol string, debug bool) error {
+	// 如果未启用调试模式，直接返回
+	if !debug {
+		return nil
+	}
+
 	// 创建debug目录（如果不存在）
 	debugDir := "debug"
 	if _, err := os.Stat(debugDir); os.IsNotExist(err) {
@@ -149,7 +160,6 @@ func (c *AKToolsClient) saveResponseToFile(responseBody []byte, apiName, symbol 
 	log.Printf("HTTP响应已保存到文件: %s", filename)
 	return nil
 }
-*/
 
 // GetDailyData 获取股票日线数据
 func (c *AKToolsClient) GetDailyData(symbol, startDate, endDate, adjust string) ([]models.StockDaily, error) {
@@ -193,6 +203,10 @@ func (c *AKToolsClient) GetDailyData(symbol, startDate, endDate, adjust string) 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("读取响应体失败: %w", err)
+	}
+	// 保存响应到文件用于调试
+	if err := c.saveResponseToFile(body, "daily_data", cleanSymbol, c.config.Debug); err != nil {
+		log.Printf("保存响应文件失败: %v", err)
 	}
 
 	// 解析JSON响应
@@ -251,6 +265,10 @@ func (c *AKToolsClient) GetStockBasic(symbol string) (*models.StockBasic, error)
 	if err != nil {
 		return nil, fmt.Errorf("读取响应体失败: %w", err)
 	}
+	// 保存响应到文件用于调试
+	if err := c.saveResponseToFile(body, "stock_basic", cleanSymbol, c.config.Debug); err != nil {
+		log.Printf("保存响应文件失败: %v", err)
+	}
 
 	// 解析JSON响应 - stock_individual_info_em返回的是key-value对数组格式
 	var rawResp []map[string]interface{}
@@ -307,6 +325,10 @@ func (c *AKToolsClient) GetStockList() ([]models.StockBasic, error) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("读取响应体失败: %w", err)
+	}
+	// 保存响应到文件用于调试
+	if err := c.saveResponseToFile(body, "stock_list", "all", c.config.Debug); err != nil {
+		log.Printf("保存响应文件失败: %v", err)
 	}
 
 	// 解析JSON响应 - 这里需要根据实际API响应结构调整
@@ -608,12 +630,17 @@ func (c *AKToolsClient) GetIncomeStatement(symbol, period, reportType string) (*
 	if err != nil {
 		return nil, fmt.Errorf("读取响应体失败: %w", err)
 	}
-
 	// 保存响应到文件用于调试 - 已完成调试
 	// cleanSymbol := c.CleanStockSymbol(symbol)
 	// if err := c.saveResponseToFile(body, "income_statement", cleanSymbol); err != nil {
 	// 	log.Printf("保存响应文件失败: %v", err)
 	// }
+
+	// 保存响应到文件用于调试
+	cleanSymbol := c.CleanStockSymbol(symbol)
+	if err := c.saveResponseToFile(body, "income_statement", cleanSymbol, c.config.Debug); err != nil {
+		log.Printf("保存响应文件失败: %v", err)
+	}
 
 	// 解析JSON响应
 	var rawData []map[string]interface{}
@@ -681,6 +708,11 @@ func (c *AKToolsClient) GetIncomeStatements(symbol, startPeriod, endPeriod, repo
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("读取响应体失败: %w", err)
+	}
+	// 保存响应到文件用于调试
+	cleanSymbol := c.CleanStockSymbol(symbol)
+	if err := c.saveResponseToFile(body, "income_statements", cleanSymbol, c.config.Debug); err != nil {
+		log.Printf("保存响应文件失败: %v", err)
 	}
 
 	// 解析JSON响应
@@ -762,18 +794,17 @@ func (c *AKToolsClient) GetBalanceSheet(symbol, period, reportType string) (*mod
 		return nil, fmt.Errorf("读取响应体失败: %w", err)
 	}
 
-	// 保存响应到文件用于调试 - 已完成调试
-	// cleanSymbol := c.CleanStockSymbol(symbol)
-	// if err := c.saveResponseToFile(body, "balance_sheet", cleanSymbol); err != nil {
-	// 	log.Printf("保存响应文件失败: %v", err)
-	// }
+	// 保存响应到文件用于调试
+	cleanSymbol := c.CleanStockSymbol(symbol)
+	if err := c.saveResponseToFile(body, "balance_sheet", cleanSymbol, c.config.Debug); err != nil {
+		log.Printf("保存响应文件失败: %v", err)
+	}
 
 	// 解析JSON响应
 	var rawData []map[string]interface{}
 	if err := json.Unmarshal(body, &rawData); err != nil {
 		return nil, fmt.Errorf("解析AKTools资产负债表响应失败: %w", err)
 	}
-
 	if len(rawData) == 0 {
 		return nil, fmt.Errorf("未找到资产负债表数据: %s, 期间: %s", symbol, period)
 	}
@@ -828,17 +859,16 @@ func (c *AKToolsClient) GetBalanceSheets(symbol, startPeriod, endPeriod, reportT
 	if err != nil {
 		return nil, fmt.Errorf("读取响应体失败: %w", err)
 	}
+	// 保存响应到文件用于调试
+	cleanSymbol := c.CleanStockSymbol(symbol)
+	if err := c.saveResponseToFile(body, "balance_sheets", cleanSymbol, c.config.Debug); err != nil {
+		log.Printf("保存响应文件失败: %v", err)
+	}
 
 	var rawData []map[string]interface{}
 	if err := json.Unmarshal(body, &rawData); err != nil {
 		return nil, fmt.Errorf("解析AKTools资产负债表响应失败: %w", err)
 	}
-
-	// 保存响应到文件用于调试 - 已完成调试
-	// cleanSymbol := c.CleanStockSymbol(symbol)
-	// if err := c.saveResponseToFile(body, "balance_sheets", cleanSymbol); err != nil {
-	// 	log.Printf("保存响应文件失败: %v", err)
-	// }
 
 	var results []models.BalanceSheet
 	for _, data := range rawData {
@@ -899,18 +929,16 @@ func (c *AKToolsClient) GetCashFlowStatement(symbol, period, reportType string) 
 	if err != nil {
 		return nil, fmt.Errorf("读取响应体失败: %w", err)
 	}
-
-	// 保存响应到文件用于调试 - 已完成调试
-	// cleanSymbol := c.CleanStockSymbol(symbol)
-	// if err := c.saveResponseToFile(body, "cash_flow_statement", cleanSymbol); err != nil {
-	// 	log.Printf("保存响应文件失败: %v", err)
-	// }
+	// 保存响应到文件用于调试
+	cleanSymbol := c.CleanStockSymbol(symbol)
+	if err := c.saveResponseToFile(body, "cash_flow_statement", cleanSymbol, c.config.Debug); err != nil {
+		log.Printf("保存响应文件失败: %v", err)
+	}
 
 	var rawData []map[string]interface{}
 	if err := json.Unmarshal(body, &rawData); err != nil {
 		return nil, fmt.Errorf("解析AKTools现金流量表响应失败: %w", err)
 	}
-
 	if len(rawData) == 0 {
 		return nil, fmt.Errorf("未找到现金流量表数据: %s, 期间: %s", symbol, period)
 	}
@@ -965,17 +993,16 @@ func (c *AKToolsClient) GetCashFlowStatements(symbol, startPeriod, endPeriod, re
 	if err != nil {
 		return nil, fmt.Errorf("读取响应体失败: %w", err)
 	}
+	// 保存响应到文件用于调试
+	cleanSymbol := c.CleanStockSymbol(symbol)
+	if err := c.saveResponseToFile(body, "cash_flow_statements", cleanSymbol, c.config.Debug); err != nil {
+		log.Printf("保存响应文件失败: %v", err)
+	}
 
 	var rawData []map[string]interface{}
 	if err := json.Unmarshal(body, &rawData); err != nil {
 		return nil, fmt.Errorf("解析AKTools现金流量表响应失败: %w", err)
 	}
-
-	// 保存响应到文件用于调试 - 已完成调试
-	// cleanSymbol := c.CleanStockSymbol(symbol)
-	// if err := c.saveResponseToFile(body, "cash_flow_statements", cleanSymbol); err != nil {
-	// 	log.Printf("保存响应文件失败: %v", err)
-	// }
 
 	var results []models.CashFlowStatement
 	for _, data := range rawData {
@@ -1055,11 +1082,10 @@ func (c *AKToolsClient) GetDailyBasic(symbol, tradeDate string) (*models.DailyBa
 		return nil, fmt.Errorf("读取响应体失败: %w", err)
 	}
 
-	// 保存响应到文件用于调试 - 已完成调试
-	// cleanSymbol = c.CleanStockSymbol(symbol)
-	// if err := c.saveResponseToFile(body, "daily_basic", cleanSymbol); err != nil {
-	// 	log.Printf("保存响应文件失败: %v", err)
-	// }
+	// 保存响应到文件用于调试
+	if err := c.saveResponseToFile(body, "daily_basic", cleanSymbol, c.config.Debug); err != nil {
+		log.Printf("保存响应文件失败: %v", err)
+	}
 
 	var rawData []map[string]interface{}
 	if err := json.Unmarshal(body, &rawData); err != nil {
