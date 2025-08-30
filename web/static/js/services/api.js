@@ -638,10 +638,143 @@ class ApiService {
         
         return stockMap[stockCode] || `股票${stockCode.split('.')[0]}`; // 如果找不到映射，则返回格式化的代码
     }
+
+    /**
+     * 获取基本面因子分析
+     */
+    async getFundamentalFactor(stockCode, tradeDate = '') {
+        let endpoint = `/api/v1/stocks/${stockCode}/factor`;
+        const params = new URLSearchParams();
+        
+        if (tradeDate) params.append('trade_date', tradeDate);
+        
+        if (params.toString()) {
+            endpoint += `?${params.toString()}`;
+        }
+        
+        console.log(`[API] 获取基本面因子请求:`, {
+            stockCode,
+            tradeDate,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint);
+            
+            console.log(`[API] 基本面因子响应:`, {
+                stockCode,
+                success: response.success,
+                dataKeys: response.data ? Object.keys(response.data) : [],
+                timestamp: new Date().toISOString()
+            });
+            
+            if (response.success && response.data) {
+                return response.data;
+            } else {
+                console.error(`[API] 获取基本面因子失败:`, response.error);
+                throw new Error(response.error || '获取基本面因子失败');
+            }
+        } catch (error) {
+            console.error(`[API] 获取基本面因子异常:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取基本面因子排名
+     */
+    async getFundamentalFactorRanking(factorType = 'composite', tradeDate = '', limit = 50) {
+        let endpoint = `/api/v1/factors/ranking`;
+        const params = new URLSearchParams();
+        
+        if (factorType) params.append('type', factorType);
+        if (tradeDate) params.append('trade_date', tradeDate);
+        if (limit) params.append('limit', limit.toString());
+        
+        if (params.toString()) {
+            endpoint += `?${params.toString()}`;
+        }
+        
+        console.log(`[API] 获取因子排名请求:`, {
+            factorType,
+            tradeDate,
+            limit,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint);
+            
+            console.log(`[API] 因子排名响应:`, {
+                factorType,
+                success: response.success,
+                total: response.data ? response.data.total : 0,
+                timestamp: new Date().toISOString()
+            });
+            
+            if (response.success && response.data) {
+                return response.data;
+            } else {
+                console.error(`[API] 获取因子排名失败:`, response.error);
+                throw new Error(response.error || '获取因子排名失败');
+            }
+        } catch (error) {
+            console.error(`[API] 获取因子排名异常:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 批量计算基本面因子
+     */
+    async batchCalculateFundamentalFactors(symbols, tradeDate = '') {
+        const endpoint = `/api/v1/factors/batch`;
+        
+        const requestData = {
+            symbols: symbols,
+            trade_date: tradeDate || ''
+        };
+        
+        console.log(`[API] 批量计算因子请求:`, {
+            symbolCount: symbols.length,
+            tradeDate,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+            
+            console.log(`[API] 批量计算因子响应:`, {
+                success: response.success,
+                successCount: response.data ? response.data.success_count : 0,
+                requestCount: response.data ? response.data.request_count : 0,
+                timestamp: new Date().toISOString()
+            });
+            
+            if (response.success && response.data) {
+                return response.data;
+            } else {
+                console.error(`[API] 批量计算因子失败:`, response.error);
+                throw new Error(response.error || '批量计算因子失败');
+            }
+        } catch (error) {
+            console.error(`[API] 批量计算因子异常:`, error);
+            throw error;
+        }
+    }
 }
 
 // 导出API服务类
 window.ApiService = ApiService;
 
 // 版本标识 - 用于调试缓存问题
-console.log('[API] ApiService loaded - version 1.1 with fundamental data support');
+console.log('[API] ApiService loaded - version 1.2 with fundamental factor analysis support');

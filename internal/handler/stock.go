@@ -20,27 +20,29 @@ var startTime = time.Now()
 
 // StockHandler 股票数据处理器
 type StockHandler struct {
-	dataSourceClient  client.DataSourceClient
-	calculator        *indicators.Calculator
-	predictionService *service.PredictionService
-	localStockService *service.LocalStockService
-	dailyCacheService *service.DailyCacheService
-	favoriteService   *service.FavoriteService
-	config            *config.Config // 添加配置字段
-	app               *service.App   // 应用上下文，用于获取其他服务
+	dataSourceClient         client.DataSourceClient
+	calculator               *indicators.Calculator
+	predictionService        *service.PredictionService
+	localStockService        *service.LocalStockService
+	dailyCacheService        *service.DailyCacheService
+	favoriteService          *service.FavoriteService
+	fundamentalFactorService *service.FundamentalFactorService
+	config                   *config.Config // 添加配置字段
+	app                      *service.App   // 应用上下文，用于获取其他服务
 }
 
 // NewStockHandler 创建股票处理器
 func NewStockHandler(dataSourceClient client.DataSourceClient, cacheService *service.DailyCacheService, favoriteService *service.FavoriteService, app *service.App) *StockHandler {
 	return &StockHandler{
-		dataSourceClient:  dataSourceClient,
-		calculator:        indicators.NewCalculator(),
-		predictionService: service.NewPredictionService(),
-		localStockService: service.NewLocalStockService("data"),
-		dailyCacheService: cacheService,
-		favoriteService:   favoriteService,
-		config:            config.Load(), // 初始化配置
-		app:               app,           // 应用上下文
+		dataSourceClient:         dataSourceClient,
+		calculator:               indicators.NewCalculator(),
+		predictionService:        service.NewPredictionService(),
+		localStockService:        service.NewLocalStockService("data"),
+		dailyCacheService:        cacheService,
+		favoriteService:          favoriteService,
+		fundamentalFactorService: service.NewFundamentalFactorService(dataSourceClient),
+		config:                   config.Load(), // 初始化配置
+		app:                      app,           // 应用上下文
 	}
 }
 
@@ -1433,6 +1435,158 @@ func (h *StockHandler) GetFundamentalData(w http.ResponseWriter, r *http.Request
 		log.Printf("[GetFundamentalData] 获取每日基本面指标失败: %v", err)
 	} else {
 		response.DailyBasic = dailyBasic
+	}
+
+	h.writeSuccessResponse(w, response)
+}
+
+// GetFundamentalFactor 获取单个股票的基本面因子
+func (h *StockHandler) GetFundamentalFactor(w http.ResponseWriter, r *http.Request) {
+	// 从URL路径中提取股票代码
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 4 {
+		h.writeErrorResponse(w, http.StatusBadRequest, "无效的URL路径")
+		return
+	}
+	stockCode := pathParts[3] // /api/v1/stocks/{code}/factor
+
+	// 获取查询参数
+	tradeDate := r.URL.Query().Get("trade_date")
+	if tradeDate == "" {
+		// 如果没有指定日期，使用当前日期
+		tradeDate = time.Now().Format("20060102")
+	}
+
+	log.Printf("[GetFundamentalFactor] 获取基本面因子: %s, 日期: %s", stockCode, tradeDate)
+
+	// 计算基本面因子
+	factor, err := h.fundamentalFactorService.CalculateFundamentalFactor(stockCode, tradeDate)
+	if err != nil {
+		log.Printf("[GetFundamentalFactor] 计算基本面因子失败: %v", err)
+		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("计算基本面因子失败: %v", err))
+		return
+	}
+
+	h.writeSuccessResponse(w, factor)
+}
+
+// GetFundamentalFactorRanking 获取基本面因子排名
+func (h *StockHandler) GetFundamentalFactorRanking(w http.ResponseWriter, r *http.Request) {
+	// 获取查询参数
+	factorType := r.URL.Query().Get("type") // value, growth, quality, profitability, composite
+	if factorType == "" {
+		factorType = "composite" // 默认使用综合得分
+	}
+
+	tradeDate := r.URL.Query().Get("trade_date")
+	if tradeDate == "" {
+		tradeDate = time.Now().Format("20060102")
+	}
+
+	limitStr := r.URL.Query().Get("limit")
+	limit := 50 // 默认返回前50名
+	if limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+
+	log.Printf("[GetFundamentalFactorRanking] 获取因子排名: 类型=%s, 日期=%s, 限制=%d", factorType, tradeDate, limit)
+
+	// 获取股票列表 - 这里简化处理，使用一些热门股票
+	symbols := []string{
+		"000001", "000002", "000858", "002415", "600036", "600519", "600887", "600976",
+		"000858", "002304", "300059", "300750", "600031", "600276", "600585", "601318",
+		"000063", "000166", "002142", "300014", "600009", "600048", "600104", "600690",
+		"000568", "002027", "002594", "300124", "600050", "600115", "600362", "601012",
+	}
+
+	// 批量计算基本面因子
+	factors, err := h.fundamentalFactorService.BatchCalculateFundamentalFactors(symbols, tradeDate)
+	if err != nil {
+		log.Printf("[GetFundamentalFactorRanking] 批量计算因子失败: %v", err)
+		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("批量计算因子失败: %v", err))
+		return
+	}
+
+	// 获取排名
+	rankedFactors := h.fundamentalFactorService.GetFactorRanking(factors, factorType)
+
+	// 限制返回数量
+	if len(rankedFactors) > limit {
+		rankedFactors = rankedFactors[:limit]
+	}
+
+	// 构建响应
+	response := struct {
+		FactorType string                     `json:"factor_type"`
+		TradeDate  string                     `json:"trade_date"`
+		Total      int                        `json:"total"`
+		Limit      int                        `json:"limit"`
+		Factors    []models.FundamentalFactor `json:"factors"`
+		UpdatedAt  time.Time                  `json:"updated_at"`
+	}{
+		FactorType: factorType,
+		TradeDate:  tradeDate,
+		Total:      len(factors),
+		Limit:      limit,
+		Factors:    rankedFactors,
+		UpdatedAt:  time.Now(),
+	}
+
+	h.writeSuccessResponse(w, response)
+}
+
+// BatchCalculateFundamentalFactors 批量计算基本面因子
+func (h *StockHandler) BatchCalculateFundamentalFactors(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "仅支持POST方法")
+		return
+	}
+
+	// 解析请求体
+	var request struct {
+		Symbols   []string `json:"symbols"`
+		TradeDate string   `json:"trade_date"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, "请求体格式错误")
+		return
+	}
+
+	if len(request.Symbols) == 0 {
+		h.writeErrorResponse(w, http.StatusBadRequest, "股票代码列表不能为空")
+		return
+	}
+
+	if request.TradeDate == "" {
+		request.TradeDate = time.Now().Format("20060102")
+	}
+
+	log.Printf("[BatchCalculateFundamentalFactors] 批量计算因子: %d个股票, 日期: %s", len(request.Symbols), request.TradeDate)
+
+	// 批量计算
+	factors, err := h.fundamentalFactorService.BatchCalculateFundamentalFactors(request.Symbols, request.TradeDate)
+	if err != nil {
+		log.Printf("[BatchCalculateFundamentalFactors] 批量计算失败: %v", err)
+		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("批量计算失败: %v", err))
+		return
+	}
+
+	// 构建响应
+	response := struct {
+		TradeDate    string                     `json:"trade_date"`
+		RequestCount int                        `json:"request_count"`
+		SuccessCount int                        `json:"success_count"`
+		Factors      []models.FundamentalFactor `json:"factors"`
+		UpdatedAt    time.Time                  `json:"updated_at"`
+	}{
+		TradeDate:    request.TradeDate,
+		RequestCount: len(request.Symbols),
+		SuccessCount: len(factors),
+		Factors:      factors,
+		UpdatedAt:    time.Now(),
 	}
 
 	h.writeSuccessResponse(w, response)

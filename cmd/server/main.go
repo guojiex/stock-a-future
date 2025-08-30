@@ -307,6 +307,11 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patt
 	mux.HandleFunc("GET /api/v1/stocks/{code}/cashflow", stockHandler.GetCashFlowStatement)
 	mux.HandleFunc("GET /api/v1/stocks/{code}/dailybasic", stockHandler.GetDailyBasic)
 
+	// 基本面因子分析API
+	mux.HandleFunc("GET /api/v1/stocks/{code}/factor", stockHandler.GetFundamentalFactor)
+	mux.HandleFunc("GET /api/v1/factors/ranking", stockHandler.GetFundamentalFactorRanking)
+	mux.HandleFunc("POST /api/v1/factors/batch", stockHandler.BatchCalculateFundamentalFactors)
+
 	// 本地股票数据API
 	mux.HandleFunc("GET /api/v1/stocks", stockHandler.GetStockList)
 	mux.HandleFunc("GET /api/v1/stocks/search", stockHandler.SearchStocks)
