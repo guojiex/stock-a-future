@@ -414,22 +414,6 @@ func (c *AKToolsClient) convertToStockDaily(aktoolsData []AKToolsDailyResponse, 
 	return result
 }
 
-// convertToStockBasic 将AKTools股票基本信息转换为内部模型
-func (c *AKToolsClient) convertToStockBasic(aktoolsData AKToolsStockBasicResponse, symbol string) *models.StockBasic {
-	// 智能判断市场后缀
-	tsCode := c.DetermineTSCode(symbol)
-
-	return &models.StockBasic{
-		TSCode:   tsCode,
-		Symbol:   aktoolsData.Code,
-		Name:     aktoolsData.Name,
-		Area:     aktoolsData.Area,
-		Industry: aktoolsData.Industry,
-		Market:   aktoolsData.Market,
-		ListDate: aktoolsData.ListDate,
-	}
-}
-
 // convertStockIndividualInfoToStockBasic 将stock_individual_info_em的响应转换为内部模型
 func (c *AKToolsClient) convertStockIndividualInfoToStockBasic(stockData map[string]interface{}, symbol string) *models.StockBasic {
 	// 智能判断市场后缀

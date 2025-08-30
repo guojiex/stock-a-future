@@ -118,11 +118,12 @@ func TestAKToolsAPIDiscovery(t *testing.T) {
 			defer resp.Body.Close()
 
 			// 检查状态码
-			if resp.StatusCode == 200 {
+			switch resp.StatusCode {
+			case 200:
 				t.Logf("✅ %s - 接口可用", apiName)
-			} else if resp.StatusCode == 404 {
+			case 404:
 				t.Logf("❌ %s - 接口不存在", apiName)
-			} else {
+			default:
 				body, _ := io.ReadAll(resp.Body)
 				t.Logf("⚠️  %s - 状态码: %d, 响应: %s", apiName, resp.StatusCode, string(body))
 			}
