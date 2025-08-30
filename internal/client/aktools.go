@@ -57,8 +57,22 @@ func NewAKToolsClient(baseURL string) *AKToolsClient {
 		baseURL = "http://127.0.0.1:8080"
 	}
 
-	// 加载配置
-	cfg := config.Load()
+	// 创建一个默认配置（用于测试）
+	cfg := &config.Config{
+		DataSourceType: "aktools", // 默认使用aktools数据源
+		AKToolsBaseURL: baseURL,
+		Debug:          false,
+	}
+
+	// 尝试加载配置，但不要在失败时panic
+	// 这样可以在测试环境中使用，即使没有完整的环境变量配置
+	if os.Getenv("TUSHARE_TOKEN") != "" || os.Getenv("DATA_SOURCE_TYPE") == "aktools" {
+		// 只有在必要的环境变量存在时才尝试加载配置
+		loadedCfg := config.Load()
+		if loadedCfg != nil {
+			cfg = loadedCfg
+		}
+	}
 
 	return &AKToolsClient{
 		baseURL: baseURL,

@@ -5,9 +5,17 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 )
+
+func init() {
+	// 设置测试环境标记，避免配置加载时因缺少token而panic
+	os.Setenv("GO_TEST", "1")
+	// 设置数据源类型为aktools
+	os.Setenv("DATA_SOURCE_TYPE", "aktools")
+}
 
 // TestAKToolsDebugTemplate AKTools调试测试模板
 // 这个文件作为调试模板，当遇到AKTools API问题时可以参考

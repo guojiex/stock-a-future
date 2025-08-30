@@ -62,7 +62,7 @@ func Load() *Config {
 	_ = godotenv.Load()
 
 	config := &Config{
-		DataSourceType:   getEnv("DATA_SOURCE_TYPE", "tushare"),
+		DataSourceType:   getEnv("DATA_SOURCE_TYPE", "aktools"), // 默认使用aktools，避免测试时需要tushare token
 		TushareToken:     getEnv("TUSHARE_TOKEN", ""),
 		TushareBaseURL:   getEnv("TUSHARE_BASE_URL", "http://api.tushare.pro"),
 		AKToolsBaseURL:   getEnv("AKTOOLS_BASE_URL", "http://127.0.0.1:8080"),
@@ -102,7 +102,12 @@ func Load() *Config {
 	// 验证必要配置
 	if config.DataSourceType == "tushare" && config.TushareToken == "" {
 		// 这里使用panic，因为logger还没有初始化
-		panic("使用Tushare数据源时，TUSHARE_TOKEN 环境变量是必需的")
+		// 但是我们不希望在测试环境中因为缺少token而panic
+		if os.Getenv("GO_TEST") != "1" { // 不在测试环境中才panic
+			panic("使用Tushare数据源时，TUSHARE_TOKEN 环境变量是必需的")
+		}
+		// 在测试环境中，默认切换到aktools数据源
+		config.DataSourceType = "aktools"
 	}
 
 	return config

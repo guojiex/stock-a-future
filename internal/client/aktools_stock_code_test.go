@@ -5,9 +5,17 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 )
+
+func init() {
+	// 设置测试环境标记，避免配置加载时因缺少token而panic
+	os.Setenv("GO_TEST", "1")
+	// 设置数据源类型为aktools
+	os.Setenv("DATA_SOURCE_TYPE", "aktools")
+}
 
 // TestAKToolsStockBasicAPI 测试AKTools获取股票基本信息API
 func TestAKToolsStockBasicAPI(t *testing.T) {
