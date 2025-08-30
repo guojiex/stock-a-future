@@ -1,5 +1,9 @@
 # Stock-A-Future - A股股票买卖点预测API
 
+[![Go](https://github.com/guojiex/stock-a-future/actions/workflows/go.yml/badge.svg)](https://github.com/guojiex/stock-a-future/actions/workflows/go.yml)
+![SQLite](https://img.shields.io/badge/sqlite-%2307405e.svg?style=for-the-badge&logo=sqlite&logoColor=white)
+![Go](https://img.shields.io/badge/go-%2300ADD8.svg?style=for-the-badge&logo=go&logoColor=white)
+
 ![股票查询](docs/imgs/股票查询.png)
 
 基于Go语言开发的A股股票买卖点预测系统，支持多种数据源（Tushare、AKTools），提供技术指标计算和买卖点预测功能。
