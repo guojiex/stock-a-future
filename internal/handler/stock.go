@@ -1355,7 +1355,7 @@ func (h *StockHandler) GetDailyBasic(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[GetDailyBasic] 请求参数 - 股票代码: %s, 交易日期: %s", stockCode, tradeDate)
 
 	// 获取每日基本面指标
-	dailyBasic, err := h.dataSourceClient.GetDailyBasic(stockCode, tradeDate)
+	dailyBasic, err := h.dataSourceClient.GetDailyBasic(r.Context(), stockCode, tradeDate)
 	if err != nil {
 		log.Printf("[GetDailyBasic] 获取每日基本面指标失败 - 股票代码: %s, 错误: %v", stockCode, err)
 		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取每日基本面指标失败: %v", err))
@@ -1431,7 +1431,7 @@ func (h *StockHandler) GetFundamentalData(w http.ResponseWriter, r *http.Request
 	}
 
 	// 获取每日基本面指标
-	if dailyBasic, err := h.dataSourceClient.GetDailyBasic(stockCode, tradeDate); err != nil {
+	if dailyBasic, err := h.dataSourceClient.GetDailyBasic(r.Context(), stockCode, tradeDate); err != nil {
 		log.Printf("[GetFundamentalData] 获取每日基本面指标失败: %v", err)
 	} else {
 		response.DailyBasic = dailyBasic

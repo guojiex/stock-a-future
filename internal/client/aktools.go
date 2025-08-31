@@ -213,38 +213,94 @@ func (c *AKToolsClient) doRequestWithCache(ctx context.Context, url string) ([]b
 
 	log.Printf("🔄 缓存未命中，发起HTTP请求: %s", url)
 
-	// 创建HTTP请求
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("创建请求失败: %w", err)
-	}
+	// 使用重试机制发送HTTP请求
+	return c.doRequestWithRetry(ctx, url)
+}
 
-	// 发送HTTP请求
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("请求AKTools API失败: %w, URL: %s", err, url)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Printf("关闭响应体失败: %v", err)
+// doRequestWithRetry 执行带重试的HTTP请求
+func (c *AKToolsClient) doRequestWithRetry(ctx context.Context, url string) ([]byte, error) {
+	const maxRetries = 3
+	const baseDelay = 1 * time.Second
+
+	var lastErr error
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		// 创建HTTP请求
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		if err != nil {
+			return nil, fmt.Errorf("创建请求失败: %w", err)
 		}
-	}()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("AKTools API返回非200状态码: %d, URL: %s", resp.StatusCode, url)
+		// 发送HTTP请求
+		resp, err := c.client.Do(req)
+		if err != nil {
+			lastErr = fmt.Errorf("请求AKTools API失败: %w, URL: %s", err, url)
+			log.Printf("⚠️  第%d次请求失败: %v", attempt, lastErr)
+
+			if attempt < maxRetries {
+				delay := time.Duration(attempt) * baseDelay
+				log.Printf("⏳ 等待%v后重试...", delay)
+				time.Sleep(delay)
+				continue
+			}
+			return nil, lastErr
+		}
+
+		// 检查HTTP状态码
+		if resp.StatusCode != http.StatusOK {
+			// 读取错误响应体用于调试
+			body, readErr := io.ReadAll(resp.Body)
+			resp.Body.Close()
+
+			if readErr != nil {
+				log.Printf("读取错误响应体失败: %v", readErr)
+			} else {
+				log.Printf("错误响应体内容: %s", string(body))
+			}
+
+			lastErr = fmt.Errorf("AKTools API返回非200状态码: %d, URL: %s", resp.StatusCode, url)
+
+			// 对于5xx错误进行重试，4xx错误不重试
+			if resp.StatusCode >= 500 && resp.StatusCode < 600 && attempt < maxRetries {
+				log.Printf("⚠️  第%d次请求返回%d错误，准备重试", attempt, resp.StatusCode)
+				delay := time.Duration(attempt) * baseDelay
+				log.Printf("⏳ 等待%v后重试...", delay)
+				time.Sleep(delay)
+				continue
+			}
+
+			return nil, lastErr
+		}
+
+		// 成功响应，读取响应体
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		if err != nil {
+			lastErr = fmt.Errorf("读取响应体失败: %w", err)
+			log.Printf("⚠️  第%d次读取响应体失败: %v", attempt, lastErr)
+
+			if attempt < maxRetries {
+				delay := time.Duration(attempt) * baseDelay
+				log.Printf("⏳ 等待%v后重试...", delay)
+				time.Sleep(delay)
+				continue
+			}
+			return nil, lastErr
+		}
+
+		// 成功获取响应，存入缓存
+		c.cache.Set(url, body)
+		if attempt > 1 {
+			log.Printf("✅ 第%d次重试成功，响应已缓存: %s (大小: %d bytes)", attempt, url, len(body))
+		} else {
+			log.Printf("💾 响应已缓存: %s (大小: %d bytes)", url, len(body))
+		}
+
+		return body, nil
 	}
 
-	// 读取响应体
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取响应体失败: %w", err)
-	}
-
-	// 将响应存入缓存
-	c.cache.Set(url, body)
-	log.Printf("💾 响应已缓存: %s (大小: %d bytes)", url, len(body))
-
-	return body, nil
+	return nil, lastErr
 }
 
 // DetermineTSCode 智能判断股票代码的市场后缀
@@ -1021,15 +1077,15 @@ func (c *AKToolsClient) GetFinancialIndicators(symbol, startPeriod, endPeriod, r
 }
 
 // GetDailyBasic 获取每日基本面指标
-func (c *AKToolsClient) GetDailyBasic(symbol, tradeDate string) (*models.DailyBasic, error) {
+func (c *AKToolsClient) GetDailyBasic(ctx context.Context, symbol, tradeDate string) (*models.DailyBasic, error) {
 	cleanSymbol := c.CleanStockSymbol(symbol)
 
-	// stock_zh_a_spot_em 不接受任何参数，返回所有A股实时数据
-	// 我们需要在返回的数据中找到对应的股票
-	apiURL := fmt.Sprintf("%s/api/public/stock_zh_a_spot_em", c.baseURL)
+	// 使用股票个股信息API获取基本面数据，这比获取所有股票数据更高效
+	params := url.Values{}
+	params.Set("symbol", cleanSymbol)
+	apiURL := fmt.Sprintf("%s/api/public/stock_individual_info_em?%s", c.baseURL, params.Encode())
 
-	ctx := context.Background()
-	// 使用带缓存的请求方法
+	// 使用传入的context而不是自己创建
 	body, err := c.doRequestWithCache(ctx, apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("获取每日基本面数据失败: %w", err)
@@ -1040,44 +1096,42 @@ func (c *AKToolsClient) GetDailyBasic(symbol, tradeDate string) (*models.DailyBa
 		log.Printf("保存响应文件失败: %v", err)
 	}
 
-	var rawData []map[string]interface{}
-	if err := json.Unmarshal(body, &rawData); err != nil {
+	// stock_individual_info_em返回的是key-value对数组格式
+	var rawResp []map[string]interface{}
+	if err := json.Unmarshal(body, &rawResp); err != nil {
 		return nil, fmt.Errorf("解析AKTools每日基本面响应失败: %w", err)
 	}
 
-	if len(rawData) == 0 {
+	if len(rawResp) == 0 {
 		return nil, fmt.Errorf("未找到每日基本面数据: %s, 日期: %s", symbol, tradeDate)
 	}
 
-	// 在返回的所有股票数据中查找指定的股票
-	for _, data := range rawData {
-		if code, ok := data["代码"].(string); ok {
-			// 比较清理后的代码
-			if code == cleanSymbol {
-				return c.convertToDailyBasic(data, symbol, tradeDate)
-			}
-		}
-		// 也尝试匹配带后缀的代码
-		if code, ok := data["代码"].(string); ok {
-			expectedTSCode := c.DetermineTSCode(cleanSymbol)
-			if code == expectedTSCode {
-				return c.convertToDailyBasic(data, symbol, tradeDate)
+	// 将key-value对数组转换为map
+	stockData := make(map[string]interface{})
+	for _, item := range rawResp {
+		if key, ok := item["item"].(string); ok {
+			if value, exists := item["value"]; exists {
+				stockData[key] = value
 			}
 		}
 	}
 
-	return nil, fmt.Errorf("未找到指定股票的每日基本面数据: %s, 日期: %s", symbol, tradeDate)
+	if len(stockData) == 0 {
+		return nil, fmt.Errorf("股票基本面数据为空: %s, 日期: %s", symbol, tradeDate)
+	}
+
+	return c.convertToDailyBasic(stockData, symbol, tradeDate)
 }
 
 // GetDailyBasics 批量获取每日基本面指标
-func (c *AKToolsClient) GetDailyBasics(symbol, startDate, endDate string) ([]models.DailyBasic, error) {
+func (c *AKToolsClient) GetDailyBasics(ctx context.Context, symbol, startDate, endDate string) ([]models.DailyBasic, error) {
 	// AKTools不支持历史每日基本面数据批量获取，返回空切片
 	// 实际应用中需要逐日调用GetDailyBasic
 	return []models.DailyBasic{}, nil
 }
 
 // GetDailyBasicsByDate 根据交易日期获取所有股票的每日基本面指标
-func (c *AKToolsClient) GetDailyBasicsByDate(tradeDate string) ([]models.DailyBasic, error) {
+func (c *AKToolsClient) GetDailyBasicsByDate(ctx context.Context, tradeDate string) ([]models.DailyBasic, error) {
 	// AKTools不支持按日期获取所有股票数据，返回空切片
 	return []models.DailyBasic{}, nil
 }

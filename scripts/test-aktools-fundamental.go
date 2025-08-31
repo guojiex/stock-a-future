@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"stock-a-future/internal/client"
@@ -90,7 +91,7 @@ func main() {
 
 	// 5. 测试获取每日基本面数据
 	fmt.Println("5. 测试获取每日基本面数据...")
-	dailyBasic, err := aktoolsClient.GetDailyBasic(testSymbol, testTradeDate)
+	dailyBasic, err := aktoolsClient.GetDailyBasic(context.Background(), testSymbol, testTradeDate)
 	if err != nil {
 		log.Printf("❌ 获取每日基本面数据失败: %v", err)
 	} else {

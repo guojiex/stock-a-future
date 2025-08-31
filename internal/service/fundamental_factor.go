@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sort"
@@ -33,7 +34,8 @@ func (s *FundamentalFactorService) CalculateFundamentalFactor(symbol, tradeDate 
 	log.Printf("[FundamentalFactorService] 开始计算基本面因子: %s, 日期: %s", symbol, tradeDate)
 
 	// 1. 获取每日基本面数据
-	dailyBasic, err := s.client.GetDailyBasic(symbol, tradeDate)
+	ctx := context.Background()
+	dailyBasic, err := s.client.GetDailyBasic(ctx, symbol, tradeDate)
 	if err != nil {
 		log.Printf("[FundamentalFactorService] 获取每日基本面数据失败: %v", err)
 		return nil, fmt.Errorf("获取每日基本面数据失败: %v", err)

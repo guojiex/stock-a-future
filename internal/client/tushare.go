@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -554,19 +555,19 @@ func (c *TushareClient) GetFinancialIndicators(symbol, startPeriod, endPeriod, r
 
 // GetDailyBasic 获取每日基本面指标
 // TODO: 实现Tushare每日基本面指标获取
-func (c *TushareClient) GetDailyBasic(symbol, tradeDate string) (*models.DailyBasic, error) {
+func (c *TushareClient) GetDailyBasic(ctx context.Context, symbol, tradeDate string) (*models.DailyBasic, error) {
 	panic("TODO: 实现Tushare每日基本面指标获取 - GetDailyBasic")
 }
 
 // GetDailyBasics 批量获取每日基本面指标
 // TODO: 实现Tushare批量每日基本面指标获取
-func (c *TushareClient) GetDailyBasics(symbol, startDate, endDate string) ([]models.DailyBasic, error) {
+func (c *TushareClient) GetDailyBasics(ctx context.Context, symbol, startDate, endDate string) ([]models.DailyBasic, error) {
 	panic("TODO: 实现Tushare批量每日基本面指标获取 - GetDailyBasics")
 }
 
 // GetDailyBasicsByDate 根据交易日期获取所有股票的每日基本面指标
 // TODO: 实现Tushare按日期获取所有股票每日基本面指标
-func (c *TushareClient) GetDailyBasicsByDate(tradeDate string) ([]models.DailyBasic, error) {
+func (c *TushareClient) GetDailyBasicsByDate(ctx context.Context, tradeDate string) ([]models.DailyBasic, error) {
 	panic("TODO: 实现Tushare按日期获取所有股票每日基本面指标 - GetDailyBasicsByDate")
 }
 

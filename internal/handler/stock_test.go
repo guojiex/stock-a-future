@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -68,7 +69,7 @@ func (m *MockDataSourceClient) GetFinancialIndicator(symbol, period, reportType 
 func (m *MockDataSourceClient) GetFinancialIndicators(symbol, startPeriod, endPeriod, reportType string) ([]models.FinancialIndicator, error) {
 	return nil, nil
 }
-func (m *MockDataSourceClient) GetDailyBasic(symbol, tradeDate string) (*models.DailyBasic, error) {
+func (m *MockDataSourceClient) GetDailyBasic(ctx context.Context, symbol, tradeDate string) (*models.DailyBasic, error) {
 	return nil, nil
 }
 func (m *MockDataSourceClient) GetDailyBasicByDate(tradeDate string) ([]models.DailyBasic, error) {
@@ -80,10 +81,10 @@ func (m *MockDataSourceClient) GetFundamentalFactor(symbol, tradeDate string) (*
 func (m *MockDataSourceClient) GetFundamentalFactorsByDate(tradeDate string) ([]models.FundamentalFactor, error) {
 	return nil, nil
 }
-func (m *MockDataSourceClient) GetDailyBasics(symbol, startDate, endDate string) ([]models.DailyBasic, error) {
+func (m *MockDataSourceClient) GetDailyBasics(ctx context.Context, symbol, startDate, endDate string) ([]models.DailyBasic, error) {
 	return nil, nil
 }
-func (m *MockDataSourceClient) GetDailyBasicsByDate(tradeDate string) ([]models.DailyBasic, error) {
+func (m *MockDataSourceClient) GetDailyBasicsByDate(ctx context.Context, tradeDate string) ([]models.DailyBasic, error) {
 	return nil, nil
 }
 func (m *MockDataSourceClient) GetFundamentalFactors(symbol, startDate, endDate string) ([]models.FundamentalFactor, error) {

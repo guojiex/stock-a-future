@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -267,7 +268,7 @@ func TestAKToolsClient_GetDailyBasic(t *testing.T) {
 	client := NewAKToolsClient(testAKToolsURL)
 
 	// 测试获取每日基本面指标
-	dailyBasic, err := client.GetDailyBasic(testSymbol, testTradeDate)
+	dailyBasic, err := client.GetDailyBasic(context.Background(), testSymbol, testTradeDate)
 	if err != nil {
 		t.Logf("警告: 获取每日基本面指标失败: %v", err)
 		t.Logf("请确保AKTools服务在 %s 运行", testAKToolsURL)

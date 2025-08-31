@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"stock-a-future/internal/models"
 )
@@ -49,13 +50,13 @@ type DataSourceClient interface {
 	GetFinancialIndicators(symbol, startPeriod, endPeriod, reportType string) ([]models.FinancialIndicator, error)
 
 	// 获取每日基本面指标
-	GetDailyBasic(symbol, tradeDate string) (*models.DailyBasic, error)
+	GetDailyBasic(ctx context.Context, symbol, tradeDate string) (*models.DailyBasic, error)
 
 	// 批量获取每日基本面指标
-	GetDailyBasics(symbol, startDate, endDate string) ([]models.DailyBasic, error)
+	GetDailyBasics(ctx context.Context, symbol, startDate, endDate string) ([]models.DailyBasic, error)
 
 	// 根据交易日期获取所有股票的每日基本面指标
-	GetDailyBasicsByDate(tradeDate string) ([]models.DailyBasic, error)
+	GetDailyBasicsByDate(ctx context.Context, tradeDate string) ([]models.DailyBasic, error)
 
 	// ===== 基本面因子接口 =====
 
