@@ -88,6 +88,9 @@ func (s *FundamentalFactorService) CalculateFundamentalFactor(symbol, tradeDate 
 	// 计算分红因子
 	s.calculateDividendFactors(factor, dailyBasic)
 
+	// 计算单个股票的因子得分（基于简化逻辑）
+	s.calculateSingleStockScores(factor)
+
 	totalDuration := time.Since(startTime)
 	log.Printf("[FundamentalFactorService] 基本面因子计算完成: %s, 总耗时: %v", symbol, totalDuration)
 	return factor, nil
@@ -564,4 +567,280 @@ func (s *FundamentalFactorService) determineTSCode(symbol string) string {
 
 	// 默认返回上海市场
 	return symbol + ".SH"
+}
+
+// calculateSingleStockScores 为单个股票计算因子得分（简化版本）
+// 由于缺乏市场对比数据，使用基于阈值的评分逻辑
+func (s *FundamentalFactorService) calculateSingleStockScores(factor *models.FundamentalFactor) {
+	log.Printf("[FundamentalFactorService] 开始计算单股票因子得分: %s", factor.TSCode)
+
+	// 计算价值因子得分
+	factor.ValueScore = s.calculateValueScore(factor)
+
+	// 计算成长因子得分
+	factor.GrowthScore = s.calculateGrowthScore(factor)
+
+	// 计算质量因子得分
+	factor.QualityScore = s.calculateQualityScore(factor)
+
+	// 计算盈利因子得分
+	factor.ProfitabilityScore = s.calculateProfitabilityScore(factor)
+
+	// 计算综合得分
+	s.calculateCompositeScore(factor)
+
+	// 设置默认排名和分位数（单股票无法计算真实排名）
+	factor.MarketRank = 1
+	factor.IndustryRank = 1
+	factor.MarketPercentile = models.NewJSONDecimal(decimal.NewFromFloat(50.0))   // 默认50%分位
+	factor.IndustryPercentile = models.NewJSONDecimal(decimal.NewFromFloat(50.0)) // 默认50%分位
+
+	log.Printf("[FundamentalFactorService] 单股票因子得分计算完成 - 价值: %v, 成长: %v, 质量: %v, 盈利: %v, 综合: %v",
+		factor.ValueScore.Decimal, factor.GrowthScore.Decimal, factor.QualityScore.Decimal,
+		factor.ProfitabilityScore.Decimal, factor.CompositeScore.Decimal)
+}
+
+// calculateValueScore 计算价值因子得分
+func (s *FundamentalFactorService) calculateValueScore(factor *models.FundamentalFactor) models.JSONDecimal {
+	score := decimal.Zero
+	count := 0
+
+	// PE评分：越低越好，参考范围 0-50
+	if !factor.PE.Decimal.IsZero() && factor.PE.Decimal.GreaterThan(decimal.Zero) {
+		pe, _ := factor.PE.Decimal.Float64()
+		if pe <= 15 {
+			score = score.Add(decimal.NewFromFloat(2.0)) // 优秀
+		} else if pe <= 25 {
+			score = score.Add(decimal.NewFromFloat(1.0)) // 良好
+		} else if pe <= 50 {
+			score = score.Add(decimal.NewFromFloat(0.0)) // 一般
+		} else {
+			score = score.Add(decimal.NewFromFloat(-1.0)) // 较差
+		}
+		count++
+	}
+
+	// PB评分：越低越好，参考范围 0-10
+	if !factor.PB.Decimal.IsZero() && factor.PB.Decimal.GreaterThan(decimal.Zero) {
+		pb, _ := factor.PB.Decimal.Float64()
+		if pb <= 1.5 {
+			score = score.Add(decimal.NewFromFloat(2.0)) // 优秀
+		} else if pb <= 3.0 {
+			score = score.Add(decimal.NewFromFloat(1.0)) // 良好
+		} else if pb <= 5.0 {
+			score = score.Add(decimal.NewFromFloat(0.0)) // 一般
+		} else {
+			score = score.Add(decimal.NewFromFloat(-1.0)) // 较差
+		}
+		count++
+	}
+
+	// PS评分：越低越好，参考范围 0-10
+	if !factor.PS.Decimal.IsZero() && factor.PS.Decimal.GreaterThan(decimal.Zero) {
+		ps, _ := factor.PS.Decimal.Float64()
+		if ps <= 2.0 {
+			score = score.Add(decimal.NewFromFloat(2.0)) // 优秀
+		} else if ps <= 5.0 {
+			score = score.Add(decimal.NewFromFloat(1.0)) // 良好
+		} else if ps <= 10.0 {
+			score = score.Add(decimal.NewFromFloat(0.0)) // 一般
+		} else {
+			score = score.Add(decimal.NewFromFloat(-1.0)) // 较差
+		}
+		count++
+	}
+
+	// 计算平均得分
+	if count > 0 {
+		return models.NewJSONDecimal(score.Div(decimal.NewFromInt(int64(count))))
+	}
+	return models.NewJSONDecimal(decimal.Zero)
+}
+
+// calculateGrowthScore 计算成长因子得分
+func (s *FundamentalFactorService) calculateGrowthScore(factor *models.FundamentalFactor) models.JSONDecimal {
+	score := decimal.Zero
+	count := 0
+
+	// 营收增长率评分
+	if !factor.RevenueGrowth.Decimal.IsZero() {
+		growth, _ := factor.RevenueGrowth.Decimal.Float64()
+		if growth >= 20 {
+			score = score.Add(decimal.NewFromFloat(2.0)) // 优秀
+		} else if growth >= 10 {
+			score = score.Add(decimal.NewFromFloat(1.0)) // 良好
+		} else if growth >= 0 {
+			score = score.Add(decimal.NewFromFloat(0.0)) // 一般
+		} else {
+			score = score.Add(decimal.NewFromFloat(-1.0)) // 较差
+		}
+		count++
+	}
+
+	// 净利润增长率评分
+	if !factor.NetProfitGrowth.Decimal.IsZero() {
+		growth, _ := factor.NetProfitGrowth.Decimal.Float64()
+		if growth >= 20 {
+			score = score.Add(decimal.NewFromFloat(2.0)) // 优秀
+		} else if growth >= 10 {
+			score = score.Add(decimal.NewFromFloat(1.0)) // 良好
+		} else if growth >= 0 {
+			score = score.Add(decimal.NewFromFloat(0.0)) // 一般
+		} else {
+			score = score.Add(decimal.NewFromFloat(-1.0)) // 较差
+		}
+		count++
+	}
+
+	// 如果没有有效的成长数据，返回中性得分
+	if count == 0 {
+		return models.NewJSONDecimal(decimal.Zero)
+	}
+
+	// 计算平均得分
+	return models.NewJSONDecimal(score.Div(decimal.NewFromInt(int64(count))))
+}
+
+// calculateQualityScore 计算质量因子得分
+func (s *FundamentalFactorService) calculateQualityScore(factor *models.FundamentalFactor) models.JSONDecimal {
+	score := decimal.Zero
+	count := 0
+
+	// ROE评分：越高越好
+	if !factor.ROE.Decimal.IsZero() {
+		roe, _ := factor.ROE.Decimal.Float64()
+		if roe >= 20 {
+			score = score.Add(decimal.NewFromFloat(2.0)) // 优秀
+		} else if roe >= 15 {
+			score = score.Add(decimal.NewFromFloat(1.0)) // 良好
+		} else if roe >= 10 {
+			score = score.Add(decimal.NewFromFloat(0.0)) // 一般
+		} else {
+			score = score.Add(decimal.NewFromFloat(-1.0)) // 较差
+		}
+		count++
+	}
+
+	// ROA评分：越高越好
+	if !factor.ROA.Decimal.IsZero() {
+		roa, _ := factor.ROA.Decimal.Float64()
+		if roa >= 10 {
+			score = score.Add(decimal.NewFromFloat(2.0)) // 优秀
+		} else if roa >= 5 {
+			score = score.Add(decimal.NewFromFloat(1.0)) // 良好
+		} else if roa >= 2 {
+			score = score.Add(decimal.NewFromFloat(0.0)) // 一般
+		} else {
+			score = score.Add(decimal.NewFromFloat(-1.0)) // 较差
+		}
+		count++
+	}
+
+	// 资产负债率评分：适中为好 (30%-60%)
+	if !factor.DebtToAssets.Decimal.IsZero() {
+		debt, _ := factor.DebtToAssets.Decimal.Float64()
+		if debt >= 30 && debt <= 60 {
+			score = score.Add(decimal.NewFromFloat(1.0)) // 良好
+		} else if debt < 30 || (debt > 60 && debt <= 80) {
+			score = score.Add(decimal.NewFromFloat(0.0)) // 一般
+		} else {
+			score = score.Add(decimal.NewFromFloat(-1.0)) // 较差
+		}
+		count++
+	}
+
+	// 流动比率评分：适中为好 (1.2-2.0)
+	if !factor.CurrentRatio.Decimal.IsZero() {
+		current, _ := factor.CurrentRatio.Decimal.Float64()
+		if current >= 1.2 && current <= 2.0 {
+			score = score.Add(decimal.NewFromFloat(1.0)) // 良好
+		} else if current >= 1.0 && current < 1.2 {
+			score = score.Add(decimal.NewFromFloat(0.0)) // 一般
+		} else {
+			score = score.Add(decimal.NewFromFloat(-1.0)) // 较差
+		}
+		count++
+	}
+
+	// 计算平均得分
+	if count > 0 {
+		return models.NewJSONDecimal(score.Div(decimal.NewFromInt(int64(count))))
+	}
+	return models.NewJSONDecimal(decimal.Zero)
+}
+
+// calculateProfitabilityScore 计算盈利因子得分
+func (s *FundamentalFactorService) calculateProfitabilityScore(factor *models.FundamentalFactor) models.JSONDecimal {
+	score := decimal.Zero
+	count := 0
+
+	// 毛利率评分：越高越好
+	if !factor.GrossMargin.Decimal.IsZero() {
+		margin, _ := factor.GrossMargin.Decimal.Float64()
+		if margin >= 40 {
+			score = score.Add(decimal.NewFromFloat(2.0)) // 优秀
+		} else if margin >= 25 {
+			score = score.Add(decimal.NewFromFloat(1.0)) // 良好
+		} else if margin >= 15 {
+			score = score.Add(decimal.NewFromFloat(0.0)) // 一般
+		} else {
+			score = score.Add(decimal.NewFromFloat(-1.0)) // 较差
+		}
+		count++
+	}
+
+	// 净利率评分：越高越好
+	if !factor.NetMargin.Decimal.IsZero() {
+		margin, _ := factor.NetMargin.Decimal.Float64()
+		if margin >= 15 {
+			score = score.Add(decimal.NewFromFloat(2.0)) // 优秀
+		} else if margin >= 10 {
+			score = score.Add(decimal.NewFromFloat(1.0)) // 良好
+		} else if margin >= 5 {
+			score = score.Add(decimal.NewFromFloat(0.0)) // 一般
+		} else {
+			score = score.Add(decimal.NewFromFloat(-1.0)) // 较差
+		}
+		count++
+	}
+
+	// 营业利润率评分：越高越好
+	if !factor.OperatingMargin.Decimal.IsZero() {
+		margin, _ := factor.OperatingMargin.Decimal.Float64()
+		if margin >= 20 {
+			score = score.Add(decimal.NewFromFloat(2.0)) // 优秀
+		} else if margin >= 10 {
+			score = score.Add(decimal.NewFromFloat(1.0)) // 良好
+		} else if margin >= 5 {
+			score = score.Add(decimal.NewFromFloat(0.0)) // 一般
+		} else {
+			score = score.Add(decimal.NewFromFloat(-1.0)) // 较差
+		}
+		count++
+	}
+
+	// 计算平均得分
+	if count > 0 {
+		return models.NewJSONDecimal(score.Div(decimal.NewFromInt(int64(count))))
+	}
+	return models.NewJSONDecimal(decimal.Zero)
+}
+
+// calculateCompositeScore 计算综合得分
+func (s *FundamentalFactorService) calculateCompositeScore(factor *models.FundamentalFactor) {
+	// 默认权重配置
+	weights := map[string]decimal.Decimal{
+		"value":         decimal.NewFromFloat(0.25), // 价值因子权重
+		"growth":        decimal.NewFromFloat(0.25), // 成长因子权重
+		"quality":       decimal.NewFromFloat(0.25), // 质量因子权重
+		"profitability": decimal.NewFromFloat(0.25), // 盈利因子权重
+	}
+
+	// 计算加权综合得分
+	compositeScore := factor.ValueScore.Decimal.Mul(weights["value"]).
+		Add(factor.GrowthScore.Decimal.Mul(weights["growth"])).
+		Add(factor.QualityScore.Decimal.Mul(weights["quality"])).
+		Add(factor.ProfitabilityScore.Decimal.Mul(weights["profitability"]))
+
+	factor.CompositeScore = models.NewJSONDecimal(compositeScore)
 }
