@@ -164,42 +164,160 @@ func (s *FundamentalFactorService) getLatestIncomeStatement(symbol string) (*mod
 	// 尝试获取最近几个报告期的数据
 	periods := []string{"20241231", "20240930", "20240630", "20240331", "20231231"}
 
-	for _, period := range periods {
+	log.Printf("[FundamentalFactorService] 开始获取利润表数据: %s", symbol)
+
+	for i, period := range periods {
+		log.Printf("[FundamentalFactorService] 尝试获取利润表数据 - 期间 %d/%d: %s", i+1, len(periods), period)
 		statement, err := s.client.GetIncomeStatement(symbol, period, "1")
-		if err == nil && statement != nil {
-			return statement, nil
+		if err != nil {
+			log.Printf("[FundamentalFactorService] 期间 %s 获取失败: %v", period, err)
+			continue
 		}
+		if statement == nil {
+			log.Printf("[FundamentalFactorService] 期间 %s 返回空数据", period)
+			continue
+		}
+
+		// 检查关键字段是否有效
+		if statement.OperRevenue.Decimal.IsZero() && statement.NetProfit.Decimal.IsZero() {
+			log.Printf("[FundamentalFactorService] 期间 %s 数据无效 - 营业收入和净利润都为零", period)
+			continue
+		}
+
+		log.Printf("[FundamentalFactorService] 成功获取利润表数据 - 期间: %s, 营业收入: %v, 净利润: %v",
+			period, statement.OperRevenue.Decimal, statement.NetProfit.Decimal)
+		return statement, nil
 	}
 
-	return nil, fmt.Errorf("未找到有效的利润表数据")
+	// 尝试不指定期间，获取最新数据
+	log.Printf("[FundamentalFactorService] 所有指定期间都失败，尝试获取最新利润表数据")
+	statement, err := s.client.GetIncomeStatement(symbol, "", "1")
+	if err != nil {
+		log.Printf("[FundamentalFactorService] 获取最新利润表数据失败: %v", err)
+		return nil, fmt.Errorf("未找到有效的利润表数据: 所有期间都失败，最新数据获取错误: %v", err)
+	}
+	if statement == nil {
+		log.Printf("[FundamentalFactorService] 最新利润表数据为空")
+		return nil, fmt.Errorf("未找到有效的利润表数据: 最新数据为空")
+	}
+
+	// 检查最新数据的关键字段
+	if statement.OperRevenue.Decimal.IsZero() && statement.NetProfit.Decimal.IsZero() {
+		log.Printf("[FundamentalFactorService] 最新利润表数据无效 - 营业收入和净利润都为零")
+		return nil, fmt.Errorf("未找到有效的利润表数据: 最新数据营业收入和净利润都为零")
+	}
+
+	log.Printf("[FundamentalFactorService] 成功获取最新利润表数据 - 营业收入: %v, 净利润: %v",
+		statement.OperRevenue.Decimal, statement.NetProfit.Decimal)
+	return statement, nil
 }
 
 func (s *FundamentalFactorService) getLatestBalanceSheet(symbol string) (*models.BalanceSheet, error) {
 	// 尝试获取最近几个报告期的数据
 	periods := []string{"20241231", "20240930", "20240630", "20240331", "20231231"}
 
-	for _, period := range periods {
+	log.Printf("[FundamentalFactorService] 开始获取资产负债表数据: %s", symbol)
+
+	for i, period := range periods {
+		log.Printf("[FundamentalFactorService] 尝试获取资产负债表数据 - 期间 %d/%d: %s", i+1, len(periods), period)
 		sheet, err := s.client.GetBalanceSheet(symbol, period, "1")
-		if err == nil && sheet != nil {
-			return sheet, nil
+		if err != nil {
+			log.Printf("[FundamentalFactorService] 期间 %s 获取失败: %v", period, err)
+			continue
 		}
+		if sheet == nil {
+			log.Printf("[FundamentalFactorService] 期间 %s 返回空数据", period)
+			continue
+		}
+
+		// 检查关键字段是否有效
+		if sheet.TotalAssets.Decimal.IsZero() && sheet.TotalHldrEqy.Decimal.IsZero() {
+			log.Printf("[FundamentalFactorService] 期间 %s 数据无效 - 总资产和所有者权益都为零", period)
+			continue
+		}
+
+		log.Printf("[FundamentalFactorService] 成功获取资产负债表数据 - 期间: %s, 总资产: %v, 所有者权益: %v",
+			period, sheet.TotalAssets.Decimal, sheet.TotalHldrEqy.Decimal)
+		return sheet, nil
 	}
 
-	return nil, fmt.Errorf("未找到有效的资产负债表数据")
+	// 尝试不指定期间，获取最新数据
+	log.Printf("[FundamentalFactorService] 所有指定期间都失败，尝试获取最新资产负债表数据")
+	sheet, err := s.client.GetBalanceSheet(symbol, "", "1")
+	if err != nil {
+		log.Printf("[FundamentalFactorService] 获取最新资产负债表数据失败: %v", err)
+		return nil, fmt.Errorf("未找到有效的资产负债表数据: 所有期间都失败，最新数据获取错误: %v", err)
+	}
+	if sheet == nil {
+		log.Printf("[FundamentalFactorService] 最新资产负债表数据为空")
+		return nil, fmt.Errorf("未找到有效的资产负债表数据: 最新数据为空")
+	}
+
+	// 检查最新数据的关键字段
+	if sheet.TotalAssets.Decimal.IsZero() && sheet.TotalHldrEqy.Decimal.IsZero() {
+		log.Printf("[FundamentalFactorService] 最新资产负债表数据无效 - 总资产和所有者权益都为零")
+		return nil, fmt.Errorf("未找到有效的资产负债表数据: 最新数据总资产和所有者权益都为零")
+	}
+
+	log.Printf("[FundamentalFactorService] 成功获取最新资产负债表数据 - 总资产: %v, 所有者权益: %v",
+		sheet.TotalAssets.Decimal, sheet.TotalHldrEqy.Decimal)
+	return sheet, nil
 }
 
 func (s *FundamentalFactorService) getLatestCashFlow(symbol string) (*models.CashFlowStatement, error) {
 	// 尝试获取最近几个报告期的数据
 	periods := []string{"20241231", "20240930", "20240630", "20240331", "20231231"}
 
-	for _, period := range periods {
+	log.Printf("[FundamentalFactorService] 开始获取现金流量表数据: %s", symbol)
+
+	for i, period := range periods {
+		log.Printf("[FundamentalFactorService] 尝试获取现金流量表数据 - 期间 %d/%d: %s", i+1, len(periods), period)
 		cashFlow, err := s.client.GetCashFlowStatement(symbol, period, "1")
-		if err == nil && cashFlow != nil {
-			return cashFlow, nil
+		if err != nil {
+			log.Printf("[FundamentalFactorService] 期间 %s 获取失败: %v", period, err)
+			continue
 		}
+		if cashFlow == nil {
+			log.Printf("[FundamentalFactorService] 期间 %s 返回空数据", period)
+			continue
+		}
+
+		// 检查关键字段是否有效
+		if cashFlow.NetCashOperAct.Decimal.IsZero() &&
+			cashFlow.NetCashInvAct.Decimal.IsZero() &&
+			cashFlow.NetCashFinAct.Decimal.IsZero() {
+			log.Printf("[FundamentalFactorService] 期间 %s 数据无效 - 所有现金流净额为零", period)
+			continue
+		}
+
+		log.Printf("[FundamentalFactorService] 成功获取现金流量表数据 - 期间: %s, 经营现金流: %v, 投资现金流: %v, 筹资现金流: %v",
+			period, cashFlow.NetCashOperAct.Decimal, cashFlow.NetCashInvAct.Decimal, cashFlow.NetCashFinAct.Decimal)
+		return cashFlow, nil
 	}
 
-	return nil, fmt.Errorf("未找到有效的现金流量表数据")
+	// 尝试不指定期间，获取最新数据
+	log.Printf("[FundamentalFactorService] 所有指定期间都失败，尝试获取最新现金流量表数据")
+	cashFlow, err := s.client.GetCashFlowStatement(symbol, "", "1")
+	if err != nil {
+		log.Printf("[FundamentalFactorService] 获取最新现金流量表数据失败: %v", err)
+		return nil, fmt.Errorf("未找到有效的现金流量表数据: 所有期间都失败，最新数据获取错误: %v", err)
+	}
+	if cashFlow == nil {
+		log.Printf("[FundamentalFactorService] 最新现金流量表数据为空")
+		return nil, fmt.Errorf("未找到有效的现金流量表数据: 最新数据为空")
+	}
+
+	// 检查最新数据的关键字段
+	if cashFlow.NetCashOperAct.Decimal.IsZero() &&
+		cashFlow.NetCashInvAct.Decimal.IsZero() &&
+		cashFlow.NetCashFinAct.Decimal.IsZero() {
+		log.Printf("[FundamentalFactorService] 最新现金流量表数据无效 - 所有现金流净额为零")
+		return nil, fmt.Errorf("未找到有效的现金流量表数据: 最新数据所有现金流净额为零")
+	}
+
+	log.Printf("[FundamentalFactorService] 成功获取最新现金流量表数据 - 经营现金流: %v, 投资现金流: %v, 筹资现金流: %v",
+		cashFlow.NetCashOperAct.Decimal, cashFlow.NetCashInvAct.Decimal, cashFlow.NetCashFinAct.Decimal)
+	return cashFlow, nil
 }
 
 // 私有方法：计算各类因子

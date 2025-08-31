@@ -799,7 +799,7 @@ func (c *AKToolsClient) GetIncomeStatement(symbol, period, reportType string) (*
 	// 如果指定了period，尝试找到匹配的记录
 	if period != "" {
 		for _, data := range rawData {
-			if reportDate, ok := data["报告期"].(string); ok {
+			if reportDate, ok := data["REPORT_DATE"].(string); ok {
 				formattedDate := c.formatDateForFrontend(reportDate)
 				if formattedDate == period {
 					return c.convertToIncomeStatement(data, symbol, period, reportType)
@@ -919,7 +919,7 @@ func (c *AKToolsClient) GetBalanceSheet(symbol, period, reportType string) (*mod
 	// 如果指定了period，尝试找到匹配的记录
 	if period != "" {
 		for _, data := range rawData {
-			if reportDate, ok := data["报告期"].(string); ok {
+			if reportDate, ok := data["REPORT_DATE"].(string); ok {
 				formattedDate := c.formatDateForFrontend(reportDate)
 				if formattedDate == period {
 					return c.convertToBalanceSheet(data, symbol, period, reportType)
@@ -1023,7 +1023,7 @@ func (c *AKToolsClient) GetCashFlowStatement(symbol, period, reportType string) 
 	// 如果指定了period，尝试找到匹配的记录
 	if period != "" {
 		for _, data := range rawData {
-			if reportDate, ok := data["报告期"].(string); ok {
+			if reportDate, ok := data["REPORT_DATE"].(string); ok {
 				formattedDate := c.formatDateForFrontend(reportDate)
 				if formattedDate == period {
 					return c.convertToCashFlowStatement(data, symbol, period, reportType)
@@ -1492,39 +1492,20 @@ func (c *AKToolsClient) convertToDailyBasic(data map[string]interface{}, symbol,
 	dailyBasic.TSCode = c.DetermineTSCode(symbol)
 	dailyBasic.TradeDate = tradeDate
 
-	// 基本数据 - 使用实际API字段名
-	if close, ok := data["最新价"]; ok {
+	// 基本数据 - 使用实际API字段名（从debug JSON文件中确认的字段名）
+	if close, ok := data["最新"]; ok {
 		dailyBasic.Close = models.NewJSONDecimal(c.parseDecimalFromInterface(close))
 	}
-	if turnover, ok := data["换手率"]; ok {
-		dailyBasic.Turnover = models.NewJSONDecimal(c.parseDecimalFromInterface(turnover))
-	}
-	if volumeRatio, ok := data["量比"]; ok {
-		dailyBasic.VolumeRatio = models.NewJSONDecimal(c.parseDecimalFromInterface(volumeRatio))
-	}
 
-	// 估值指标 - 使用实际API字段名
-	if pe, ok := data["市盈率-动态"]; ok {
-		dailyBasic.Pe = models.NewJSONDecimal(c.parseDecimalFromInterface(pe))
-	}
-	if peTtm, ok := data["市盈率TTM"]; ok {
-		dailyBasic.PeTtm = models.NewJSONDecimal(c.parseDecimalFromInterface(peTtm))
-	}
-	if pb, ok := data["市净率"]; ok {
-		dailyBasic.Pb = models.NewJSONDecimal(c.parseDecimalFromInterface(pb))
-	}
-	if ps, ok := data["市销率"]; ok {
-		dailyBasic.Ps = models.NewJSONDecimal(c.parseDecimalFromInterface(ps))
-	}
-	if psTtm, ok := data["市销率TTM"]; ok {
-		dailyBasic.PsTtm = models.NewJSONDecimal(c.parseDecimalFromInterface(psTtm))
-	}
+	// 估值指标 - 根据debug JSON文件中的实际字段名进行映射
+	// 注意：stock_individual_info_em API可能不包含所有这些字段
+	// 需要根据实际返回的数据进行调整
 
-	// 股本和市值
+	// 股本和市值 - 使用实际API字段名
 	if totalShare, ok := data["总股本"]; ok {
 		dailyBasic.TotalShare = models.NewJSONDecimal(c.parseDecimalFromInterface(totalShare))
 	}
-	if floatShare, ok := data["流通股本"]; ok {
+	if floatShare, ok := data["流通股"]; ok {
 		dailyBasic.FloatShare = models.NewJSONDecimal(c.parseDecimalFromInterface(floatShare))
 	}
 	if totalMv, ok := data["总市值"]; ok {
@@ -1534,13 +1515,17 @@ func (c *AKToolsClient) convertToDailyBasic(data map[string]interface{}, symbol,
 		dailyBasic.CircMv = models.NewJSONDecimal(c.parseDecimalFromInterface(circMv))
 	}
 
-	// 分红指标
-	if dvRatio, ok := data["股息率"]; ok {
-		dailyBasic.DvRatio = models.NewJSONDecimal(c.parseDecimalFromInterface(dvRatio))
-	}
-	if dvTtm, ok := data["股息率TTM"]; ok {
-		dailyBasic.DvTtm = models.NewJSONDecimal(c.parseDecimalFromInterface(dvTtm))
-	}
+	// 注意：stock_individual_info_em API主要返回基本信息，不包含估值指标
+	// 这些字段可能需要从其他API获取，暂时设为零值
+	dailyBasic.Pe = models.NewJSONDecimal(decimal.Zero)
+	dailyBasic.PeTtm = models.NewJSONDecimal(decimal.Zero)
+	dailyBasic.Pb = models.NewJSONDecimal(decimal.Zero)
+	dailyBasic.Ps = models.NewJSONDecimal(decimal.Zero)
+	dailyBasic.PsTtm = models.NewJSONDecimal(decimal.Zero)
+	dailyBasic.Turnover = models.NewJSONDecimal(decimal.Zero)
+	dailyBasic.VolumeRatio = models.NewJSONDecimal(decimal.Zero)
+	dailyBasic.DvRatio = models.NewJSONDecimal(decimal.Zero)
+	dailyBasic.DvTtm = models.NewJSONDecimal(decimal.Zero)
 
 	return dailyBasic, nil
 }
