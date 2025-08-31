@@ -2,6 +2,8 @@ package client
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +13,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"stock-a-future/config"
@@ -19,11 +22,111 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// CacheEntry 缓存条目
+type CacheEntry struct {
+	Data      []byte    // 缓存的响应数据
+	ExpiresAt time.Time // 过期时间
+}
+
+// RequestCache HTTP请求缓存
+type RequestCache struct {
+	entries map[string]*CacheEntry // key是请求的hash，value是缓存条目
+	mutex   sync.RWMutex           // 读写锁保护并发访问
+	ttl     time.Duration          // 缓存TTL
+	maxSize int                    // 最大缓存条目数
+}
+
+// NewRequestCache 创建新的请求缓存
+func NewRequestCache(ttl time.Duration, maxSize int) *RequestCache {
+	return &RequestCache{
+		entries: make(map[string]*CacheEntry),
+		ttl:     ttl,
+		maxSize: maxSize,
+	}
+}
+
+// generateCacheKey 根据请求URL生成缓存key
+func (rc *RequestCache) generateCacheKey(url string) string {
+	hash := md5.Sum([]byte(url))
+	return hex.EncodeToString(hash[:])
+}
+
+// Get 从缓存获取数据
+func (rc *RequestCache) Get(url string) ([]byte, bool) {
+	key := rc.generateCacheKey(url)
+
+	rc.mutex.RLock()
+	entry, exists := rc.entries[key]
+	rc.mutex.RUnlock()
+
+	if !exists {
+		return nil, false
+	}
+
+	// 检查是否过期
+	if time.Now().After(entry.ExpiresAt) {
+		// 异步删除过期条目
+		go func() {
+			rc.mutex.Lock()
+			delete(rc.entries, key)
+			rc.mutex.Unlock()
+		}()
+		return nil, false
+	}
+
+	return entry.Data, true
+}
+
+// Set 设置缓存数据
+func (rc *RequestCache) Set(url string, data []byte) {
+	key := rc.generateCacheKey(url)
+
+	rc.mutex.Lock()
+	defer rc.mutex.Unlock()
+
+	// 如果缓存已满，删除一个最旧的条目
+	if len(rc.entries) >= rc.maxSize {
+		// 找到最旧的条目并删除
+		var oldestKey string
+		var oldestTime time.Time
+		for k, v := range rc.entries {
+			if oldestKey == "" || v.ExpiresAt.Before(oldestTime) {
+				oldestKey = k
+				oldestTime = v.ExpiresAt
+			}
+		}
+		if oldestKey != "" {
+			delete(rc.entries, oldestKey)
+		}
+	}
+
+	// 添加新条目
+	rc.entries[key] = &CacheEntry{
+		Data:      data,
+		ExpiresAt: time.Now().Add(rc.ttl),
+	}
+}
+
+// Clear 清空缓存
+func (rc *RequestCache) Clear() {
+	rc.mutex.Lock()
+	defer rc.mutex.Unlock()
+	rc.entries = make(map[string]*CacheEntry)
+}
+
+// Size 获取缓存大小
+func (rc *RequestCache) Size() int {
+	rc.mutex.RLock()
+	defer rc.mutex.RUnlock()
+	return len(rc.entries)
+}
+
 // AKToolsClient AKTools HTTP API客户端
 type AKToolsClient struct {
 	baseURL string
 	client  *http.Client
 	config  *config.Config
+	cache   *RequestCache // HTTP请求缓存
 }
 
 // AKToolsDailyResponse AKTools日线数据响应结构
@@ -74,12 +177,17 @@ func NewAKToolsClient(baseURL string) *AKToolsClient {
 		}
 	}
 
+	// 创建HTTP请求缓存
+	// 默认缓存5分钟，最多1000个条目
+	cache := NewRequestCache(5*time.Minute, 1000)
+
 	return &AKToolsClient{
 		baseURL: baseURL,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
 		config: cfg,
+		cache:  cache,
 	}
 }
 
@@ -93,6 +201,50 @@ func (c *AKToolsClient) CleanStockSymbol(symbol string) string {
 		}
 	}
 	return symbol
+}
+
+// doRequestWithCache 执行带缓存的HTTP请求
+func (c *AKToolsClient) doRequestWithCache(ctx context.Context, url string) ([]byte, error) {
+	// 先尝试从缓存获取
+	if cachedData, found := c.cache.Get(url); found {
+		log.Printf("✅ 缓存命中: %s", url)
+		return cachedData, nil
+	}
+
+	log.Printf("🔄 缓存未命中，发起HTTP请求: %s", url)
+
+	// 创建HTTP请求
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	// 发送HTTP请求
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("请求AKTools API失败: %w, URL: %s", err, url)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("关闭响应体失败: %v", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("AKTools API返回非200状态码: %d, URL: %s", resp.StatusCode, url)
+	}
+
+	// 读取响应体
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应体失败: %w", err)
+	}
+
+	// 将响应存入缓存
+	c.cache.Set(url, body)
+	log.Printf("💾 响应已缓存: %s (大小: %d bytes)", url, len(body))
+
+	return body, nil
 }
 
 // DetermineTSCode 智能判断股票代码的市场后缀
@@ -190,34 +342,13 @@ func (c *AKToolsClient) GetDailyData(symbol, startDate, endDate, adjust string) 
 	// 构建完整URL
 	apiURL := fmt.Sprintf("%s/api/public/stock_zh_a_hist?%s", c.baseURL, params.Encode())
 
-	// 创建带context的请求
+	// 使用带缓存的请求方法
 	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	body, err := c.doRequestWithCache(ctx, apiURL)
 	if err != nil {
-		return nil, fmt.Errorf("创建请求失败: %w", err)
+		return nil, fmt.Errorf("获取股票日线数据失败: %w, 股票代码: %s", err, symbol)
 	}
 
-	// 发送HTTP请求
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("请求AKTools API失败: %w, URL: %s, 股票代码: %s", err, apiURL, symbol)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Printf("关闭响应体失败: %v", err)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("AKTools API返回非200状态码: %d, URL: %s, 股票代码: %s, 开始日期: %s, 结束日期: %s",
-			resp.StatusCode, apiURL, symbol, startDate, endDate)
-	}
-
-	// 读取响应体
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取响应体失败: %w", err)
-	}
 	// 保存响应到文件用于调试
 	if err := c.saveResponseToFile(body, "daily_data", cleanSymbol, c.config.Debug); err != nil {
 		log.Printf("保存响应文件失败: %v", err)
@@ -252,33 +383,13 @@ func (c *AKToolsClient) GetStockBasic(symbol string) (*models.StockBasic, error)
 	// 构建完整URL - 使用股票基本信息API
 	apiURL := fmt.Sprintf("%s/api/public/stock_individual_info_em?%s", c.baseURL, params.Encode())
 
-	// 创建带context的请求
+	// 使用带缓存的请求方法
 	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	body, err := c.doRequestWithCache(ctx, apiURL)
 	if err != nil {
-		return nil, fmt.Errorf("创建请求失败: %w", err)
+		return nil, fmt.Errorf("获取股票基本信息失败: %w, 股票代码: %s", err, symbol)
 	}
 
-	// 发送HTTP请求
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("请求AKTools股票信息API失败: %w, URL: %s, 股票代码: %s", err, apiURL, symbol)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Printf("关闭响应体失败: %v", err)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("AKTools API返回非200状态码: %d, URL: %s, 股票代码: %s", resp.StatusCode, apiURL, symbol)
-	}
-
-	// 读取响应体
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取响应体失败: %w", err)
-	}
 	// 保存响应到文件用于调试
 	if err := c.saveResponseToFile(body, "stock_basic", cleanSymbol, c.config.Debug); err != nil {
 		log.Printf("保存响应文件失败: %v", err)
@@ -313,32 +424,11 @@ func (c *AKToolsClient) GetStockList() ([]models.StockBasic, error) {
 	// 构建完整URL - 使用股票列表API
 	apiURL := fmt.Sprintf("%s/api/public/stock_zh_a_spot", c.baseURL)
 
-	// 创建带context的请求
+	// 使用带缓存的请求方法
 	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	body, err := c.doRequestWithCache(ctx, apiURL)
 	if err != nil {
-		return nil, fmt.Errorf("创建请求失败: %w", err)
-	}
-
-	// 发送HTTP请求
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("请求AKTools股票列表API失败: %w, URL: %s", err, apiURL)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Printf("关闭响应体失败: %v", err)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("AKTools API返回非200状态码: %d, URL: %s", resp.StatusCode, apiURL)
-	}
-
-	// 读取响应体
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取响应体失败: %w", err)
+		return nil, fmt.Errorf("获取股票列表失败: %w", err)
 	}
 	// 保存响应到文件用于调试
 	if err := c.saveResponseToFile(body, "stock_list", "all", c.config.Debug); err != nil {
@@ -601,32 +691,11 @@ func (c *AKToolsClient) GetIncomeStatement(symbol, period, reportType string) (*
 	// 构建完整URL - 使用利润表API
 	apiURL := fmt.Sprintf("%s/api/public/stock_profit_sheet_by_report_em?%s", c.baseURL, params.Encode())
 
-	// 创建带context的请求
+	// 使用带缓存的请求方法
 	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	body, err := c.doRequestWithCache(ctx, apiURL)
 	if err != nil {
-		return nil, fmt.Errorf("创建请求失败: %w", err)
-	}
-
-	// 发送HTTP请求
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("请求AKTools利润表API失败: %w, URL: %s", err, apiURL)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Printf("关闭响应体失败: %v", err)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("AKTools API返回非200状态码: %d, URL: %s", resp.StatusCode, apiURL)
-	}
-
-	// 读取响应体
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取响应体失败: %w", err)
+		return nil, fmt.Errorf("获取利润表数据失败: %w", err)
 	}
 	// 保存响应到文件用于调试 - 已完成调试
 	// cleanSymbol := c.CleanStockSymbol(symbol)
@@ -680,32 +749,11 @@ func (c *AKToolsClient) GetIncomeStatements(symbol, startPeriod, endPeriod, repo
 	// 构建完整URL
 	apiURL := fmt.Sprintf("%s/api/public/stock_profit_sheet_by_report_em?%s", c.baseURL, params.Encode())
 
-	// 创建带context的请求
+	// 使用带缓存的请求方法
 	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	body, err := c.doRequestWithCache(ctx, apiURL)
 	if err != nil {
-		return nil, fmt.Errorf("创建请求失败: %w", err)
-	}
-
-	// 发送HTTP请求
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("请求AKTools利润表API失败: %w", err)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Printf("关闭响应体失败: %v", err)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("AKTools API返回非200状态码: %d", resp.StatusCode)
-	}
-
-	// 读取响应体
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取响应体失败: %w", err)
+		return nil, fmt.Errorf("获取利润表数据失败: %w", err)
 	}
 	// 保存响应到文件用于调试
 	cleanSymbol := c.CleanStockSymbol(symbol)
@@ -764,32 +812,11 @@ func (c *AKToolsClient) GetBalanceSheet(symbol, period, reportType string) (*mod
 	// 构建完整URL - 使用资产负债表API
 	apiURL := fmt.Sprintf("%s/api/public/stock_balance_sheet_by_report_em?%s", c.baseURL, params.Encode())
 
-	// 创建带context的请求
+	// 使用带缓存的请求方法
 	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	body, err := c.doRequestWithCache(ctx, apiURL)
 	if err != nil {
-		return nil, fmt.Errorf("创建请求失败: %w", err)
-	}
-
-	// 发送HTTP请求
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("请求AKTools资产负债表API失败: %w", err)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Printf("关闭响应体失败: %v", err)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("AKTools API返回非200状态码: %d", resp.StatusCode)
-	}
-
-	// 读取响应体
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取响应体失败: %w", err)
+		return nil, fmt.Errorf("获取资产负债表数据失败: %w", err)
 	}
 
 	// 保存响应到文件用于调试
@@ -834,28 +861,10 @@ func (c *AKToolsClient) GetBalanceSheets(symbol, startPeriod, endPeriod, reportT
 	apiURL := fmt.Sprintf("%s/api/public/stock_balance_sheet_by_report_em?%s", c.baseURL, params.Encode())
 
 	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	// 使用带缓存的请求方法
+	body, err := c.doRequestWithCache(ctx, apiURL)
 	if err != nil {
-		return nil, fmt.Errorf("创建请求失败: %w", err)
-	}
-
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("请求AKTools资产负债表API失败: %w", err)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Printf("关闭响应体失败: %v", err)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("AKTools API返回非200状态码: %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取响应体失败: %w", err)
+		return nil, fmt.Errorf("获取资产负债表数据失败: %w", err)
 	}
 	// 保存响应到文件用于调试
 	cleanSymbol := c.CleanStockSymbol(symbol)
@@ -904,28 +913,10 @@ func (c *AKToolsClient) GetCashFlowStatement(symbol, period, reportType string) 
 	apiURL := fmt.Sprintf("%s/api/public/stock_cash_flow_sheet_by_report_em?%s", c.baseURL, params.Encode())
 
 	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	// 使用带缓存的请求方法
+	body, err := c.doRequestWithCache(ctx, apiURL)
 	if err != nil {
-		return nil, fmt.Errorf("创建请求失败: %w", err)
-	}
-
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("请求AKTools现金流量表API失败: %w", err)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Printf("关闭响应体失败: %v", err)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("AKTools API返回非200状态码: %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取响应体失败: %w", err)
+		return nil, fmt.Errorf("获取现金流量表数据失败: %w", err)
 	}
 	// 保存响应到文件用于调试
 	cleanSymbol := c.CleanStockSymbol(symbol)
@@ -968,28 +959,10 @@ func (c *AKToolsClient) GetCashFlowStatements(symbol, startPeriod, endPeriod, re
 	apiURL := fmt.Sprintf("%s/api/public/stock_cash_flow_sheet_by_report_em?%s", c.baseURL, params.Encode())
 
 	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	// 使用带缓存的请求方法
+	body, err := c.doRequestWithCache(ctx, apiURL)
 	if err != nil {
-		return nil, fmt.Errorf("创建请求失败: %w", err)
-	}
-
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("请求AKTools现金流量表API失败: %w", err)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Printf("关闭响应体失败: %v", err)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("AKTools API返回非200状态码: %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取响应体失败: %w", err)
+		return nil, fmt.Errorf("获取现金流量表数据失败: %w", err)
 	}
 	// 保存响应到文件用于调试
 	cleanSymbol := c.CleanStockSymbol(symbol)
@@ -1056,28 +1029,10 @@ func (c *AKToolsClient) GetDailyBasic(symbol, tradeDate string) (*models.DailyBa
 	apiURL := fmt.Sprintf("%s/api/public/stock_zh_a_spot_em", c.baseURL)
 
 	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	// 使用带缓存的请求方法
+	body, err := c.doRequestWithCache(ctx, apiURL)
 	if err != nil {
-		return nil, fmt.Errorf("创建请求失败: %w", err)
-	}
-
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("请求AKTools每日基本面API失败: %w", err)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Printf("关闭响应体失败: %v", err)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("AKTools API返回非200状态码: %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取响应体失败: %w", err)
+		return nil, fmt.Errorf("获取每日基本面数据失败: %w", err)
 	}
 
 	// 保存响应到文件用于调试

@@ -29,6 +29,7 @@ func NewFundamentalFactorService(client client.DataSourceClient) *FundamentalFac
 
 // CalculateFundamentalFactor 计算单个股票的基本面因子
 func (s *FundamentalFactorService) CalculateFundamentalFactor(symbol, tradeDate string) (*models.FundamentalFactor, error) {
+	startTime := time.Now()
 	log.Printf("[FundamentalFactorService] 开始计算基本面因子: %s, 日期: %s", symbol, tradeDate)
 
 	// 1. 获取每日基本面数据
@@ -85,7 +86,8 @@ func (s *FundamentalFactorService) CalculateFundamentalFactor(symbol, tradeDate 
 	// 计算分红因子
 	s.calculateDividendFactors(factor, dailyBasic)
 
-	log.Printf("[FundamentalFactorService] 基本面因子计算完成: %s", symbol)
+	totalDuration := time.Since(startTime)
+	log.Printf("[FundamentalFactorService] 基本面因子计算完成: %s, 总耗时: %v", symbol, totalDuration)
 	return factor, nil
 }
 
