@@ -207,7 +207,6 @@ func (c *AKToolsClient) CleanStockSymbol(symbol string) string {
 func (c *AKToolsClient) doRequestWithCache(ctx context.Context, url string) ([]byte, error) {
 	// 先尝试从缓存获取
 	if cachedData, found := c.cache.Get(url); found {
-		log.Printf("✅ 缓存命中: %s", url)
 		return cachedData, nil
 	}
 
@@ -215,6 +214,24 @@ func (c *AKToolsClient) doRequestWithCache(ctx context.Context, url string) ([]b
 
 	// 使用重试机制发送HTTP请求
 	return c.doRequestWithRetry(ctx, url)
+}
+
+// doRequestWithCacheAndDebug 执行带缓存的HTTP请求，并返回是否来自缓存的标识
+func (c *AKToolsClient) doRequestWithCacheAndDebug(ctx context.Context, url string) ([]byte, bool, error) {
+	// 先尝试从缓存获取
+	if cachedData, found := c.cache.Get(url); found {
+		return cachedData, true, nil // 返回true表示来自缓存
+	}
+
+	log.Printf("🔄 缓存未命中，发起HTTP请求: %s", url)
+
+	// 使用重试机制发送HTTP请求
+	body, err := c.doRequestWithRetry(ctx, url)
+	if err != nil {
+		return nil, false, err
+	}
+
+	return body, false, nil // 返回false表示来自API
 }
 
 // doRequestWithRetry 执行带重试的HTTP请求
@@ -400,14 +417,16 @@ func (c *AKToolsClient) GetDailyData(symbol, startDate, endDate, adjust string) 
 
 	// 使用带缓存的请求方法
 	ctx := context.Background()
-	body, err := c.doRequestWithCache(ctx, apiURL)
+	body, fromCache, err := c.doRequestWithCacheAndDebug(ctx, apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("获取股票日线数据失败: %w, 股票代码: %s", err, symbol)
 	}
 
-	// 保存响应到文件用于调试
-	if err := c.saveResponseToFile(body, "daily_data", cleanSymbol, c.config.Debug); err != nil {
-		log.Printf("保存响应文件失败: %v", err)
+	// 只在非缓存数据时保存响应到文件用于调试
+	if !fromCache {
+		if err := c.saveResponseToFile(body, "daily_data", cleanSymbol, c.config.Debug); err != nil {
+			log.Printf("保存响应文件失败: %v", err)
+		}
 	}
 
 	// 解析JSON响应
@@ -441,14 +460,16 @@ func (c *AKToolsClient) GetStockBasic(symbol string) (*models.StockBasic, error)
 
 	// 使用带缓存的请求方法
 	ctx := context.Background()
-	body, err := c.doRequestWithCache(ctx, apiURL)
+	body, fromCache, err := c.doRequestWithCacheAndDebug(ctx, apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("获取股票基本信息失败: %w, 股票代码: %s", err, symbol)
 	}
 
-	// 保存响应到文件用于调试
-	if err := c.saveResponseToFile(body, "stock_basic", cleanSymbol, c.config.Debug); err != nil {
-		log.Printf("保存响应文件失败: %v", err)
+	// 只在非缓存数据时保存响应到文件用于调试
+	if !fromCache {
+		if err := c.saveResponseToFile(body, "stock_basic", cleanSymbol, c.config.Debug); err != nil {
+			log.Printf("保存响应文件失败: %v", err)
+		}
 	}
 
 	// 解析JSON响应 - stock_individual_info_em返回的是key-value对数组格式
@@ -482,13 +503,16 @@ func (c *AKToolsClient) GetStockList() ([]models.StockBasic, error) {
 
 	// 使用带缓存的请求方法
 	ctx := context.Background()
-	body, err := c.doRequestWithCache(ctx, apiURL)
+	body, fromCache, err := c.doRequestWithCacheAndDebug(ctx, apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("获取股票列表失败: %w", err)
 	}
-	// 保存响应到文件用于调试
-	if err := c.saveResponseToFile(body, "stock_list", "all", c.config.Debug); err != nil {
-		log.Printf("保存响应文件失败: %v", err)
+
+	// 只在非缓存数据时保存响应到文件用于调试
+	if !fromCache {
+		if err := c.saveResponseToFile(body, "stock_list", "all", c.config.Debug); err != nil {
+			log.Printf("保存响应文件失败: %v", err)
+		}
 	}
 
 	// 解析JSON响应 - 这里需要根据实际API响应结构调整
@@ -749,20 +773,17 @@ func (c *AKToolsClient) GetIncomeStatement(symbol, period, reportType string) (*
 
 	// 使用带缓存的请求方法
 	ctx := context.Background()
-	body, err := c.doRequestWithCache(ctx, apiURL)
+	body, fromCache, err := c.doRequestWithCacheAndDebug(ctx, apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("获取利润表数据失败: %w", err)
 	}
-	// 保存响应到文件用于调试 - 已完成调试
-	// cleanSymbol := c.CleanStockSymbol(symbol)
-	// if err := c.saveResponseToFile(body, "income_statement", cleanSymbol); err != nil {
-	// 	log.Printf("保存响应文件失败: %v", err)
-	// }
 
-	// 保存响应到文件用于调试
-	cleanSymbol := c.CleanStockSymbol(symbol)
-	if err := c.saveResponseToFile(body, "income_statement", cleanSymbol, c.config.Debug); err != nil {
-		log.Printf("保存响应文件失败: %v", err)
+	// 只在非缓存数据时保存响应到文件用于调试
+	if !fromCache {
+		cleanSymbol := c.CleanStockSymbol(symbol)
+		if err := c.saveResponseToFile(body, "income_statement", cleanSymbol, c.config.Debug); err != nil {
+			log.Printf("保存响应文件失败: %v", err)
+		}
 	}
 
 	// 解析JSON响应
@@ -807,14 +828,17 @@ func (c *AKToolsClient) GetIncomeStatements(symbol, startPeriod, endPeriod, repo
 
 	// 使用带缓存的请求方法
 	ctx := context.Background()
-	body, err := c.doRequestWithCache(ctx, apiURL)
+	body, fromCache, err := c.doRequestWithCacheAndDebug(ctx, apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("获取利润表数据失败: %w", err)
 	}
-	// 保存响应到文件用于调试
-	cleanSymbol := c.CleanStockSymbol(symbol)
-	if err := c.saveResponseToFile(body, "income_statements", cleanSymbol, c.config.Debug); err != nil {
-		log.Printf("保存响应文件失败: %v", err)
+
+	// 只在非缓存数据时保存响应到文件用于调试
+	if !fromCache {
+		cleanSymbol := c.CleanStockSymbol(symbol)
+		if err := c.saveResponseToFile(body, "income_statements", cleanSymbol, c.config.Debug); err != nil {
+			log.Printf("保存响应文件失败: %v", err)
+		}
 	}
 
 	// 解析JSON响应
@@ -870,15 +894,17 @@ func (c *AKToolsClient) GetBalanceSheet(symbol, period, reportType string) (*mod
 
 	// 使用带缓存的请求方法
 	ctx := context.Background()
-	body, err := c.doRequestWithCache(ctx, apiURL)
+	body, fromCache, err := c.doRequestWithCacheAndDebug(ctx, apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("获取资产负债表数据失败: %w", err)
 	}
 
-	// 保存响应到文件用于调试
-	cleanSymbol := c.CleanStockSymbol(symbol)
-	if err := c.saveResponseToFile(body, "balance_sheet", cleanSymbol, c.config.Debug); err != nil {
-		log.Printf("保存响应文件失败: %v", err)
+	// 只在非缓存数据时保存响应到文件用于调试
+	if !fromCache {
+		cleanSymbol := c.CleanStockSymbol(symbol)
+		if err := c.saveResponseToFile(body, "balance_sheet", cleanSymbol, c.config.Debug); err != nil {
+			log.Printf("保存响应文件失败: %v", err)
+		}
 	}
 
 	// 解析JSON响应
@@ -918,14 +944,17 @@ func (c *AKToolsClient) GetBalanceSheets(symbol, startPeriod, endPeriod, reportT
 
 	ctx := context.Background()
 	// 使用带缓存的请求方法
-	body, err := c.doRequestWithCache(ctx, apiURL)
+	body, fromCache, err := c.doRequestWithCacheAndDebug(ctx, apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("获取资产负债表数据失败: %w", err)
 	}
-	// 保存响应到文件用于调试
-	cleanSymbol := c.CleanStockSymbol(symbol)
-	if err := c.saveResponseToFile(body, "balance_sheets", cleanSymbol, c.config.Debug); err != nil {
-		log.Printf("保存响应文件失败: %v", err)
+
+	// 只在非缓存数据时保存响应到文件用于调试
+	if !fromCache {
+		cleanSymbol := c.CleanStockSymbol(symbol)
+		if err := c.saveResponseToFile(body, "balance_sheets", cleanSymbol, c.config.Debug); err != nil {
+			log.Printf("保存响应文件失败: %v", err)
+		}
 	}
 
 	var rawData []map[string]interface{}
@@ -969,15 +998,18 @@ func (c *AKToolsClient) GetCashFlowStatement(symbol, period, reportType string) 
 	apiURL := fmt.Sprintf("%s/api/public/stock_cash_flow_sheet_by_report_em?%s", c.baseURL, params.Encode())
 
 	ctx := context.Background()
-	// 使用带缓存的请求方法
-	body, err := c.doRequestWithCache(ctx, apiURL)
+	// 使用带缓存的请求方法，并获取是否来自缓存的标识
+	body, fromCache, err := c.doRequestWithCacheAndDebug(ctx, apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("获取现金流量表数据失败: %w", err)
 	}
-	// 保存响应到文件用于调试
-	cleanSymbol := c.CleanStockSymbol(symbol)
-	if err := c.saveResponseToFile(body, "cash_flow_statement", cleanSymbol, c.config.Debug); err != nil {
-		log.Printf("保存响应文件失败: %v", err)
+
+	// 只在非缓存数据时保存响应到文件用于调试
+	if !fromCache {
+		cleanSymbol := c.CleanStockSymbol(symbol)
+		if err := c.saveResponseToFile(body, "cash_flow_statement", cleanSymbol, c.config.Debug); err != nil {
+			log.Printf("保存响应文件失败: %v", err)
+		}
 	}
 
 	var rawData []map[string]interface{}
@@ -1015,15 +1047,18 @@ func (c *AKToolsClient) GetCashFlowStatements(symbol, startPeriod, endPeriod, re
 	apiURL := fmt.Sprintf("%s/api/public/stock_cash_flow_sheet_by_report_em?%s", c.baseURL, params.Encode())
 
 	ctx := context.Background()
-	// 使用带缓存的请求方法
-	body, err := c.doRequestWithCache(ctx, apiURL)
+	// 使用带缓存的请求方法，并获取是否来自缓存的标识
+	body, fromCache, err := c.doRequestWithCacheAndDebug(ctx, apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("获取现金流量表数据失败: %w", err)
 	}
-	// 保存响应到文件用于调试
-	cleanSymbol := c.CleanStockSymbol(symbol)
-	if err := c.saveResponseToFile(body, "cash_flow_statements", cleanSymbol, c.config.Debug); err != nil {
-		log.Printf("保存响应文件失败: %v", err)
+
+	// 只在非缓存数据时保存响应到文件用于调试
+	if !fromCache {
+		cleanSymbol := c.CleanStockSymbol(symbol)
+		if err := c.saveResponseToFile(body, "cash_flow_statements", cleanSymbol, c.config.Debug); err != nil {
+			log.Printf("保存响应文件失败: %v", err)
+		}
 	}
 
 	var rawData []map[string]interface{}
@@ -1086,14 +1121,16 @@ func (c *AKToolsClient) GetDailyBasic(ctx context.Context, symbol, tradeDate str
 	apiURL := fmt.Sprintf("%s/api/public/stock_individual_info_em?%s", c.baseURL, params.Encode())
 
 	// 使用传入的context而不是自己创建
-	body, err := c.doRequestWithCache(ctx, apiURL)
+	body, fromCache, err := c.doRequestWithCacheAndDebug(ctx, apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("获取每日基本面数据失败: %w", err)
 	}
 
-	// 保存响应到文件用于调试
-	if err := c.saveResponseToFile(body, "daily_basic", cleanSymbol, c.config.Debug); err != nil {
-		log.Printf("保存响应文件失败: %v", err)
+	// 只在非缓存数据时保存响应到文件用于调试
+	if !fromCache {
+		if err := c.saveResponseToFile(body, "daily_basic", cleanSymbol, c.config.Debug); err != nil {
+			log.Printf("保存响应文件失败: %v", err)
+		}
 	}
 
 	// stock_individual_info_em返回的是key-value对数组格式
