@@ -12,48 +12,47 @@ import (
 // TestCalculateFundamentalFactorWithScores 测试单个股票的基本面因子计算（包含得分）
 func TestCalculateFundamentalFactorWithScores(t *testing.T) {
 	// 创建模拟客户端
-	mockClient := &client.MockDataSourceClient{
-		DailyBasicData: &models.DailyBasic{
-			TSCode:    "601669.SH",
-			TradeDate: "20250831",
-			Close:     models.NewJSONDecimal(decimal.NewFromFloat(10.50)),
-			Pe:        models.NewJSONDecimal(decimal.NewFromFloat(18.5)), // 良好的PE
-			Pb:        models.NewJSONDecimal(decimal.NewFromFloat(2.1)),  // 良好的PB
-			Ps:        models.NewJSONDecimal(decimal.NewFromFloat(1.8)),  // 优秀的PS
-			DvRatio:   models.NewJSONDecimal(decimal.NewFromFloat(3.2)),
+	mockClient := client.NewMockDataSourceClient()
+	mockClient.DailyBasicData = &models.DailyBasic{
+		TSCode:    "601669.SH",
+		TradeDate: "20250831",
+		Close:     models.NewJSONDecimal(decimal.NewFromFloat(10.50)),
+		Pe:        models.NewJSONDecimal(decimal.NewFromFloat(18.5)), // 良好的PE
+		Pb:        models.NewJSONDecimal(decimal.NewFromFloat(2.1)),  // 良好的PB
+		Ps:        models.NewJSONDecimal(decimal.NewFromFloat(1.8)),  // 优秀的PS
+		DvRatio:   models.NewJSONDecimal(decimal.NewFromFloat(3.2)),
+	}
+	mockClient.IncomeStatementData = &models.IncomeStatement{
+		FinancialStatement: models.FinancialStatement{
+			TSCode:  "601669.SH",
+			EndDate: "20240930",
 		},
-		IncomeStatementData: &models.IncomeStatement{
-			FinancialStatement: models.FinancialStatement{
-				TSCode:  "601669.SH",
-				EndDate: "20240930",
-			},
-			OperRevenue: models.NewJSONDecimal(decimal.NewFromFloat(1000000000)), // 10亿营收
-			OperCost:    models.NewJSONDecimal(decimal.NewFromFloat(600000000)),  // 6亿成本
-			OperProfit:  models.NewJSONDecimal(decimal.NewFromFloat(200000000)),  // 2亿营业利润
-			NetProfit:   models.NewJSONDecimal(decimal.NewFromFloat(150000000)),  // 1.5亿净利润
+		OperRevenue: models.NewJSONDecimal(decimal.NewFromFloat(1000000000)), // 10亿营收
+		OperCost:    models.NewJSONDecimal(decimal.NewFromFloat(600000000)),  // 6亿成本
+		OperProfit:  models.NewJSONDecimal(decimal.NewFromFloat(200000000)),  // 2亿营业利润
+		NetProfit:   models.NewJSONDecimal(decimal.NewFromFloat(150000000)),  // 1.5亿净利润
+	}
+	mockClient.BalanceSheetData = &models.BalanceSheet{
+		FinancialStatement: models.FinancialStatement{
+			TSCode:  "601669.SH",
+			EndDate: "20240930",
 		},
-		BalanceSheetData: &models.BalanceSheet{
-			FinancialStatement: models.FinancialStatement{
-				TSCode:  "601669.SH",
-				EndDate: "20240930",
-			},
-			TotalAssets:     models.NewJSONDecimal(decimal.NewFromFloat(5000000000)), // 50亿总资产
-			TotalHldrEqy:    models.NewJSONDecimal(decimal.NewFromFloat(2000000000)), // 20亿所有者权益
-			TotalLiab:       models.NewJSONDecimal(decimal.NewFromFloat(3000000000)), // 30亿负债
-			TotalCurAssets:  models.NewJSONDecimal(decimal.NewFromFloat(1500000000)), // 15亿流动资产
-			TotalCurLiab:    models.NewJSONDecimal(decimal.NewFromFloat(1000000000)), // 10亿流动负债
-			InventoryAssets: models.NewJSONDecimal(decimal.NewFromFloat(300000000)),  // 3亿存货
-			AccountsReceiv:  models.NewJSONDecimal(decimal.NewFromFloat(400000000)),  // 4亿应收账款
+		TotalAssets:     models.NewJSONDecimal(decimal.NewFromFloat(5000000000)), // 50亿总资产
+		TotalHldrEqy:    models.NewJSONDecimal(decimal.NewFromFloat(2000000000)), // 20亿所有者权益
+		TotalLiab:       models.NewJSONDecimal(decimal.NewFromFloat(3000000000)), // 30亿负债
+		TotalCurAssets:  models.NewJSONDecimal(decimal.NewFromFloat(1500000000)), // 15亿流动资产
+		TotalCurLiab:    models.NewJSONDecimal(decimal.NewFromFloat(1000000000)), // 10亿流动负债
+		InventoryAssets: models.NewJSONDecimal(decimal.NewFromFloat(300000000)),  // 3亿存货
+		AccountsReceiv:  models.NewJSONDecimal(decimal.NewFromFloat(400000000)),  // 4亿应收账款
+	}
+	mockClient.CashFlowData = &models.CashFlowStatement{
+		FinancialStatement: models.FinancialStatement{
+			TSCode:  "601669.SH",
+			EndDate: "20240930",
 		},
-		CashFlowData: &models.CashFlowStatement{
-			FinancialStatement: models.FinancialStatement{
-				TSCode:  "601669.SH",
-				EndDate: "20240930",
-			},
-			NetCashOperAct: models.NewJSONDecimal(decimal.NewFromFloat(180000000)), // 1.8亿经营现金流
-			NetCashInvAct:  models.NewJSONDecimal(decimal.NewFromFloat(-50000000)), // -0.5亿投资现金流
-			NetCashFinAct:  models.NewJSONDecimal(decimal.NewFromFloat(-30000000)), // -0.3亿筹资现金流
-		},
+		NetCashOperAct: models.NewJSONDecimal(decimal.NewFromFloat(180000000)), // 1.8亿经营现金流
+		NetCashInvAct:  models.NewJSONDecimal(decimal.NewFromFloat(-50000000)), // -0.5亿投资现金流
+		NetCashFinAct:  models.NewJSONDecimal(decimal.NewFromFloat(-30000000)), // -0.3亿筹资现金流
 	}
 
 	service := NewFundamentalFactorService(mockClient)
