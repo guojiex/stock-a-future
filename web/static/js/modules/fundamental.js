@@ -638,6 +638,9 @@ class FundamentalModule {
 
     displayIncomeStatement(income) {
         console.log('[Fundamental] 显示利润表数据:', income);
+        console.log('[Fundamental] 营业收入字段值:', income.oper_revenue);
+        console.log('[Fundamental] 净利润字段值:', income.net_profit);
+        console.log('[Fundamental] 营业利润字段值:', income.oper_profit);
         
         const container = document.getElementById('incomeStatementInfo');
         if (!container) {
@@ -648,17 +651,17 @@ class FundamentalModule {
         const items = [
             { 
                 label: '营业收入', 
-                value: this.formatAmount(income.total_revenue),
-                desc: '营业收入总额'
+                value: this.formatAmount(income.oper_revenue),
+                desc: '营业收入'
             },
             { 
                 label: '净利润', 
-                value: this.formatAmount(income.n_income),
+                value: this.formatAmount(income.net_profit),
                 desc: '净利润'
             },
             { 
                 label: '营业利润', 
-                value: this.formatAmount(income.operate_profit),
+                value: this.formatAmount(income.oper_profit),
                 desc: '营业利润'
             },
             { 
