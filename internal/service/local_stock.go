@@ -141,7 +141,7 @@ func (s *LocalStockService) loadSZSEExcelData() error {
 
 	// 处理数据行
 	stockCount := 0
-	for i, row := range rows[1:] { // 跳过表头
+	for _, row := range rows[1:] { // 跳过表头
 		if len(row) <= codeCol || len(row) <= nameCol {
 			continue
 		}
@@ -176,10 +176,6 @@ func (s *LocalStockService) loadSZSEExcelData() error {
 
 		stockCount++
 
-		// 记录前几条数据用于调试
-		if i < 5 {
-			log.Printf("Excel数据示例: %s -> %s (%s)", code, name, stock.TSCode)
-		}
 	}
 
 	log.Printf("加载深交所Excel数据: %d 只股票", stockCount)

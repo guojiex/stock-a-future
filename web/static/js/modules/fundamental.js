@@ -89,6 +89,9 @@ class FundamentalModule {
 
         if (data.stock_basic) this.displayStockBasicInfo(data.stock_basic);
         if (data.daily_basic) this.displayDailyBasicInfo(data.daily_basic);
+        if (data.cash_flow_statement) this.displayCashFlowStatement(data.cash_flow_statement);
+        if (data.income_statement) this.displayIncomeStatement(data.income_statement);
+        if (data.balance_sheet) this.displayBalanceSheet(data.balance_sheet);
         
         // 自动加载基本面因子分析
         this.loadFactorAnalysis();
@@ -560,6 +563,178 @@ class FundamentalModule {
         `;
         
         document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+
+    // 通用的金额格式化函数
+    formatAmount(value) {
+        if (!value || value === '0' || value === 0) return '0';
+        const num = parseFloat(value);
+        if (isNaN(num)) return '0';
+        
+        // 如果金额大于10亿，显示为亿元
+        if (Math.abs(num) >= 1000000000) {
+            const yi = (num / 100000000).toFixed(2);
+            return `${yi}亿元`;
+        }
+        // 如果金额大于1万，显示为万元
+        else if (Math.abs(num) >= 10000) {
+            const wan = (num / 10000).toFixed(0);
+            return `${wan}万元`;
+        }
+        // 小于1万，显示为元
+        else {
+            return `${num.toFixed(0)}元`;
+        }
+    }
+
+    displayCashFlowStatement(cashFlow) {
+        console.log('[Fundamental] 显示现金流量表数据:', cashFlow);
+        
+        const container = document.getElementById('cashFlowInfo');
+        if (!container) {
+            console.warn('[Fundamental] 未找到现金流量表容器 #cashFlowInfo');
+            return;
+        }
+
+        const items = [
+            { 
+                label: '经营现金流', 
+                value: this.formatAmount(cashFlow.net_cash_oper_act),
+                desc: '经营活动产生的现金流量净额'
+            },
+            { 
+                label: '投资现金流', 
+                value: this.formatAmount(cashFlow.net_cash_inv_act),
+                desc: '投资活动产生的现金流量净额'
+            },
+            { 
+                label: '筹资现金流', 
+                value: this.formatAmount(cashFlow.net_cash_fin_act),
+                desc: '筹资活动产生的现金流量净额'
+            },
+            { 
+                label: '期间', 
+                value: cashFlow.end_date || cashFlow.ann_date || '-',
+                desc: '报告期间'
+            }
+        ];
+
+        container.innerHTML = `
+            <div class="financial-statement">
+                <h4 class="statement-title">💰 现金流量表</h4>
+                <div class="statement-items">
+                    ${items.map(item => `
+                        <div class="info-item" title="${item.desc}">
+                            <span class="info-label">${item.label}:</span>
+                            <span class="info-value ${item.label.includes('现金流') ? 'cash-flow-value' : ''}">${item.value}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        
+        container.style.display = 'block';
+    }
+
+    displayIncomeStatement(income) {
+        console.log('[Fundamental] 显示利润表数据:', income);
+        
+        const container = document.getElementById('incomeStatementInfo');
+        if (!container) {
+            console.warn('[Fundamental] 未找到利润表容器 #incomeStatementInfo');
+            return;
+        }
+
+        const items = [
+            { 
+                label: '营业收入', 
+                value: this.formatAmount(income.total_revenue),
+                desc: '营业收入总额'
+            },
+            { 
+                label: '净利润', 
+                value: this.formatAmount(income.n_income),
+                desc: '净利润'
+            },
+            { 
+                label: '营业利润', 
+                value: this.formatAmount(income.operate_profit),
+                desc: '营业利润'
+            },
+            { 
+                label: '期间', 
+                value: income.end_date || income.ann_date || '-',
+                desc: '报告期间'
+            }
+        ];
+
+        container.innerHTML = `
+            <div class="financial-statement">
+                <h4 class="statement-title">📊 利润表</h4>
+                <div class="statement-items">
+                    ${items.map(item => `
+                        <div class="info-item" title="${item.desc}">
+                            <span class="info-label">${item.label}:</span>
+                            <span class="info-value">${item.value}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        
+        container.style.display = 'block';
+    }
+
+    displayBalanceSheet(balance) {
+        console.log('[Fundamental] 显示资产负债表数据:', balance);
+        console.log('[Fundamental] 净资产字段值:', balance.total_hldr_eqy);
+        console.log('[Fundamental] 总资产字段值:', balance.total_assets);
+        console.log('[Fundamental] 总负债字段值:', balance.total_liab);
+        
+        const container = document.getElementById('balanceSheetInfo');
+        if (!container) {
+            console.warn('[Fundamental] 未找到资产负债表容器 #balanceSheetInfo');
+            return;
+        }
+
+        const items = [
+            { 
+                label: '总资产', 
+                value: this.formatAmount(balance.total_assets),
+                desc: '资产总计'
+            },
+            { 
+                label: '净资产', 
+                value: this.formatAmount(balance.total_hldr_eqy),
+                desc: '所有者权益合计'
+            },
+            { 
+                label: '总负债', 
+                value: this.formatAmount(balance.total_liab),
+                desc: '负债合计'
+            },
+            { 
+                label: '期间', 
+                value: balance.end_date || balance.ann_date || '-',
+                desc: '报告期间'
+            }
+        ];
+
+        container.innerHTML = `
+            <div class="financial-statement">
+                <h4 class="statement-title">🏦 资产负债表</h4>
+                <div class="statement-items">
+                    ${items.map(item => `
+                        <div class="info-item" title="${item.desc}">
+                            <span class="info-label">${item.label}:</span>
+                            <span class="info-value">${item.value}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        
+        container.style.display = 'block';
     }
 }
 

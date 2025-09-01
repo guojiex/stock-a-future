@@ -308,11 +308,6 @@ func (c *AKToolsClient) doRequestWithRetry(ctx context.Context, url string) ([]b
 
 		// 成功获取响应，存入缓存
 		c.cache.Set(url, body)
-		if attempt > 1 {
-			log.Printf("✅ 第%d次重试成功，响应已缓存: %s (大小: %d bytes)", attempt, url, len(body))
-		} else {
-			log.Printf("💾 响应已缓存: %s (大小: %d bytes)", url, len(body))
-		}
 
 		return body, nil
 	}
@@ -396,7 +391,6 @@ func (c *AKToolsClient) saveResponseToFile(responseBody []byte, apiName, symbol 
 		return fmt.Errorf("写入响应文件失败: %v", err)
 	}
 
-	log.Printf("HTTP响应已保存到文件: %s", filename)
 	return nil
 }
 

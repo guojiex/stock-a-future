@@ -3285,6 +3285,34 @@ body {
     border-bottom: 2px solid var(--border-color);
 }
 
+/* 财务报表样式 */
+.financial-statement {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.statement-title {
+    color: var(--text-primary);
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.statement-items {
+    display: grid;
+    gap: var(--spacing-sm);
+}
+
+.cash-flow-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
 /* 信息网格布局 */
 .info-grid {
     display: grid;
