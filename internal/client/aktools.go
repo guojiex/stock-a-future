@@ -1109,10 +1109,8 @@ func (c *AKToolsClient) GetFinancialIndicators(symbol, startPeriod, endPeriod, r
 func (c *AKToolsClient) GetDailyBasic(ctx context.Context, symbol, tradeDate string) (*models.DailyBasic, error) {
 	cleanSymbol := c.CleanStockSymbol(symbol)
 
-	// 使用股票个股信息API获取基本面数据，这比获取所有股票数据更高效
-	params := url.Values{}
-	params.Set("symbol", cleanSymbol)
-	apiURL := fmt.Sprintf("%s/api/public/stock_individual_info_em?%s", c.baseURL, params.Encode())
+	// 使用股票实时行情API获取包含估值指标的数据
+	apiURL := fmt.Sprintf("%s/api/public/stock_zh_a_spot_em", c.baseURL)
 
 	// 使用传入的context而不是自己创建
 	body, fromCache, err := c.doRequestWithCacheAndDebug(ctx, apiURL)
@@ -1122,12 +1120,12 @@ func (c *AKToolsClient) GetDailyBasic(ctx context.Context, symbol, tradeDate str
 
 	// 只在非缓存数据时保存响应到文件用于调试
 	if !fromCache {
-		if err := c.saveResponseToFile(body, "daily_basic", cleanSymbol, c.config.Debug); err != nil {
+		if err := c.saveResponseToFile(body, "daily_basic_spot", cleanSymbol, c.config.Debug); err != nil {
 			log.Printf("保存响应文件失败: %v", err)
 		}
 	}
 
-	// stock_individual_info_em返回的是key-value对数组格式
+	// stock_zh_a_spot_em返回的是所有股票的数组格式
 	var rawResp []map[string]interface{}
 	if err := json.Unmarshal(body, &rawResp); err != nil {
 		return nil, fmt.Errorf("解析AKTools每日基本面响应失败: %w", err)
@@ -1137,21 +1135,22 @@ func (c *AKToolsClient) GetDailyBasic(ctx context.Context, symbol, tradeDate str
 		return nil, fmt.Errorf("未找到每日基本面数据: %s, 日期: %s", symbol, tradeDate)
 	}
 
-	// 将key-value对数组转换为map
-	stockData := make(map[string]interface{})
+	// 从所有股票数据中找到目标股票
+	var stockData map[string]interface{}
 	for _, item := range rawResp {
-		if key, ok := item["item"].(string); ok {
-			if value, exists := item["value"]; exists {
-				stockData[key] = value
+		if code, ok := item["代码"].(string); ok {
+			if code == cleanSymbol {
+				stockData = item
+				break
 			}
 		}
 	}
 
-	if len(stockData) == 0 {
-		return nil, fmt.Errorf("股票基本面数据为空: %s, 日期: %s", symbol, tradeDate)
+	if stockData == nil {
+		return nil, fmt.Errorf("未找到股票基本面数据: %s, 日期: %s", symbol, tradeDate)
 	}
 
-	return c.convertToDailyBasic(stockData, symbol, tradeDate)
+	return c.convertToDailyBasicFromSpot(stockData, symbol, tradeDate)
 }
 
 // GetDailyBasics 批量获取每日基本面指标
@@ -1509,15 +1508,107 @@ func (c *AKToolsClient) convertToDailyBasic(data map[string]interface{}, symbol,
 		dailyBasic.CircMv = models.NewJSONDecimal(c.parseDecimalFromInterface(circMv))
 	}
 
-	// 注意：stock_individual_info_em API主要返回基本信息，不包含估值指标
-	// 这些字段可能需要从其他API获取，暂时设为零值
-	dailyBasic.Pe = models.NewJSONDecimal(decimal.Zero)
-	dailyBasic.PeTtm = models.NewJSONDecimal(decimal.Zero)
-	dailyBasic.Pb = models.NewJSONDecimal(decimal.Zero)
-	dailyBasic.Ps = models.NewJSONDecimal(decimal.Zero)
-	dailyBasic.PsTtm = models.NewJSONDecimal(decimal.Zero)
-	dailyBasic.Turnover = models.NewJSONDecimal(decimal.Zero)
-	dailyBasic.VolumeRatio = models.NewJSONDecimal(decimal.Zero)
+	// 估值指标 - 从stock_individual_info_em API实际字段中提取
+	if pe, ok := data["市盈率"]; ok {
+		dailyBasic.Pe = models.NewJSONDecimal(c.parseDecimalFromInterface(pe))
+	} else {
+		dailyBasic.Pe = models.NewJSONDecimal(decimal.Zero)
+	}
+
+	if peTtm, ok := data["市盈率TTM"]; ok {
+		dailyBasic.PeTtm = models.NewJSONDecimal(c.parseDecimalFromInterface(peTtm))
+	} else {
+		dailyBasic.PeTtm = dailyBasic.Pe // 如果没有TTM，使用普通市盈率
+	}
+
+	if pb, ok := data["市净率"]; ok {
+		dailyBasic.Pb = models.NewJSONDecimal(c.parseDecimalFromInterface(pb))
+	} else {
+		dailyBasic.Pb = models.NewJSONDecimal(decimal.Zero)
+	}
+
+	if ps, ok := data["市销率"]; ok {
+		dailyBasic.Ps = models.NewJSONDecimal(c.parseDecimalFromInterface(ps))
+	} else {
+		dailyBasic.Ps = models.NewJSONDecimal(decimal.Zero)
+	}
+
+	// 其他指标暂时设为零值（这些可能确实不在API中）
+	dailyBasic.PsTtm = dailyBasic.Ps
+
+	if turnover, ok := data["换手率"]; ok {
+		dailyBasic.Turnover = models.NewJSONDecimal(c.parseDecimalFromInterface(turnover))
+	} else {
+		dailyBasic.Turnover = models.NewJSONDecimal(decimal.Zero)
+	}
+
+	if volumeRatio, ok := data["量比"]; ok {
+		dailyBasic.VolumeRatio = models.NewJSONDecimal(c.parseDecimalFromInterface(volumeRatio))
+	} else {
+		dailyBasic.VolumeRatio = models.NewJSONDecimal(decimal.Zero)
+	}
+
+	// 股息率可能不在这个API中
+	dailyBasic.DvRatio = models.NewJSONDecimal(decimal.Zero)
+	dailyBasic.DvTtm = models.NewJSONDecimal(decimal.Zero)
+
+	return dailyBasic, nil
+}
+
+// convertToDailyBasicFromSpot 将AKTools股票实时行情数据转换为每日基本面数据
+func (c *AKToolsClient) convertToDailyBasicFromSpot(data map[string]interface{}, symbol, tradeDate string) (*models.DailyBasic, error) {
+	dailyBasic := &models.DailyBasic{}
+
+	// 设置基础字段
+	dailyBasic.TSCode = c.DetermineTSCode(symbol)
+	dailyBasic.TradeDate = tradeDate
+
+	// 基本数据 - 使用stock_zh_a_spot_em API的实际字段名
+	if close, ok := data["最新价"]; ok {
+		dailyBasic.Close = models.NewJSONDecimal(c.parseDecimalFromInterface(close))
+	}
+
+	// 估值指标 - 从股票实时行情API中提取
+	if pe, ok := data["市盈率-动态"]; ok {
+		dailyBasic.Pe = models.NewJSONDecimal(c.parseDecimalFromInterface(pe))
+	} else if pe, ok := data["市盈率"]; ok {
+		dailyBasic.Pe = models.NewJSONDecimal(c.parseDecimalFromInterface(pe))
+	}
+
+	if pb, ok := data["市净率"]; ok {
+		dailyBasic.Pb = models.NewJSONDecimal(c.parseDecimalFromInterface(pb))
+	}
+
+	if ps, ok := data["市销率"]; ok {
+		dailyBasic.Ps = models.NewJSONDecimal(c.parseDecimalFromInterface(ps))
+	}
+
+	// 市盈率TTM通常与动态市盈率相同
+	dailyBasic.PeTtm = dailyBasic.Pe
+	dailyBasic.PsTtm = dailyBasic.Ps
+
+	// 股本和市值
+	if totalMv, ok := data["总市值"]; ok {
+		dailyBasic.TotalMv = models.NewJSONDecimal(c.parseDecimalFromInterface(totalMv))
+	}
+	if circMv, ok := data["流通市值"]; ok {
+		dailyBasic.CircMv = models.NewJSONDecimal(c.parseDecimalFromInterface(circMv))
+	}
+
+	// 换手率和量比
+	if turnover, ok := data["换手率"]; ok {
+		dailyBasic.Turnover = models.NewJSONDecimal(c.parseDecimalFromInterface(turnover))
+	}
+	if volumeRatio, ok := data["量比"]; ok {
+		dailyBasic.VolumeRatio = models.NewJSONDecimal(c.parseDecimalFromInterface(volumeRatio))
+	}
+
+	// 股本数据可能不在实时行情中，设为零值
+	dailyBasic.TotalShare = models.NewJSONDecimal(decimal.Zero)
+	dailyBasic.FloatShare = models.NewJSONDecimal(decimal.Zero)
+	dailyBasic.FreeShare = models.NewJSONDecimal(decimal.Zero)
+
+	// 股息率数据通常不在实时行情中
 	dailyBasic.DvRatio = models.NewJSONDecimal(decimal.Zero)
 	dailyBasic.DvTtm = models.NewJSONDecimal(decimal.Zero)
 

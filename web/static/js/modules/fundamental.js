@@ -117,8 +117,15 @@ class FundamentalModule {
     }
 
     displayDailyBasicInfo(dailyBasic) {
+        console.log('[Fundamental] 显示每日基本面数据:', dailyBasic);
+        console.log('[Fundamental] 市盈率字段值:', dailyBasic.pe, dailyBasic.pe_ttm);
+        console.log('[Fundamental] 市净率字段值:', dailyBasic.pb);
+        
         const container = document.getElementById('dailyBasicInfo');
-        if (!container) return;
+        if (!container) {
+            console.warn('[Fundamental] 未找到每日基本面容器 #dailyBasicInfo');
+            return;
+        }
 
         const items = [
             { label: '最新价', value: dailyBasic.close ? `${dailyBasic.close}元` : '-' },
