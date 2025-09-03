@@ -3635,6 +3635,37 @@ body {
     min-height: 200px;
 }
 
+/* 修复因子分析表格对齐问题 */
+#factorContent .fundamental-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+#factorContent .fundamental-table th:nth-child(1),
+#factorContent .fundamental-table td:nth-child(1) {
+    width: 30%;
+    min-width: 120px;
+}
+
+#factorContent .fundamental-table th:nth-child(2),
+#factorContent .fundamental-table td:nth-child(2) {
+    width: 20%;
+    min-width: 100px;
+    text-align: right;
+}
+
+#factorContent .fundamental-table th:nth-child(3),
+#factorContent .fundamental-table td:nth-child(3) {
+    width: 50%;
+    min-width: 200px;
+}
+
+#factorContent .fundamental-table .item-value {
+    text-align: right;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
 /* 因子操作按钮 */
 .factor-actions {
     margin-top: 20px;
@@ -3805,5 +3836,25 @@ body {
         text-align: center;
         padding: 8px 10px;
         font-size: 12px;
+    }
+    
+    /* 小屏幕下的因子表格对齐 */
+    #factorContent .fundamental-table th:nth-child(1),
+    #factorContent .fundamental-table td:nth-child(1) {
+        width: 35%;
+        min-width: 100px;
+    }
+    
+    #factorContent .fundamental-table th:nth-child(2),
+    #factorContent .fundamental-table td:nth-child(2) {
+        width: 25%;
+        min-width: 80px;
+    }
+    
+    #factorContent .fundamental-table th:nth-child(3),
+    #factorContent .fundamental-table td:nth-child(3) {
+        width: 40%;
+        min-width: 150px;
+        font-size: 0.75rem;
     }
 }

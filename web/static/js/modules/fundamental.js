@@ -6,6 +6,7 @@ class FundamentalModule {
     constructor(apiService) {
         this.apiService = apiService;
         this.currentStockCode = null;
+        this.currentFactorData = null;
         this.init();
     }
 
@@ -189,6 +190,9 @@ class FundamentalModule {
     }
 
     displayFactorAnalysis(factor) {
+        // 保存当前因子数据，供标签页切换使用
+        this.currentFactorData = factor;
+        
         // 创建因子分析容器（如果不存在）
         this.createFactorAnalysisContainer();
         
@@ -506,8 +510,14 @@ class FundamentalModule {
                 
                 // 显示对应内容
                 const factorType = e.target.dataset.factor;
-                // 这里需要重新获取factor数据，简化处理
                 console.log(`[Fundamental] 切换到${factorType}因子`);
+                
+                // 显示对应因子的详细内容
+                if (this.currentFactorData) {
+                    this.showFactorDetails(factorType, this.currentFactorData);
+                } else {
+                    console.warn('[Fundamental] 当前因子数据为空，无法显示详细内容');
+                }
             });
         });
     }
