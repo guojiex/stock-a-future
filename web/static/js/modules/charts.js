@@ -66,10 +66,28 @@ class ChartsModule {
         const latestMA10 = ma10.length > 0 ? ma10[ma10.length - 1] : null;
         const latestMA20 = ma20.length > 0 ? ma20[ma20.length - 1] : null;
         
-        // 构建图表标题
+        // 构建图表标题，包含最新的涨跌幅信息
         let chartTitle = `${stockCode} K线图`;
+        let titleTextColor = '#333';
+        
         if (stockBasic && stockBasic.name) {
             chartTitle = `${stockBasic.name}(${stockCode}) K线图`;
+        }
+        
+        // 添加最新的涨跌幅信息到标题
+        if (data && data.length > 0) {
+            const latestData = data[data.length - 1];
+            const currentClose = parseFloat(latestData.close);
+            const preClose = parseFloat(latestData.pre_close) || (data.length > 1 ? parseFloat(data[data.length - 2].close) : currentClose);
+            const change = parseFloat(latestData.change) || (currentClose - preClose);
+            const changePercent = parseFloat(latestData.pct_chg) || ((change / preClose) * 100);
+            
+            const changeText = change >= 0 ? `+${change.toFixed(2)}` : change.toFixed(2);
+            const percentText = change >= 0 ? `+${changePercent.toFixed(2)}%` : `${changePercent.toFixed(2)}%`;
+            const changeIcon = change >= 0 ? '📈' : '📉';
+            
+            chartTitle += ` - ¥${currentClose.toFixed(2)} ${changeIcon} ${changeText} (${percentText})`;
+            titleTextColor = change >= 0 ? '#10b981' : '#ef4444';
         }
         
         // 配置图表选项
@@ -79,7 +97,8 @@ class ChartsModule {
                 left: 'center',
                 textStyle: {
                     fontSize: 16,
-                    fontWeight: 'bold'
+                    fontWeight: 'bold',
+                    color: titleTextColor
                 }
             },
             tooltip: {
@@ -92,19 +111,34 @@ class ChartsModule {
                     
                     // K线数据
                     if (params[0].componentSubType === 'candlestick') {
-                        const data = params[0].data;
-                        result += `开盘价: ¥${data[1].toFixed(2)}<br/>`;
-                        result += `收盘价: ¥${data[2].toFixed(2)}<br/>`;
-                        result += `最低价: ¥${data[3].toFixed(2)}<br/>`;
-                        result += `最高价: ¥${data[4].toFixed(2)}<br/>`;
+                        const klineData = params[0].data;
+                        const dataIndex = params[0].dataIndex;
                         
-                        // 涨跌幅计算
-                        const change = data[2] - data[1];
-                        const changePercent = ((change / data[1]) * 100).toFixed(2);
-                        const changeText = change >= 0 ? `+${change.toFixed(2)}` : change.toFixed(2);
-                        const percentText = change >= 0 ? `+${changePercent}%` : `${changePercent}%`;
-                        result += `涨跌额: ${changeText}<br/>`;
-                        result += `涨跌幅: ${percentText}<br/>`;
+                        result += `开盘价: ¥${klineData[1].toFixed(2)}<br/>`;
+                        result += `收盘价: ¥${klineData[2].toFixed(2)}<br/>`;
+                        result += `最低价: ¥${klineData[3].toFixed(2)}<br/>`;
+                        result += `最高价: ¥${klineData[4].toFixed(2)}<br/>`;
+                        
+                        // 从原始数据中获取涨跌幅信息
+                        if (data && data[dataIndex]) {
+                            const currentData = data[dataIndex];
+                            const currentClose = parseFloat(currentData.close);
+                            const preClose = parseFloat(currentData.pre_close) || (dataIndex > 0 ? parseFloat(data[dataIndex - 1].close) : currentClose);
+                            const change = parseFloat(currentData.change) || (currentClose - preClose);
+                            const changePercent = parseFloat(currentData.pct_chg) || ((change / preClose) * 100);
+                            
+                            const changeText = change >= 0 ? `+${change.toFixed(2)}` : change.toFixed(2);
+                            const percentText = change >= 0 ? `+${changePercent.toFixed(2)}%` : `${changePercent.toFixed(2)}%`;
+                            const changeIcon = change >= 0 ? '📈' : '📉';
+                            
+                            result += `昨收价: ¥${preClose.toFixed(2)}<br/>`;
+                            result += `${changeIcon} 涨跌额: ${changeText}<br/>`;
+                            result += `${changeIcon} 涨跌幅: ${percentText}<br/>`;
+                            
+                            // 计算振幅
+                            const amplitude = ((parseFloat(currentData.high) - parseFloat(currentData.low)) / preClose * 100).toFixed(2);
+                            result += `振幅: ${amplitude}%<br/>`;
+                        }
                     }
                     
                     // 成交量

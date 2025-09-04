@@ -56,26 +56,47 @@ class DisplayModule {
      */
     createDataSummary(latest, previous) {
         const currentClose = parseFloat(latest.close);
-        const previousClose = parseFloat(latest.pre_close || previous.close);
-        const change = currentClose - previousClose;
-        const changePercent = ((change / previousClose) * 100).toFixed(2);
+        // 优先使用后端提供的昨收价，如果没有则使用前一天的收盘价
+        const previousClose = parseFloat(latest.pre_close) || parseFloat(previous.close);
+        
+        // 使用后端提供的涨跌额和涨跌幅，如果没有则自己计算
+        const change = parseFloat(latest.change) || (currentClose - previousClose);
+        const changePercent = parseFloat(latest.pct_chg) || ((change / previousClose) * 100);
+        
         const changeClass = change >= 0 ? 'positive' : 'negative';
         const changeSymbol = change >= 0 ? '+' : '';
+        const changeIcon = change >= 0 ? '📈' : '📉';
         
         // 计算振幅
         const amplitude = ((parseFloat(latest.high) - parseFloat(latest.low)) / previousClose * 100).toFixed(2);
         
         return `
-            <div class="summary-item">
+            <div class="summary-item featured">
                 <div class="label">最新收盘价</div>
-                <div class="value">¥${currentClose.toFixed(2)}</div>
+                <div class="value price-highlight">¥${currentClose.toFixed(2)}</div>
                 <div class="change ${changeClass}">
-                    ${changeSymbol}${change.toFixed(2)} (${changeSymbol}${changePercent}%)
+                    ${changeIcon} ${changeSymbol}${change.toFixed(2)} (${changeSymbol}${changePercent.toFixed(2)}%)
                 </div>
             </div>
             <div class="summary-item">
-                <div class="label">成交量</div>
-                <div class="value">${this.formatVolume(parseFloat(latest.vol))}</div>
+                <div class="label">昨收价</div>
+                <div class="value">¥${previousClose.toFixed(2)}</div>
+                <div class="sub-label">基准价格</div>
+            </div>
+            <div class="summary-item">
+                <div class="label">涨跌额</div>
+                <div class="value ${changeClass}">${changeSymbol}¥${Math.abs(change).toFixed(2)}</div>
+                <div class="sub-label">价格变动</div>
+            </div>
+            <div class="summary-item">
+                <div class="label">涨跌幅</div>
+                <div class="value ${changeClass}">${changeSymbol}${Math.abs(changePercent).toFixed(2)}%</div>
+                <div class="sub-label">百分比变动</div>
+            </div>
+            <div class="summary-item">
+                <div class="label">振幅</div>
+                <div class="value">${amplitude}%</div>
+                <div class="sub-label">日内波动</div>
             </div>
             <div class="summary-item">
                 <div class="label">最高价</div>
@@ -90,16 +111,12 @@ class DisplayModule {
                 <div class="value">¥${parseFloat(latest.open).toFixed(2)}</div>
             </div>
             <div class="summary-item">
+                <div class="label">成交量</div>
+                <div class="value">${this.formatVolume(parseFloat(latest.vol))}</div>
+            </div>
+            <div class="summary-item">
                 <div class="label">成交额</div>
                 <div class="value">${this.formatAmount(parseFloat(latest.amount))}</div>
-            </div>
-            <div class="summary-item">
-                <div class="label">振幅</div>
-                <div class="value">${amplitude}%</div>
-            </div>
-            <div class="summary-item">
-                <div class="label">昨收价</div>
-                <div class="value">¥${previousClose.toFixed(2)}</div>
             </div>
         `;
     }

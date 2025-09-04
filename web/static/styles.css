@@ -579,6 +579,36 @@ body {
     color: var(--error-color);
 }
 
+/* 涨跌幅增强样式 */
+.summary-item.featured {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+    border: 2px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.summary-item .price-highlight {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.summary-item .sub-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+    opacity: 0.8;
+}
+
+.summary-item .value.positive {
+    color: var(--success-color);
+    font-weight: 600;
+}
+
+.summary-item .value.negative {
+    color: var(--error-color);
+    font-weight: 600;
+}
+
 /* 技术指标网格 */
 .indicators-grid {
     display: grid;

@@ -554,6 +554,9 @@ func (c *AKToolsClient) convertToStockDaily(aktoolsData []AKToolsDailyResponse, 
 		// 转换日期格式：将AKTools的日期格式转换为前端期望的YYYYMMDD格式
 		formattedDate := c.formatDateForFrontend(data.Date)
 
+		// 计算昨收价：当日收盘价 - 涨跌额
+		preClose := data.Close - data.Change
+
 		daily := models.StockDaily{
 			TSCode:    tsCode,
 			TradeDate: formattedDate,
@@ -561,7 +564,7 @@ func (c *AKToolsClient) convertToStockDaily(aktoolsData []AKToolsDailyResponse, 
 			High:      models.NewJSONDecimal(decimal.NewFromFloat(data.High)),
 			Low:       models.NewJSONDecimal(decimal.NewFromFloat(data.Low)),
 			Close:     models.NewJSONDecimal(decimal.NewFromFloat(data.Close)),
-			PreClose:  models.NewJSONDecimal(decimal.Zero), // AKTools不提供前收盘价
+			PreClose:  models.NewJSONDecimal(decimal.NewFromFloat(preClose)), // 根据涨跌额计算昨收价
 			Change:    models.NewJSONDecimal(decimal.NewFromFloat(data.Change)),
 			PctChg:    models.NewJSONDecimal(decimal.NewFromFloat(data.ChangePct)),
 			Vol:       models.NewJSONDecimal(decimal.NewFromFloat(data.Volume)),
