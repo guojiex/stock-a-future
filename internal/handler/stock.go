@@ -933,6 +933,7 @@ func (h *StockHandler) GetFavoritesSignals(w http.ResponseWriter, r *http.Reques
 		log.Printf("信号正在计算中，已完成: %d/%d", calcStatus.Completed, calcStatus.Total)
 	}
 
+	// 先从预计算的信号中获取数据
 	for _, stockSignal := range recentSignals {
 		// 检查是否是收藏的股票
 		favorite, isFavorite := favoriteCodesMap[stockSignal.TSCode]
@@ -970,6 +971,37 @@ func (h *StockHandler) GetFavoritesSignals(w http.ResponseWriter, r *http.Reques
 		}
 
 		signals = append(signals, signal)
+	}
+
+	// 如果预计算信号数量不足，或者数据过期，则进行实时补充计算
+	if len(signals) < len(favorites) && !calcStatus.IsCalculating {
+		log.Printf("预计算信号不足 (%d/%d)，开始实时补充计算", len(signals), len(favorites))
+
+		// 找出没有信号的收藏股票
+		missingStocks := make([]*models.FavoriteStock, 0)
+		for _, favorite := range favorites {
+			if !addedStocks[favorite.TSCode] {
+				missingStocks = append(missingStocks, favorite)
+			}
+		}
+
+		// 对缺失的股票进行实时预测计算
+		for _, favorite := range missingStocks {
+			if len(signals) >= 20 { // 限制最大数量，避免响应过慢
+				break
+			}
+
+			realtimeSignal, err := h.calculateRealtimeSignal(favorite)
+			if err != nil {
+				log.Printf("实时计算股票 %s 信号失败: %v", favorite.TSCode, err)
+				continue
+			}
+
+			if realtimeSignal != nil {
+				signals = append(signals, *realtimeSignal)
+				log.Printf("成功为股票 %s 生成实时信号", favorite.TSCode)
+			}
+		}
 	}
 
 	// 不再需要日志
@@ -1017,6 +1049,134 @@ func getCalculationStatus(calcStatus *service.CalculationStatus) string {
 		return "计算中..."
 	}
 	return "未计算"
+}
+
+// calculateRealtimeSignal 为收藏股票实时计算信号
+func (h *StockHandler) calculateRealtimeSignal(favorite *models.FavoriteStock) (*models.FavoriteSignal, error) {
+	// 获取股票历史数据用于分析
+	endDate := time.Now().Format("20060102")
+	startDate := time.Now().AddDate(0, 0, -30).Format("20060102") // 获取30天数据
+
+	// 优先从缓存获取数据
+	var data []models.StockDaily
+	var err error
+
+	if h.dailyCacheService != nil {
+		if cachedData, found := h.dailyCacheService.Get(favorite.TSCode, startDate, endDate); found {
+			data = cachedData
+		} else {
+			data, err = h.dataSourceClient.GetDailyData(favorite.TSCode, startDate, endDate, "")
+			if err != nil {
+				return nil, fmt.Errorf("获取股票数据失败: %v", err)
+			}
+			// 存入缓存
+			h.dailyCacheService.Set(favorite.TSCode, startDate, endDate, data)
+		}
+	} else {
+		data, err = h.dataSourceClient.GetDailyData(favorite.TSCode, startDate, endDate, "")
+		if err != nil {
+			return nil, fmt.Errorf("获取股票数据失败: %v", err)
+		}
+	}
+
+	if len(data) == 0 {
+		return nil, fmt.Errorf("未获取到股票数据")
+	}
+
+	// 使用预测服务计算买卖预测
+	prediction, err := h.predictionService.PredictTradingPoints(data)
+	if err != nil {
+		return nil, fmt.Errorf("预测计算失败: %v", err)
+	}
+
+	// 检查是否有有效的买卖信号
+	if prediction == nil || len(prediction.Predictions) == 0 {
+		return nil, nil // 没有有效信号
+	}
+
+	// 查找最新的买卖信号
+	var latestBuySignal, latestSellSignal *models.TradingPointPrediction
+	for i := len(prediction.Predictions) - 1; i >= 0; i-- {
+		point := &prediction.Predictions[i]
+		if point.Type == "BUY" && latestBuySignal == nil {
+			latestBuySignal = point
+		} else if point.Type == "SELL" && latestSellSignal == nil {
+			latestSellSignal = point
+		}
+
+		// 如果都找到了就停止
+		if latestBuySignal != nil && latestSellSignal != nil {
+			break
+		}
+	}
+
+	// 判断最近的信号类型
+	var signalType string
+	var latestSignal *models.TradingPointPrediction
+
+	if latestBuySignal != nil && latestSellSignal != nil {
+		// 比较时间，选择最新的
+		if latestBuySignal.Date >= latestSellSignal.Date {
+			signalType = "BUY"
+			latestSignal = latestBuySignal
+		} else {
+			signalType = "SELL"
+			latestSignal = latestSellSignal
+		}
+	} else if latestBuySignal != nil {
+		signalType = "BUY"
+		latestSignal = latestBuySignal
+	} else if latestSellSignal != nil {
+		signalType = "SELL"
+		latestSignal = latestSellSignal
+	} else {
+		return nil, nil // 没有买卖信号
+	}
+
+	// 获取最新价格
+	latestData := data[len(data)-1]
+	currentPrice := latestData.Close.String()
+
+	// 构建简化的技术指标
+	indicators := models.SimpleIndicator{
+		CurrentPrice:   currentPrice,
+		PriceChange:    "0.00",
+		PriceChangePct: "0.00",
+		MA5:            "N/A",
+		MA10:           "N/A",
+		MA20:           "N/A",
+		Trend:          signalType,
+		LastUpdate:     time.Now().Format("15:04:05"),
+	}
+
+	// 如果有技术指标数据，则使用实际值
+	if len(data) >= 20 {
+		ma5 := h.calculator.CalculateMA(data, 5)
+		ma10 := h.calculator.CalculateMA(data, 10)
+		ma20 := h.calculator.CalculateMA(data, 20)
+
+		if len(ma5) > 0 {
+			indicators.MA5 = ma5[len(ma5)-1].StringFixed(2)
+		}
+		if len(ma10) > 0 {
+			indicators.MA10 = ma10[len(ma10)-1].StringFixed(2)
+		}
+		if len(ma20) > 0 {
+			indicators.MA20 = ma20[len(ma20)-1].StringFixed(2)
+		}
+	}
+
+	return &models.FavoriteSignal{
+		ID:           favorite.ID,
+		TSCode:       favorite.TSCode,
+		Name:         favorite.Name,
+		GroupID:      favorite.GroupID,
+		CurrentPrice: currentPrice,
+		TradeDate:    latestSignal.Date,
+		Indicators:   indicators,
+		Predictions:  prediction, // 返回完整的预测结果，包含predictions字段
+		UpdatedAt:    time.Now().Format("2006-01-02 15:04:05"),
+	}, nil
 }
 
 // buildIndicatorsFromSignal 从信号数据构建技术指标
