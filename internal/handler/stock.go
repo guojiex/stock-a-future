@@ -557,6 +557,27 @@ func (h *StockHandler) GetPredictions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 同步检查是否有预计算的信号数据，确保数据一致性
+	if h.app != nil && h.app.SignalService != nil {
+		recentSignals, err := h.app.SignalService.GetRecentUpdatedSignals(100)
+		if err == nil {
+			// 查找当前股票的预计算信号
+			for _, signal := range recentSignals {
+				if signal.TSCode == stockCode {
+					log.Printf("[GetPredictions] 发现预计算信号 - 股票: %s, 信号类型: %s, 强度: %s, 置信度: %s",
+						stockCode, signal.SignalType, signal.SignalStrength, signal.Confidence.Decimal.String())
+
+					// 如果预计算信号与实时预测存在显著差异，记录警告
+					if len(prediction.Predictions) == 0 && (signal.SignalType == "BUY" || signal.SignalType == "SELL") {
+						log.Printf("[GetPredictions] 数据不一致警告 - 股票: %s, 预计算有%s信号，但实时预测无信号",
+							stockCode, signal.SignalType)
+					}
+					break
+				}
+			}
+		}
+	}
+
 	// 记录响应信息
 	responseTime := time.Since(startTime)
 	log.Printf("[GetPredictions] 请求处理完成 - 股票代码: %s, 响应时间: %v, 预测数量: %d",
