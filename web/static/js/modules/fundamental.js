@@ -588,14 +588,14 @@ class FundamentalModule {
         const num = parseFloat(value);
         if (isNaN(num)) return '0';
         
-        // 如果金额大于10亿，显示为亿元
-        if (Math.abs(num) >= 1000000000) {
+        // 如果金额绝对值大于等于1亿，显示为亿元
+        if (Math.abs(num) >= 100000000) {
             const yi = (num / 100000000).toFixed(2);
             return `${yi}亿元`;
         }
-        // 如果金额大于1万，显示为万元
+        // 如果金额绝对值大于等于1万，显示为万元
         else if (Math.abs(num) >= 10000) {
-            const wan = (num / 10000).toFixed(0);
+            const wan = (num / 10000).toFixed(2);
             return `${wan}万元`;
         }
         // 小于1万，显示为元

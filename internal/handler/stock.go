@@ -12,6 +12,7 @@ import (
 	"stock-a-future/internal/service"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -1583,40 +1584,77 @@ func (h *StockHandler) GetFundamentalData(w http.ResponseWriter, r *http.Request
 
 	response := &FundamentalDataResponse{}
 
-	// 获取股票基本信息
-	if stockBasic, err := h.dataSourceClient.GetStockBasic(stockCode); err != nil {
-		log.Printf("[GetFundamentalData] 获取股票基本信息失败: %v", err)
-	} else {
-		response.StockBasic = stockBasic
-	}
+	// 使用WaitGroup实现并发请求
+	var wg sync.WaitGroup
+	var mu sync.Mutex // 保护response的并发写入
 
-	// 获取利润表
-	if incomeStatement, err := h.dataSourceClient.GetIncomeStatement(stockCode, period, reportType); err != nil {
-		log.Printf("[GetFundamentalData] 获取利润表失败: %v", err)
-	} else {
-		response.IncomeStatement = incomeStatement
-	}
+	// 并发获取股票基本信息
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if stockBasic, err := h.dataSourceClient.GetStockBasic(stockCode); err != nil {
+			log.Printf("[GetFundamentalData] 获取股票基本信息失败: %v", err)
+		} else {
+			mu.Lock()
+			response.StockBasic = stockBasic
+			mu.Unlock()
+		}
+	}()
 
-	// 获取资产负债表
-	if balanceSheet, err := h.dataSourceClient.GetBalanceSheet(stockCode, period, reportType); err != nil {
-		log.Printf("[GetFundamentalData] 获取资产负债表失败: %v", err)
-	} else {
-		response.BalanceSheet = balanceSheet
-	}
+	// 并发获取利润表
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if incomeStatement, err := h.dataSourceClient.GetIncomeStatement(stockCode, period, reportType); err != nil {
+			log.Printf("[GetFundamentalData] 获取利润表失败: %v", err)
+		} else {
+			mu.Lock()
+			response.IncomeStatement = incomeStatement
+			mu.Unlock()
+		}
+	}()
 
-	// 获取现金流量表
-	if cashFlowStatement, err := h.dataSourceClient.GetCashFlowStatement(stockCode, period, reportType); err != nil {
-		log.Printf("[GetFundamentalData] 获取现金流量表失败: %v", err)
-	} else {
-		response.CashFlowStatement = cashFlowStatement
-	}
+	// 并发获取资产负债表
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if balanceSheet, err := h.dataSourceClient.GetBalanceSheet(stockCode, period, reportType); err != nil {
+			log.Printf("[GetFundamentalData] 获取资产负债表失败: %v", err)
+		} else {
+			mu.Lock()
+			response.BalanceSheet = balanceSheet
+			mu.Unlock()
+		}
+	}()
 
-	// 获取每日基本面指标
-	if dailyBasic, err := h.dataSourceClient.GetDailyBasic(r.Context(), stockCode, tradeDate); err != nil {
-		log.Printf("[GetFundamentalData] 获取每日基本面指标失败: %v", err)
-	} else {
-		response.DailyBasic = dailyBasic
-	}
+	// 并发获取现金流量表
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if cashFlowStatement, err := h.dataSourceClient.GetCashFlowStatement(stockCode, period, reportType); err != nil {
+			log.Printf("[GetFundamentalData] 获取现金流量表失败: %v", err)
+		} else {
+			mu.Lock()
+			response.CashFlowStatement = cashFlowStatement
+			mu.Unlock()
+		}
+	}()
+
+	// 并发获取每日基本面指标
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if dailyBasic, err := h.dataSourceClient.GetDailyBasic(r.Context(), stockCode, tradeDate); err != nil {
+			log.Printf("[GetFundamentalData] 获取每日基本面指标失败: %v", err)
+		} else {
+			mu.Lock()
+			response.DailyBasic = dailyBasic
+			mu.Unlock()
+		}
+	}()
+
+	// 等待所有并发请求完成
+	wg.Wait()
 
 	h.writeSuccessResponse(w, response)
 }
