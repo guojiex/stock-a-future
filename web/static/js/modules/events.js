@@ -325,6 +325,20 @@ class EventsModule {
                     console.log(`[Events] 基本面tab切换完成，由FundamentalModule处理数据加载`);
                     this.showTabLoadingState(tabName, false); // 关闭加载状态
                     return;
+                case 'strategies':
+                    // 策略管理由专门的StrategiesModule处理，这里不需要加载数据
+                    console.log(`[Events] 策略管理tab切换完成，由StrategiesModule处理数据加载`);
+                    this.showTabLoadingState(tabName, false); // 关闭加载状态
+                    // 如果有策略模块，触发加载策略列表
+                    if (window.strategiesModule && typeof window.strategiesModule.loadStrategies === 'function') {
+                        await window.strategiesModule.loadStrategies();
+                    }
+                    return;
+                case 'backtest':
+                    // 回测系统由专门的BacktestModule处理，这里不需要加载数据
+                    console.log(`[Events] 回测系统tab切换完成，由BacktestModule处理数据加载`);
+                    this.showTabLoadingState(tabName, false); // 关闭加载状态
+                    return;
                 default:
                     console.warn(`[Events] 未知的tab类型: ${tabName}`);
                     this.showNoDataMessage(tabName, `未知的tab类型: ${tabName}`);
