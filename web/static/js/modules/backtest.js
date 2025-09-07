@@ -520,7 +520,10 @@ class BacktestModule {
         try {
             const response = await this.apiService.getStrategiesList();
             if (response.success) {
-                this.updateStrategiesSelect(response.data);
+                // 处理分页响应格式，确保获取正确的策略数组
+                const strategies = response.data.items || response.data || [];
+                console.log(`[Backtest] 加载策略列表成功，共 ${strategies.length} 个策略`);
+                this.updateStrategiesSelect(strategies);
             }
         } catch (error) {
             console.error('加载策略列表失败:', error);
@@ -532,21 +535,44 @@ class BacktestModule {
      */
     updateStrategiesSelect(strategies) {
         const select = document.getElementById('backtestStrategy');
-        if (!select) return;
+        if (!select) {
+            console.warn('[Backtest] 找不到策略选择框元素');
+            return;
+        }
+
+        // 验证strategies是数组
+        if (!Array.isArray(strategies)) {
+            console.error('[Backtest] strategies不是数组:', typeof strategies, strategies);
+            return;
+        }
+
+        console.log(`[Backtest] 更新策略选择框，共 ${strategies.length} 个策略`);
 
         // 清空现有选项（保留默认选项）
         const defaultOption = select.querySelector('option[value=""]');
         select.innerHTML = '';
         if (defaultOption) {
             select.appendChild(defaultOption);
+        } else {
+            // 添加默认选项
+            const defaultOpt = document.createElement('option');
+            defaultOpt.value = '';
+            defaultOpt.textContent = '请选择策略';
+            select.appendChild(defaultOpt);
         }
 
         // 添加策略选项
-        strategies.forEach(strategy => {
-            const option = document.createElement('option');
-            option.value = strategy.id;
-            option.textContent = `${strategy.name} (${strategy.strategy_type})`;
-            select.appendChild(option);
+        strategies.forEach((strategy, index) => {
+            try {
+                const option = document.createElement('option');
+                option.value = strategy.id;
+                option.textContent = `${strategy.name} (${strategy.strategy_type})`;
+                select.appendChild(option);
+                
+                console.log(`[Backtest] 添加策略选项 ${index + 1}: ${strategy.name}`);
+            } catch (error) {
+                console.error(`[Backtest] 添加策略选项失败:`, strategy, error);
+            }
         });
     }
 
