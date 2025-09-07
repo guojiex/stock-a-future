@@ -20,6 +20,7 @@ class BacktestModule {
     init() {
         this.setupEventListeners();
         this.loadBacktestHistory();
+        this.setupStockCodeListener();
     }
 
     /**
@@ -58,6 +59,169 @@ class BacktestModule {
         }
         if (backtestEndDate) {
             backtestEndDate.value = endDate.toISOString().split('T')[0];
+        }
+    }
+
+    /**
+     * 设置股票代码监听器，用于自动预填充
+     */
+    setupStockCodeListener() {
+        // 监听股票代码输入框变化
+        const stockCodeInput = document.getElementById('stockCode');
+        if (stockCodeInput) {
+            stockCodeInput.addEventListener('input', () => {
+                this.updateBacktestFormFromStockCode();
+            });
+        }
+
+        // 监听tab切换到回测页面
+        const backtestTab = document.querySelector('[data-tab="backtest"]');
+        if (backtestTab) {
+            backtestTab.addEventListener('click', () => {
+                // 延迟执行，确保tab切换完成
+                setTimeout(() => {
+                    this.prefillBacktestForm();
+                }, 100);
+            });
+        }
+
+        // 监听快速回测按钮
+        const quickBacktestBtn = document.getElementById('quickBacktestBtn');
+        if (quickBacktestBtn) {
+            quickBacktestBtn.addEventListener('click', () => {
+                this.handleQuickBacktest();
+            });
+        }
+    }
+
+    /**
+     * 根据当前股票代码更新回测表单
+     */
+    updateBacktestFormFromStockCode() {
+        const stockCodeInput = document.getElementById('stockCode');
+        if (!stockCodeInput || !stockCodeInput.value.trim()) return;
+
+        const stockCode = stockCodeInput.value.trim();
+        const pattern = /^[0-9]{6}\.(SZ|SH)$/;
+        
+        // 只有当股票代码格式正确时才更新
+        if (pattern.test(stockCode)) {
+            this.prefillStockCodeInBacktest(stockCode);
+        }
+    }
+
+    /**
+     * 预填充回测表单
+     */
+    async prefillBacktestForm() {
+        try {
+            const stockCodeInput = document.getElementById('stockCode');
+            if (!stockCodeInput || !stockCodeInput.value.trim()) {
+                console.log('[Backtest] 没有股票代码，跳过预填充');
+                return;
+            }
+
+            const stockCode = stockCodeInput.value.trim();
+            const pattern = /^[0-9]{6}\.(SZ|SH)$/;
+            
+            if (!pattern.test(stockCode)) {
+                console.log('[Backtest] 股票代码格式不正确，跳过预填充');
+                return;
+            }
+
+            console.log(`[Backtest] 开始预填充回测表单，股票代码: ${stockCode}`);
+
+            // 预填充股票代码
+            this.prefillStockCodeInBacktest(stockCode);
+
+            // 获取股票基本信息用于生成回测名称
+            try {
+                const stockBasic = await this.apiService.getStockBasic(stockCode);
+                if (stockBasic && stockBasic.name) {
+                    this.prefillBacktestName(stockCode, stockBasic.name);
+                }
+            } catch (error) {
+                console.warn('[Backtest] 获取股票基本信息失败，使用默认回测名称', error);
+                this.prefillBacktestName(stockCode, null);
+            }
+
+        } catch (error) {
+            console.error('[Backtest] 预填充回测表单失败:', error);
+        }
+    }
+
+    /**
+     * 预填充股票代码到回测表单
+     */
+    prefillStockCodeInBacktest(stockCode) {
+        const backtestSymbols = document.getElementById('backtestSymbols');
+        if (backtestSymbols) {
+            // 如果已经有内容，检查是否包含当前股票代码
+            const currentValue = backtestSymbols.value.trim();
+            const symbols = currentValue.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+            
+            if (!symbols.includes(stockCode)) {
+                // 如果没有当前股票代码，添加到第一行
+                const newValue = [stockCode, ...symbols].join('\n');
+                backtestSymbols.value = newValue;
+                console.log(`[Backtest] 已将股票代码 ${stockCode} 添加到回测股票列表`);
+            }
+        }
+    }
+
+    /**
+     * 预填充回测名称
+     */
+    prefillBacktestName(stockCode, stockName) {
+        const backtestNameInput = document.getElementById('backtestName');
+        if (backtestNameInput && !backtestNameInput.value.trim()) {
+            // 只有当回测名称为空时才自动填充
+            const displayName = stockName || stockCode.split('.')[0];
+            const currentDate = new Date().toISOString().split('T')[0];
+            const backtestName = `${displayName} - 回测分析 ${currentDate}`;
+            
+            backtestNameInput.value = backtestName;
+            console.log(`[Backtest] 已预填充回测名称: ${backtestName}`);
+        }
+    }
+
+    /**
+     * 处理快速回测按钮点击
+     */
+    handleQuickBacktest() {
+        const stockCodeInput = document.getElementById('stockCode');
+        if (!stockCodeInput || !stockCodeInput.value.trim()) {
+            this.showMessage('请先输入股票代码', 'warning');
+            return;
+        }
+
+        const stockCode = stockCodeInput.value.trim();
+        const pattern = /^[0-9]{6}\.(SZ|SH)$/;
+        
+        if (!pattern.test(stockCode)) {
+            this.showMessage('请输入正确的股票代码格式', 'warning');
+            return;
+        }
+
+        console.log(`[Backtest] 快速回测按钮点击，股票代码: ${stockCode}`);
+
+        // 切换到回测标签页
+        const backtestTab = document.querySelector('[data-tab="backtest"]');
+        if (backtestTab) {
+            backtestTab.click();
+            
+            // 延迟执行预填充，确保tab切换完成
+            setTimeout(() => {
+                this.prefillBacktestForm();
+                
+                // 聚焦到策略选择框，提示用户选择策略
+                const strategySelect = document.getElementById('backtestStrategy');
+                if (strategySelect) {
+                    strategySelect.focus();
+                }
+                
+                this.showMessage(`已切换到回测页面，股票代码 ${stockCode} 已预填充`, 'success');
+            }, 200);
         }
     }
 

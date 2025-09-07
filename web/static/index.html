@@ -86,7 +86,14 @@
                 <!-- 日K线展示section（包含三个tab） -->
                 <section class="daily-chart-section" id="daily-chart-section" style="display: none;">
                     <div class="card" id="dailyChartCard">
-                        <h3 id="stockAnalysisTitle">📊 股票数据分析</h3>
+                        <div class="card-header">
+                            <h3 id="stockAnalysisTitle">📊 股票数据分析</h3>
+                            <div class="card-actions">
+                                <button id="quickBacktestBtn" class="btn btn-success btn-small" title="使用当前股票快速开始回测">
+                                    🚀 快速回测
+                                </button>
+                            </div>
+                        </div>
                         
                         <!-- Tab导航 -->
                         <div class="tab-navigation">

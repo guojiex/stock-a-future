@@ -187,6 +187,29 @@ body {
     transform: translateY(-2px);
 }
 
+/* 卡片头部样式 */
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.card-header h3 {
+    margin: 0;
+    flex: 1;
+}
+
+.card-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.card-actions .btn {
+    white-space: nowrap;
+}
+
 .card h2, .card h3 {
     margin-bottom: var(--spacing-lg);
     color: var(--text-primary);
