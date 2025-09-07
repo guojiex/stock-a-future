@@ -16,6 +16,8 @@ class StockAFutureApp {
         this.eventsModule = null;
         this.dateShortcutsModule = null;
         this.fundamentalModule = null;
+        this.strategiesModule = null;
+        this.backtestModule = null;
         
         this.init();
     }
@@ -81,10 +83,16 @@ class StockAFutureApp {
         // 9. 初始化基本面数据模块
         this.fundamentalModule = new FundamentalModule(this.apiService);
         
-        // 10. 初始化事件处理模块（需要收藏模块和日期快捷按钮模块引用）
+        // 10. 初始化策略管理模块
+        this.strategiesModule = new StrategiesModule(this.client, this.apiService);
+        
+        // 11. 初始化回测系统模块
+        this.backtestModule = new BacktestModule(this.client, this.apiService);
+        
+        // 12. 初始化事件处理模块（需要收藏模块和日期快捷按钮模块引用）
         this.eventsModule = new EventsModule(this.client, this.apiService, this.displayModule, this.favoritesModule, this.dateShortcutsModule);
         
-        // 11. 初始化配置管理模块
+        // 13. 初始化配置管理模块
         this.configModule = new ConfigModule(this.client);
         
         // 等待客户端初始化完成
@@ -199,6 +207,20 @@ class StockAFutureApp {
     getDateShortcutsModule() {
         return this.dateShortcutsModule;
     }
+
+    /**
+     * 获取策略管理模块实例
+     */
+    getStrategiesModule() {
+        return this.strategiesModule;
+    }
+
+    /**
+     * 获取回测系统模块实例
+     */
+    getBacktestModule() {
+        return this.backtestModule;
+    }
 }
 
 // 全局应用实例
@@ -216,6 +238,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 将关键模块挂载到全局对象，方便其他模块调用
         if (stockApp.eventsModule) {
             window.eventsModule = stockApp.eventsModule;
+        }
+        if (stockApp.strategiesModule) {
+            window.strategiesModule = stockApp.strategiesModule;
+        }
+        if (stockApp.backtestModule) {
+            window.backtestModule = stockApp.backtestModule;
         }
         
         console.log('Stock-A-Future 网页客户端已初始化');

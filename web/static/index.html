@@ -106,6 +106,14 @@
                                 <span class="tab-icon">💰</span>
                                 <span class="tab-text">基本面</span>
                             </button>
+                            <button class="tab-btn" data-tab="strategies">
+                                <span class="tab-icon">🎯</span>
+                                <span class="tab-text">策略管理</span>
+                            </button>
+                            <button class="tab-btn" data-tab="backtest">
+                                <span class="tab-icon">🚀</span>
+                                <span class="tab-text">回测系统</span>
+                            </button>
                         </div>
 
                         <!-- Tab内容区域 -->
@@ -243,6 +251,148 @@
                                     <div id="fundamentalError" class="error-message" style="display: none;"></div>
                                 </div>
                             </div>
+
+                            <!-- 策略管理tab -->
+                            <div class="tab-pane" id="strategies-tab">
+                                <div class="strategies-container">
+                                    <!-- 策略列表 -->
+                                    <div class="strategies-section">
+                                        <div class="section-header">
+                                            <h4>📋 策略列表</h4>
+                                            <button id="createStrategyBtn" class="btn btn-primary">➕ 创建策略</button>
+                                        </div>
+                                        <div class="strategies-grid" id="strategiesGrid">
+                                            <!-- 策略卡片将动态生成 -->
+                                        </div>
+                                    </div>
+
+                                    <!-- 策略详情 -->
+                                    <div class="strategy-details" id="strategyDetails" style="display: none;">
+                                        <div class="strategy-info">
+                                            <h4>📊 策略详情</h4>
+                                            <div id="strategyInfo"></div>
+                                        </div>
+                                        <div class="strategy-performance">
+                                            <h4>📈 策略表现</h4>
+                                            <div id="strategyPerformance"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 回测系统tab -->
+                            <div class="tab-pane" id="backtest-tab">
+                                <div class="backtest-container">
+                                    <!-- 回测配置 -->
+                                    <div class="backtest-config">
+                                        <div class="config-section">
+                                            <h4>⚙️ 回测配置</h4>
+                                            <div class="config-form">
+                                                <div class="form-row">
+                                                    <div class="input-group">
+                                                        <label for="backtestName">回测名称</label>
+                                                        <input type="text" id="backtestName" placeholder="例如: MACD策略-2024年测试">
+                                                    </div>
+                                                    <div class="input-group">
+                                                        <label for="backtestStrategy">选择策略</label>
+                                                        <select id="backtestStrategy" class="form-select">
+                                                            <option value="">请选择策略</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-row">
+                                                    <div class="input-group">
+                                                        <label for="backtestStartDate">开始日期</label>
+                                                        <input type="date" id="backtestStartDate">
+                                                    </div>
+                                                    <div class="input-group">
+                                                        <label for="backtestEndDate">结束日期</label>
+                                                        <input type="date" id="backtestEndDate">
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-row">
+                                                    <div class="input-group">
+                                                        <label for="initialCash">初始资金</label>
+                                                        <input type="number" id="initialCash" value="1000000" step="10000" min="10000">
+                                                        <small>单位: 元</small>
+                                                    </div>
+                                                    <div class="input-group">
+                                                        <label for="commission">手续费率</label>
+                                                        <input type="number" id="commission" value="0.0003" step="0.0001" min="0">
+                                                        <small>默认: 0.03%</small>
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-row">
+                                                    <div class="input-group">
+                                                        <label for="backtestSymbols">股票列表</label>
+                                                        <textarea id="backtestSymbols" placeholder="输入股票代码，每行一个，例如:&#10;000001.SZ&#10;600000.SH&#10;000002.SZ" rows="4"></textarea>
+                                                        <small>每行输入一个股票代码</small>
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-actions">
+                                                    <button id="startBacktestBtn" class="btn btn-primary">🚀 开始回测</button>
+                                                    <button id="saveBacktestConfigBtn" class="btn btn-secondary">💾 保存配置</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 回测进度 -->
+                                    <div class="backtest-progress" id="backtestProgress" style="display: none;">
+                                        <h4>⏳ 回测进度</h4>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" id="progressFill"></div>
+                                        </div>
+                                        <div class="progress-info">
+                                            <span id="progressText">准备中...</span>
+                                            <span id="progressPercent">0%</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- 回测结果 -->
+                                    <div class="backtest-results" id="backtestResults" style="display: none;">
+                                        <h4>📊 回测结果</h4>
+                                        
+                                        <!-- 性能指标 -->
+                                        <div class="performance-metrics">
+                                            <div class="metrics-grid" id="metricsGrid">
+                                                <!-- 指标将动态生成 -->
+                                            </div>
+                                        </div>
+
+                                        <!-- 权益曲线图 -->
+                                        <div class="equity-curve">
+                                            <h5>📈 权益曲线</h5>
+                                            <div id="equityChart" style="width: 100%; height: 400px;"></div>
+                                        </div>
+
+                                        <!-- 交易记录 -->
+                                        <div class="trade-history">
+                                            <h5>📋 交易记录</h5>
+                                            <div class="table-container">
+                                                <table id="tradesTable" class="trades-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>时间</th>
+                                                            <th>股票</th>
+                                                            <th>方向</th>
+                                                            <th>数量</th>
+                                                            <th>价格</th>
+                                                            <th>手续费</th>
+                                                            <th>盈亏</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody></tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -342,6 +492,8 @@
     <script src="js/modules/display.js"></script>
     <script src="js/modules/dateShortcuts.js"></script>
     <script src="js/modules/fundamental.js"></script>
+    <script src="js/modules/strategies.js"></script>
+    <script src="js/modules/backtest.js"></script>
     <script src="js/modules/events.js"></script>
     
     <!-- 工具函数 -->

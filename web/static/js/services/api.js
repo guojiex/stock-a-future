@@ -771,10 +771,238 @@ class ApiService {
             throw error;
         }
     }
+
+    // ==================== 策略管理 API ====================
+
+    /**
+     * 获取策略列表
+     */
+    async getStrategiesList() {
+        const endpoint = '/api/v1/strategies';
+        
+        console.log(`[API] 获取策略列表请求:`, {
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint);
+            
+            console.log(`[API] 策略列表响应:`, {
+                success: response.success,
+                count: response.data?.length || 0,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            return response;
+            
+        } catch (error) {
+            console.error(`[API] 获取策略列表失败:`, error);
+            
+            // 返回模拟数据以支持前端开发
+            return {
+                success: false,
+                error: error.message,
+                data: []
+            };
+        }
+    }
+
+    /**
+     * 获取策略详情
+     */
+    async getStrategyDetails(strategyId) {
+        const endpoint = `/api/v1/strategies/${strategyId}`;
+        
+        console.log(`[API] 获取策略详情请求:`, {
+            strategyId,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint);
+            
+            console.log(`[API] 策略详情响应:`, {
+                success: response.success,
+                hasData: !!response.data,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            return response;
+            
+        } catch (error) {
+            console.error(`[API] 获取策略详情失败:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取策略表现
+     */
+    async getStrategyPerformance(strategyId) {
+        const endpoint = `/api/v1/strategies/${strategyId}/performance`;
+        
+        console.log(`[API] 获取策略表现请求:`, {
+            strategyId,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint);
+            
+            console.log(`[API] 策略表现响应:`, {
+                success: response.success,
+                hasData: !!response.data,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            return response;
+            
+        } catch (error) {
+            console.error(`[API] 获取策略表现失败:`, error);
+            throw error;
+        }
+    }
+
+    // ==================== 回测系统 API ====================
+
+    /**
+     * 启动回测
+     */
+    async startBacktest(config) {
+        const endpoint = '/api/v1/backtests';
+        
+        console.log(`[API] 启动回测请求:`, {
+            config,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(config)
+            });
+            
+            console.log(`[API] 启动回测响应:`, {
+                success: response.success,
+                hasData: !!response.data,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            return response;
+            
+        } catch (error) {
+            console.error(`[API] 启动回测失败:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取回测进度
+     */
+    async getBacktestProgress(backtestId) {
+        const endpoint = `/api/v1/backtests/${backtestId}/progress`;
+        
+        console.log(`[API] 获取回测进度请求:`, {
+            backtestId,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint);
+            
+            console.log(`[API] 回测进度响应:`, {
+                success: response.success,
+                progress: response.data?.progress || 0,
+                status: response.data?.status || 'unknown',
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            return response;
+            
+        } catch (error) {
+            console.error(`[API] 获取回测进度失败:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取回测结果
+     */
+    async getBacktestResults(backtestId) {
+        const endpoint = `/api/v1/backtests/${backtestId}/results`;
+        
+        console.log(`[API] 获取回测结果请求:`, {
+            backtestId,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint);
+            
+            console.log(`[API] 回测结果响应:`, {
+                success: response.success,
+                hasData: !!response.data,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            return response;
+            
+        } catch (error) {
+            console.error(`[API] 获取回测结果失败:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取回测列表
+     */
+    async getBacktestsList(page = 1, size = 20) {
+        const endpoint = `/api/v1/backtests?page=${page}&size=${size}`;
+        
+        console.log(`[API] 获取回测列表请求:`, {
+            page,
+            size,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint);
+            
+            console.log(`[API] 回测列表响应:`, {
+                success: response.success,
+                count: response.data?.items?.length || 0,
+                total: response.data?.total || 0,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            return response;
+            
+        } catch (error) {
+            console.error(`[API] 获取回测列表失败:`, error);
+            throw error;
+        }
+    }
 }
 
 // 导出API服务类
 window.ApiService = ApiService;
 
 // 版本标识 - 用于调试缓存问题
-console.log('[API] ApiService loaded - version 1.2 with fundamental factor analysis support');
+console.log('[API] ApiService loaded - version 1.3 with strategies and backtest support');
