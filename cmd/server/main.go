@@ -181,10 +181,15 @@ func main() {
 		logger.Info("✓ 数据清理服务已启动")
 	}
 
+	// 创建策略服务
+	strategyService := service.NewStrategyService(logger.GetGlobalLogger())
+	logger.Info("✓ 策略服务已创建")
+
 	// 创建处理器
 	stockHandler := handler.NewStockHandler(dataSourceClient, cacheService, favoriteService, app)
 	patternHandler := handler.NewPatternHandler(patternService)
 	signalHandler := handler.NewSignalHandler(signalService)
+	strategyHandler := handler.NewStrategyHandler(strategyService, logger.GetGlobalLogger())
 
 	// 创建清理处理器
 	var cleanupHandler *handler.CleanupHandler
@@ -196,7 +201,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	// 注册路由
-	registerRoutes(mux, stockHandler, patternHandler, signalHandler, cleanupHandler)
+	registerRoutes(mux, stockHandler, patternHandler, signalHandler, strategyHandler, cleanupHandler)
 
 	// 添加静态文件服务
 	registerStaticRoutes(mux)
@@ -290,7 +295,7 @@ func main() {
 }
 
 // registerRoutes 注册路由
-func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patternHandler *handler.PatternHandler, signalHandler *handler.SignalHandler, cleanupHandler *handler.CleanupHandler) {
+func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patternHandler *handler.PatternHandler, signalHandler *handler.SignalHandler, strategyHandler *handler.StrategyHandler, cleanupHandler *handler.CleanupHandler) {
 	// 健康检查
 	mux.HandleFunc("GET /api/v1/health", stockHandler.GetHealthStatus)
 
@@ -350,6 +355,9 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patt
 	mux.HandleFunc("GET /api/v1/signals/{code}", signalHandler.GetSignal)
 	mux.HandleFunc("GET /api/v1/signals", signalHandler.GetLatestSignals)
 	mux.HandleFunc("GET /api/v1/signals/status", signalHandler.GetCalculationStatus)
+
+	// 策略管理API
+	strategyHandler.RegisterRoutes(mux)
 
 	// 数据清理API
 	if cleanupHandler != nil {

@@ -39,7 +39,8 @@ class StrategiesModule {
         try {
             const response = await this.apiService.getStrategiesList();
             if (response.success) {
-                this.strategies = response.data;
+                // 处理分页响应格式
+                this.strategies = response.data.items || response.data || [];
                 this.displayStrategies();
             } else {
                 throw new Error(response.message || '获取策略列表失败');
@@ -118,7 +119,10 @@ class StrategiesModule {
         const strategiesGrid = document.getElementById('strategiesGrid');
         if (!strategiesGrid) return;
 
-        if (this.strategies.length === 0) {
+        // 确保strategies是数组
+        const strategies = Array.isArray(this.strategies) ? this.strategies : [];
+
+        if (strategies.length === 0) {
             strategiesGrid.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-icon">📋</div>
@@ -129,7 +133,7 @@ class StrategiesModule {
             return;
         }
 
-        strategiesGrid.innerHTML = this.strategies.map(strategy => `
+        strategiesGrid.innerHTML = strategies.map(strategy => `
             <div class="strategy-card" data-strategy-id="${strategy.id}">
                 <div class="strategy-header">
                     <div class="strategy-title">

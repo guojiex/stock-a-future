@@ -1,7 +1,6 @@
 package models
 
 import (
-	"encoding/json"
 	"time"
 )
 
@@ -70,27 +69,27 @@ type StrategyPerformance struct {
 
 // Signal 交易信号
 type Signal struct {
-	ID         string      `json:"id" db:"id"`
-	StrategyID string      `json:"strategy_id" db:"strategy_id"`
-	Symbol     string      `json:"symbol" db:"symbol"`
-	SignalType SignalType  `json:"signal_type" db:"signal_type"`
-	Side       TradeSide   `json:"side" db:"side"`                 // 买入/卖出
-	Strength   float64     `json:"strength" db:"strength"`         // 信号强度 (0-1)
-	Confidence float64     `json:"confidence" db:"confidence"`     // 置信度 (0-1)
-	Price      float64     `json:"price" db:"price"`               // 触发价格
-	Reason     string      `json:"reason" db:"reason"`             // 信号原因
-	Timestamp  time.Time   `json:"timestamp" db:"timestamp"`
-	CreatedAt  time.Time   `json:"created_at" db:"created_at"`
+	ID         string     `json:"id" db:"id"`
+	StrategyID string     `json:"strategy_id" db:"strategy_id"`
+	Symbol     string     `json:"symbol" db:"symbol"`
+	SignalType SignalType `json:"signal_type" db:"signal_type"`
+	Side       TradeSide  `json:"side" db:"side"`             // 买入/卖出
+	Strength   float64    `json:"strength" db:"strength"`     // 信号强度 (0-1)
+	Confidence float64    `json:"confidence" db:"confidence"` // 置信度 (0-1)
+	Price      float64    `json:"price" db:"price"`           // 触发价格
+	Reason     string     `json:"reason" db:"reason"`         // 信号原因
+	Timestamp  time.Time  `json:"timestamp" db:"timestamp"`
+	CreatedAt  time.Time  `json:"created_at" db:"created_at"`
 }
 
 // SignalType 信号类型
 type SignalType string
 
 const (
-	SignalTypeBuy     SignalType = "buy"     // 买入信号
-	SignalTypeSell    SignalType = "sell"    // 卖出信号
-	SignalTypeHold    SignalType = "hold"    // 持有信号
-	SignalTypeExit    SignalType = "exit"    // 退出信号
+	SignalTypeBuy  SignalType = "buy"  // 买入信号
+	SignalTypeSell SignalType = "sell" // 卖出信号
+	SignalTypeHold SignalType = "hold" // 持有信号
+	SignalTypeExit SignalType = "exit" // 退出信号
 )
 
 // TradeSide 交易方向
@@ -103,11 +102,11 @@ const (
 
 // StrategyListRequest 策略列表请求
 type StrategyListRequest struct {
-	Page     int            `json:"page" form:"page"`
-	Size     int            `json:"size" form:"size"`
-	Status   StrategyStatus `json:"status" form:"status"`
-	Type     StrategyType   `json:"type" form:"type"`
-	Keyword  string         `json:"keyword" form:"keyword"`
+	Page    int            `json:"page" form:"page"`
+	Size    int            `json:"size" form:"size"`
+	Status  StrategyStatus `json:"status" form:"status"`
+	Type    StrategyType   `json:"type" form:"type"`
+	Keyword string         `json:"keyword" form:"keyword"`
 }
 
 // StrategyListResponse 策略列表响应
@@ -140,19 +139,19 @@ type UpdateStrategyRequest struct {
 
 // MACDStrategyParams MACD策略参数
 type MACDStrategyParams struct {
-	FastPeriod   int     `json:"fast_period" validate:"min=1,max=50"`     // 快线周期，默认12
-	SlowPeriod   int     `json:"slow_period" validate:"min=1,max=100"`    // 慢线周期，默认26
-	SignalPeriod int     `json:"signal_period" validate:"min=1,max=50"`   // 信号线周期，默认9
-	BuyThreshold float64 `json:"buy_threshold" validate:"min=-1,max=1"`   // 买入阈值，默认0
+	FastPeriod    int     `json:"fast_period" validate:"min=1,max=50"`    // 快线周期，默认12
+	SlowPeriod    int     `json:"slow_period" validate:"min=1,max=100"`   // 慢线周期，默认26
+	SignalPeriod  int     `json:"signal_period" validate:"min=1,max=50"`  // 信号线周期，默认9
+	BuyThreshold  float64 `json:"buy_threshold" validate:"min=-1,max=1"`  // 买入阈值，默认0
 	SellThreshold float64 `json:"sell_threshold" validate:"min=-1,max=1"` // 卖出阈值，默认0
 }
 
 // MAStrategyParams 移动平均策略参数
 type MAStrategyParams struct {
-	ShortPeriod int     `json:"short_period" validate:"min=1,max=50"`  // 短期均线周期，默认5
-	LongPeriod  int     `json:"long_period" validate:"min=1,max=200"`  // 长期均线周期，默认20
-	MAType      string  `json:"ma_type" validate:"oneof=sma ema wma"`   // 均线类型：sma/ema/wma
-	Threshold   float64 `json:"threshold" validate:"min=0,max=0.1"`     // 突破阈值，默认0.01
+	ShortPeriod int     `json:"short_period" validate:"min=1,max=50"` // 短期均线周期，默认5
+	LongPeriod  int     `json:"long_period" validate:"min=1,max=200"` // 长期均线周期，默认20
+	MAType      string  `json:"ma_type" validate:"oneof=sma ema wma"` // 均线类型：sma/ema/wma
+	Threshold   float64 `json:"threshold" validate:"min=0,max=0.1"`   // 突破阈值，默认0.01
 }
 
 // RSIStrategyParams RSI策略参数
@@ -164,8 +163,8 @@ type RSIStrategyParams struct {
 
 // BollingerStrategyParams 布林带策略参数
 type BollingerStrategyParams struct {
-	Period int     `json:"period" validate:"min=1,max=50"`    // 周期，默认20
-	StdDev float64 `json:"std_dev" validate:"min=0.5,max=5"`  // 标准差倍数，默认2
+	Period int     `json:"period" validate:"min=1,max=50"`   // 周期，默认20
+	StdDev float64 `json:"std_dev" validate:"min=0.5,max=5"` // 标准差倍数，默认2
 }
 
 // DefaultStrategies 默认策略配置
@@ -234,46 +233,5 @@ var DefaultStrategies = []Strategy{
 	},
 }
 
-// MarshalJSON 自定义JSON序列化，处理parameters字段
-func (s *Strategy) MarshalJSON() ([]byte, error) {
-	type Alias Strategy
-	aux := &struct {
-		Parameters string `json:"parameters"`
-		*Alias
-	}{
-		Alias: (*Alias)(s),
-	}
-	
-	if s.Parameters != nil {
-		paramBytes, err := json.Marshal(s.Parameters)
-		if err != nil {
-			return nil, err
-		}
-		aux.Parameters = string(paramBytes)
-	}
-	
-	return json.Marshal(aux)
-}
-
-// UnmarshalJSON 自定义JSON反序列化，处理parameters字段
-func (s *Strategy) UnmarshalJSON(data []byte) error {
-	type Alias Strategy
-	aux := &struct {
-		Parameters string `json:"parameters"`
-		*Alias
-	}{
-		Alias: (*Alias)(s),
-	}
-	
-	if err := json.Unmarshal(data, aux); err != nil {
-		return err
-	}
-	
-	if aux.Parameters != "" {
-		if err := json.Unmarshal([]byte(aux.Parameters), &s.Parameters); err != nil {
-			return err
-		}
-	}
-	
-	return nil
-}
+// 注意: 移除了自定义的JSON序列化方法，让Go使用默认的JSON序列化
+// 这样Parameters字段将正确地序列化为JSON对象而不是字符串
