@@ -262,15 +262,7 @@ func (s *StrategyService) generateMockPerformance(strategy *models.Strategy) *mo
 		baseReturn = 0.20
 	}
 
-	// 根据策略状态调整表现
-	switch strategy.Status {
-	case models.StrategyStatusActive:
-		baseReturn *= 1.1 // 活跃策略表现更好
-	case models.StrategyStatusTesting:
-		baseReturn *= 0.9 // 测试中的策略表现稍差
-	case models.StrategyStatusInactive:
-		baseReturn *= 0.8 // 非活跃策略表现较差
-	}
+	// 移除基于策略状态的表现调整 - 策略表现应该只基于策略本身的逻辑
 
 	// 添加一些随机性
 	randomFactor := 0.8 + rand.Float64()*0.4 // 0.8 - 1.2
@@ -462,9 +454,7 @@ func (s *StrategyService) ExecuteStrategy(ctx context.Context, strategyID string
 		return nil, ErrStrategyNotFound
 	}
 
-	if strategy.Status != models.StrategyStatusActive {
-		return nil, fmt.Errorf("策略未激活: %s", strategy.Status)
-	}
+	// 移除策略状态检查 - 任何定义好的策略都应该可以执行
 
 	// 根据策略类型执行不同的逻辑
 	switch strategy.ID {
@@ -478,6 +468,10 @@ func (s *StrategyService) ExecuteStrategy(ctx context.Context, strategyID string
 		return s.executeBollingerStrategy(strategy, marketData)
 	}
 
+	s.logger.Error("未知的策略类型",
+		logger.String("strategy_id", strategy.ID),
+		logger.String("strategy_name", strategy.Name),
+	)
 	return nil, fmt.Errorf("未知的策略类型: %s", strategy.ID)
 }
 

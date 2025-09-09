@@ -872,12 +872,12 @@ class ApiService {
     // ==================== 回测系统 API ====================
 
     /**
-     * 启动回测
+     * 创建回测
      */
-    async startBacktest(config) {
+    async createBacktest(config) {
         const endpoint = '/api/v1/backtests';
         
-        console.log(`[API] 启动回测请求:`, {
+        console.log(`[API] 创建回测请求:`, {
             config,
             endpoint,
             timestamp: new Date().toISOString()
@@ -892,10 +892,40 @@ class ApiService {
                 body: JSON.stringify(config)
             });
             
-            console.log(`[API] 启动回测响应:`, {
+            console.log(`[API] 创建回测响应:`, {
                 success: response.success,
                 hasData: !!response.data,
                 error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            return response;
+            
+        } catch (error) {
+            console.error(`[API] 创建回测失败:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 启动回测（创建并立即启动）
+     */
+    async startBacktest(config) {
+        console.log(`[API] 启动回测流程开始:`, {
+            config,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            // 直接创建回测（后端会自动启动）
+            const response = await this.createBacktest(config);
+            if (!response.success) {
+                throw new Error(response.error || '创建并启动回测失败');
+            }
+            
+            console.log(`[API] 回测创建并启动成功:`, {
+                backtestId: response.data.id,
+                message: response.message,
                 timestamp: new Date().toISOString()
             });
             

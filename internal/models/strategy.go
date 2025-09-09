@@ -222,7 +222,7 @@ var DefaultStrategies = []Strategy{
 		Name:        "布林带策略",
 		Description: "基于布林带的均值回归策略，价格触及下轨时买入，触及上轨时卖出",
 		Type:        StrategyTypeTechnical,
-		Status:      StrategyStatusTesting,
+		Status:      StrategyStatusActive,
 		Parameters: map[string]interface{}{
 			"period":  20,
 			"std_dev": 2.0,

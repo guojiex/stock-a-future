@@ -14,6 +14,21 @@ import (
 	"stock-a-future/internal/models"
 )
 
+// 辅助函数 - 使用内置max/min函数或自定义实现
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 var (
 	ErrBacktestNotFound     = errors.New("回测不存在")
 	ErrBacktestExists       = errors.New("回测已存在")
@@ -254,9 +269,29 @@ func (s *BacktestService) StartBacktest(ctx context.Context, backtest *models.Ba
 		Message:    "初始化回测环境...",
 	}
 
-	// 创建可取消的上下文
-	backtestCtx, cancel := context.WithCancel(ctx)
+	// 创建可取消的上下文，根据回测时间范围动态设置超时
+	totalDays := int(backtest.EndDate.Sub(backtest.StartDate).Hours() / 24)
+	// 计算合理的超时时间：每天至少10秒，最少5分钟，最多2小时
+	timeoutMinutes := maxInt(5, minInt(120, totalDays/6))
+	timeout := time.Duration(timeoutMinutes) * time.Minute
+
+	s.logger.Info("设置回测超时时间",
+		logger.String("backtest_id", backtest.ID),
+		logger.Int("total_days", totalDays),
+		logger.Int("timeout_minutes", timeoutMinutes),
+	)
+
+	backtestCtx, cancel := context.WithTimeout(ctx, timeout)
 	s.runningBacktests[backtest.ID] = cancel
+
+	s.logger.Info("准备启动回测goroutine",
+		logger.String("backtest_id", backtest.ID),
+		logger.String("strategy_id", strategy.ID),
+		logger.Int("total_days", int(backtest.EndDate.Sub(backtest.StartDate).Hours()/24)),
+		logger.String("start_date", backtest.StartDate.Format("2006-01-02")),
+		logger.String("end_date", backtest.EndDate.Format("2006-01-02")),
+		logger.Int("symbols_count", len(backtest.Symbols)),
+	)
 
 	// 启动后台回测任务
 	go s.runBacktestTask(backtestCtx, backtest, strategy)
@@ -264,6 +299,7 @@ func (s *BacktestService) StartBacktest(ctx context.Context, backtest *models.Ba
 	s.logger.Info("回测启动成功",
 		logger.String("backtest_id", backtest.ID),
 		logger.String("strategy_id", strategy.ID),
+		logger.String("status", "goroutine_launched"),
 	)
 
 	return nil
@@ -271,10 +307,28 @@ func (s *BacktestService) StartBacktest(ctx context.Context, backtest *models.Ba
 
 // runBacktestTask 运行回测任务
 func (s *BacktestService) runBacktestTask(ctx context.Context, backtest *models.Backtest, strategy *models.Strategy) {
+	// 立即输出日志，确保goroutine已启动
+	s.logger.Info("🚀 回测goroutine已启动",
+		logger.String("backtest_id", backtest.ID),
+		logger.String("goroutine_status", "started"),
+	)
+
+	s.logger.Info("回测任务开始执行",
+		logger.String("backtest_id", backtest.ID),
+		logger.String("goroutine", "runBacktestTask"),
+	)
+
 	defer func() {
+		if r := recover(); r != nil {
+			s.logger.Error("回测任务出现panic",
+				logger.String("backtest_id", backtest.ID),
+				logger.Any("panic", r),
+			)
+		}
 		s.mutex.Lock()
 		delete(s.runningBacktests, backtest.ID)
 		s.mutex.Unlock()
+		s.logger.Info("回测任务清理完成", logger.String("backtest_id", backtest.ID))
 	}()
 
 	// 模拟回测过程
@@ -282,6 +336,11 @@ func (s *BacktestService) runBacktestTask(ctx context.Context, backtest *models.
 	if totalDays <= 0 {
 		totalDays = 1
 	}
+
+	s.logger.Info("回测参数计算完成",
+		logger.String("backtest_id", backtest.ID),
+		logger.Int("total_days", totalDays),
+	)
 
 	// 初始化组合
 	portfolio := &models.Portfolio{
@@ -295,38 +354,100 @@ func (s *BacktestService) runBacktestTask(ctx context.Context, backtest *models.
 	var dailyReturns []float64
 
 	// 模拟每日回测
+	s.logger.Info("开始回测循环",
+		logger.String("backtest_id", backtest.ID),
+		logger.Int("total_days", totalDays),
+		logger.String("start_date", backtest.StartDate.Format("2006-01-02")),
+		logger.String("end_date", backtest.EndDate.Format("2006-01-02")),
+	)
+
+	// 用于控制日志输出频率
+	var lastLoggedProgress int = -1
+	const progressLogInterval = 10 // 每10%打印一次进度
+
 	for day := 0; day <= totalDays; day++ {
+
 		select {
 		case <-ctx.Done():
-			// 回测被取消
-			s.updateBacktestStatus(backtest.ID, models.BacktestStatusCancelled, "回测已取消")
+			// 回测被取消或超时
+			if ctx.Err() == context.DeadlineExceeded {
+				s.logger.Error("回测超时",
+					logger.String("backtest_id", backtest.ID),
+					logger.ErrorField(ctx.Err()),
+				)
+				s.updateBacktestStatus(backtest.ID, models.BacktestStatusFailed, "回测执行超时")
+			} else {
+				s.logger.Info("回测被取消",
+					logger.String("backtest_id", backtest.ID),
+					logger.ErrorField(ctx.Err()),
+				)
+				s.updateBacktestStatus(backtest.ID, models.BacktestStatusCancelled, "回测已取消")
+			}
 			return
 		default:
 		}
 
 		currentDate := backtest.StartDate.AddDate(0, 0, day)
+
 		if currentDate.After(backtest.EndDate) {
+			s.logger.Info("回测日期超出范围，结束循环",
+				logger.String("backtest_id", backtest.ID),
+				logger.String("current_date", currentDate.Format("2006-01-02")),
+			)
 			break
 		}
 
 		// 更新进度
 		progress := int(float64(day) / float64(totalDays) * 100)
+
+		// 只在进度达到特定节点时打印日志
+		if progress >= lastLoggedProgress+progressLogInterval || day == 0 || day == totalDays {
+			s.logger.Info("回测进度更新",
+				logger.String("backtest_id", backtest.ID),
+				logger.Int("progress", progress),
+				logger.String("current_date", currentDate.Format("2006-01-02")),
+				logger.Int("day", day),
+				logger.Int("total_days", totalDays),
+			)
+			lastLoggedProgress = progress
+		}
 		s.updateBacktestProgress(backtest.ID, progress, fmt.Sprintf("回测进行中... %s", currentDate.Format("2006-01-02")))
 
 		// 模拟每个股票的交易
+		// 只在首次或进度更新时记录股票处理信息
+		if progress >= lastLoggedProgress || day == 0 {
+			s.logger.Info("处理股票列表",
+				logger.String("backtest_id", backtest.ID),
+				logger.Int("symbols_count", len(backtest.Symbols)),
+				logger.String("date", currentDate.Format("2006-01-02")),
+			)
+		}
+
 		for _, symbol := range backtest.Symbols {
+			// 移除每个股票的处理日志
+
 			// 生成模拟市场数据
 			marketData := s.generateMockMarketData(symbol, currentDate)
 
 			// 执行策略
 			signal, err := s.strategyService.ExecuteStrategy(ctx, strategy.ID, marketData)
 			if err != nil {
+				s.logger.Error("策略执行失败",
+					logger.String("backtest_id", backtest.ID),
+					logger.String("strategy_id", strategy.ID),
+					logger.String("symbol", symbol),
+					logger.String("date", currentDate.Format("2006-01-02")),
+					logger.ErrorField(err),
+				)
 				continue
 			}
+
+			// 移除策略执行成功日志
 
 			// 根据信号执行交易
 			if trade := s.executeSignal(signal, marketData, portfolio, backtest); trade != nil {
 				trades = append(trades, *trade)
+				// 移除交易执行成功日志
 			}
 		}
 
@@ -350,8 +471,12 @@ func (s *BacktestService) runBacktestTask(ctx context.Context, backtest *models.
 			}
 		}
 
-		// 模拟处理时间
-		time.Sleep(time.Millisecond * 50) // 50ms per day
+		// 模拟处理时间（移除每日进度日志）
+
+		// 确保日志输出 - 增加延迟确保日志刷新
+		time.Sleep(time.Millisecond * 100)
+
+		// 移除强制更新进度日志
 	}
 
 	// 计算最终结果

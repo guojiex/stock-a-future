@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -172,7 +173,7 @@ func (h *BacktestHandler) createBacktest(w http.ResponseWriter, r *http.Request)
 		CreatedBy:   "user", // TODO: 从认证信息获取
 	}
 
-	// 调用服务层
+	// 调用服务层创建回测
 	if err := h.backtestService.CreateBacktest(r.Context(), backtest); err != nil {
 		h.logger.Error("创建回测失败", logger.ErrorField(err))
 		h.writeErrorResponse(w, "创建回测失败", http.StatusInternalServerError)
@@ -181,13 +182,22 @@ func (h *BacktestHandler) createBacktest(w http.ResponseWriter, r *http.Request)
 
 	h.logger.Info("回测创建成功", logger.String("backtest_id", backtest.ID))
 
+	// 立即启动回测 - 使用独立的上下文，不依赖HTTP请求上下文
+	if err := h.backtestService.StartBacktest(context.Background(), backtest, strategy); err != nil {
+		h.logger.Error("启动回测失败", logger.ErrorField(err))
+		h.writeErrorResponse(w, "回测创建成功但启动失败", http.StatusInternalServerError)
+		return
+	}
+
+	h.logger.Info("回测创建并启动成功", logger.String("backtest_id", backtest.ID))
+
 	// 返回创建的回测信息（包含策略名称）
 	backtest.StrategyName = strategy.Name
 
 	h.writeJSONResponse(w, map[string]interface{}{
 		"success": true,
 		"data":    backtest,
-		"message": "回测创建成功",
+		"message": "回测创建并启动成功",
 	})
 }
 
@@ -320,8 +330,8 @@ func (h *BacktestHandler) startBacktest(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// 启动回测
-	if err := h.backtestService.StartBacktest(r.Context(), backtest, strategy); err != nil {
+	// 启动回测 - 使用独立的上下文，不依赖HTTP请求上下文
+	if err := h.backtestService.StartBacktest(context.Background(), backtest, strategy); err != nil {
 		h.logger.Error("启动回测失败", logger.ErrorField(err))
 		h.writeErrorResponse(w, "启动回测失败", http.StatusInternalServerError)
 		return
