@@ -427,6 +427,7 @@ func (s *BacktestService) runBacktestTask(ctx context.Context, backtest *models.
 			// 移除每个股票的处理日志
 
 			// 生成模拟市场数据
+			//todo 使用真实数据
 			marketData := s.generateMockMarketData(symbol, currentDate)
 
 			// 执行策略
