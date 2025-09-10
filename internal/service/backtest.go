@@ -433,14 +433,6 @@ func (s *BacktestService) runBacktestTask(ctx context.Context, backtest *models.
 		s.updateBacktestProgress(backtest.ID, progress, fmt.Sprintf("回测进行中... %s", currentDate.Format("2006-01-02")))
 
 		// 模拟每个股票的交易
-		// 只在首次或进度更新时记录股票处理信息
-		if progress >= lastLoggedProgress || day == 0 {
-			s.logger.Info("处理股票列表",
-				logger.String("backtest_id", backtest.ID),
-				logger.Int("symbols_count", len(backtest.Symbols)),
-				logger.String("date", currentDate.Format("2006-01-02")),
-			)
-		}
 
 		for _, symbol := range backtest.Symbols {
 			// 移除每个股票的处理日志
@@ -500,12 +492,6 @@ func (s *BacktestService) runBacktestTask(ctx context.Context, backtest *models.
 			}
 		}
 
-		// 模拟处理时间（移除每日进度日志）
-
-		// 确保日志输出 - 增加延迟确保日志刷新
-		time.Sleep(time.Millisecond * 100)
-
-		// 移除强制更新进度日志
 	}
 
 	// 计算最终结果
@@ -578,14 +564,70 @@ func (s *BacktestService) preloadBacktestData(ctx context.Context, symbols []str
 			continue
 		}
 
-		// 存入缓存
+		// 存入缓存 - 使用多个时间范围键提高命中率
 		if s.dailyCacheService != nil && len(data) > 0 {
+			// 1. 存储原始回测期间范围
 			s.dailyCacheService.Set(symbol, startDateStr, endDateStr, data)
+
+			// 2. 按月份分别存储，提高月度查找命中率
+			s.storeDataByMonths(symbol, data, startDate, endDate)
+
+			s.logger.Info("预加载数据已缓存",
+				logger.String("symbol", symbol),
+				logger.String("range", fmt.Sprintf("%s至%s", startDateStr, endDateStr)),
+				logger.Int("data_count", len(data)),
+			)
 		}
 	}
 
 	s.logger.Info("回测数据预加载完成")
 	return nil
+}
+
+// storeDataByMonths 按月份存储数据到缓存，提高查找命中率
+func (s *BacktestService) storeDataByMonths(symbol string, data []models.StockDaily, startDate, endDate time.Time) {
+	// 按月份组织数据
+	monthlyData := make(map[string][]models.StockDaily)
+
+	for _, daily := range data {
+		// 解析交易日期
+		tradeTime, err := time.Parse("2006-01-02T15:04:05.000", daily.TradeDate)
+		if err != nil {
+			continue
+		}
+
+		// 生成月份键 (YYYYMM)
+		monthKey := tradeTime.Format("200601")
+		if monthlyData[monthKey] == nil {
+			monthlyData[monthKey] = make([]models.StockDaily, 0)
+		}
+		monthlyData[monthKey] = append(monthlyData[monthKey], daily)
+	}
+
+	// 为每个月份存储缓存
+	for monthKey, monthData := range monthlyData {
+		if len(monthData) == 0 {
+			continue
+		}
+
+		// 解析月份，生成完整的月份范围
+		year, _ := time.Parse("200601", monthKey)
+		monthStart := time.Date(year.Year(), year.Month(), 1, 0, 0, 0, 0, time.UTC)
+		monthEnd := monthStart.AddDate(0, 1, -1)
+
+		monthStartStr := monthStart.Format("20060102")
+		monthEndStr := monthEnd.Format("20060102")
+
+		// 检查是否已经缓存
+		if _, found := s.dailyCacheService.Get(symbol, monthStartStr, monthEndStr); !found {
+			s.dailyCacheService.Set(symbol, monthStartStr, monthEndStr, monthData)
+			s.logger.Debug("月度数据已缓存",
+				logger.String("symbol", symbol),
+				logger.String("month", monthKey),
+				logger.Int("data_count", len(monthData)),
+			)
+		}
+	}
 }
 
 // getRealMarketData 获取真实市场数据（从预加载的缓存中查找）
@@ -595,11 +637,17 @@ func (s *BacktestService) getRealMarketData(ctx context.Context, symbol string, 
 		return nil, fmt.Errorf("缓存服务未启用")
 	}
 
-	// 尝试从较大的时间范围缓存中查找数据
-	// 首先尝试当月数据
+	// 优化缓存查找逻辑：尝试从不同时间范围的缓存中查找
+
+	// 1. 首先尝试从预加载的回测期间缓存中查找
+	// 这是最可能命中的情况，因为preloadBacktestData已经加载了完整回测期间的数据
+	if cachedData := s.findCachedDataContainingDate(symbol, date); cachedData != nil {
+		return s.findDataForDate(cachedData, symbol, date)
+	}
+
+	// 2. 如果没有找到预加载缓存，尝试月度缓存
 	monthStart := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.Location())
 	monthEnd := monthStart.AddDate(0, 1, -1)
-
 	monthStartStr := monthStart.Format("20060102")
 	monthEndStr := monthEnd.Format("20060102")
 
@@ -607,10 +655,124 @@ func (s *BacktestService) getRealMarketData(ctx context.Context, symbol string, 
 		return s.findDataForDate(cachedData, symbol, date)
 	}
 
-	// 如果没有月度缓存，尝试查找包含该日期的任何缓存
-	// 这里可以扩展更复杂的缓存查找逻辑
-	// 暂时回退到直接API调用
-	return s.getRealMarketDataDirect(ctx, symbol, date)
+	// 3. 最后才回退到直接API调用，但优化为获取更大时间段以减少API调用
+	return s.getRealMarketDataDirectOptimized(ctx, symbol, date)
+}
+
+// findCachedDataContainingDate 查找包含指定日期的缓存数据
+func (s *BacktestService) findCachedDataContainingDate(symbol string, targetDate time.Time) []models.StockDaily {
+	// 遍历所有缓存条目，查找包含目标日期的时间范围
+
+	// 由于cache是sync.Map，我们需要通过反射或其他方式遍历
+	// 这里采用一种更直接的方式：尝试常见的时间范围
+
+	// 尝试不同的时间范围组合，从大到小
+	timeRanges := []struct {
+		start, end time.Time
+	}{
+		// 尝试季度范围
+		{
+			start: time.Date(targetDate.Year(), ((targetDate.Month()-1)/3)*3+1, 1, 0, 0, 0, 0, targetDate.Location()),
+			end:   time.Date(targetDate.Year(), ((targetDate.Month()-1)/3+1)*3, 31, 0, 0, 0, 0, targetDate.Location()),
+		},
+		// 尝试半年范围
+		{
+			start: time.Date(targetDate.Year(), 1, 1, 0, 0, 0, 0, targetDate.Location()),
+			end:   time.Date(targetDate.Year(), 6, 30, 0, 0, 0, 0, targetDate.Location()),
+		},
+		{
+			start: time.Date(targetDate.Year(), 7, 1, 0, 0, 0, 0, targetDate.Location()),
+			end:   time.Date(targetDate.Year(), 12, 31, 0, 0, 0, 0, targetDate.Location()),
+		},
+		// 尝试全年范围
+		{
+			start: time.Date(targetDate.Year(), 1, 1, 0, 0, 0, 0, targetDate.Location()),
+			end:   time.Date(targetDate.Year(), 12, 31, 0, 0, 0, 0, targetDate.Location()),
+		},
+		// 尝试跨年范围（前一年下半年到当年上半年）
+		{
+			start: time.Date(targetDate.Year()-1, 7, 1, 0, 0, 0, 0, targetDate.Location()),
+			end:   time.Date(targetDate.Year(), 6, 30, 0, 0, 0, 0, targetDate.Location()),
+		},
+	}
+
+	for _, tr := range timeRanges {
+		startStr := tr.start.Format("20060102")
+		endStr := tr.end.Format("20060102")
+
+		if cachedData, found := s.dailyCacheService.Get(symbol, startStr, endStr); found {
+			// 验证缓存数据确实包含目标日期
+			if s.dataContainsDate(cachedData, targetDate) {
+				return cachedData
+			}
+		}
+	}
+
+	return nil
+}
+
+// dataContainsDate 检查数据是否包含指定日期
+func (s *BacktestService) dataContainsDate(data []models.StockDaily, targetDate time.Time) bool {
+	targetDateStr := targetDate.Format("20060102")
+
+	for _, daily := range data {
+		// 从ISO格式转换为YYYYMMDD格式进行比较
+		if tradeTime, err := time.Parse("2006-01-02T15:04:05.000", daily.TradeDate); err == nil {
+			tradeDateStr := tradeTime.Format("20060102")
+			if tradeDateStr == targetDateStr {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// getRealMarketDataDirectOptimized 优化的直接API获取（获取更大时间段减少API调用）
+func (s *BacktestService) getRealMarketDataDirectOptimized(ctx context.Context, symbol string, date time.Time) (*models.MarketData, error) {
+	// 获取数据源客户端
+	client, err := s.dataSourceService.GetClient()
+	if err != nil {
+		return nil, fmt.Errorf("获取数据源客户端失败: %w", err)
+	}
+
+	// 优化：获取更大的时间范围（一个月）而不是一周，减少API调用次数
+	monthStart := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.Location())
+	monthEnd := monthStart.AddDate(0, 1, -1)
+
+	startDateStr := monthStart.Format("20060102")
+	endDateStr := monthEnd.Format("20060102")
+
+	s.logger.Info("直接API获取月度数据",
+		logger.String("symbol", symbol),
+		logger.String("target_date", date.Format("2006-01-02")),
+		logger.String("fetch_range", fmt.Sprintf("%s至%s", startDateStr, endDateStr)),
+	)
+
+	monthData, err := client.GetDailyData(symbol, startDateStr, endDateStr, "qfq")
+	if err != nil {
+		// 如果月度获取失败，回退到原来的周度获取
+		s.logger.Warn("月度数据获取失败，回退到周度获取",
+			logger.String("symbol", symbol),
+			logger.ErrorField(err),
+		)
+		return s.getRealMarketDataDirect(ctx, symbol, date)
+	}
+
+	if len(monthData) == 0 {
+		return nil, fmt.Errorf("股票 %s 在 %s 月份无交易数据", symbol, date.Format("2006-01"))
+	}
+
+	// 存入缓存（使用月度范围）
+	if s.dailyCacheService != nil {
+		s.dailyCacheService.Set(symbol, startDateStr, endDateStr, monthData)
+		s.logger.Info("月度数据已缓存",
+			logger.String("symbol", symbol),
+			logger.String("range", fmt.Sprintf("%s至%s", startDateStr, endDateStr)),
+			logger.Int("data_count", len(monthData)),
+		)
+	}
+
+	return s.findDataForDate(monthData, symbol, date)
 }
 
 // getRealMarketDataDirect 直接从API获取市场数据（作为备用方案）
