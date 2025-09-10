@@ -595,11 +595,11 @@ body {
 }
 
 .change.positive {
-    color: var(--success-color);
+    color: var(--error-color); /* 中国习惯：红色代表上涨 */
 }
 
 .change.negative {
-    color: var(--error-color);
+    color: var(--success-color); /* 中国习惯：绿色代表下跌 */
 }
 
 /* 涨跌幅增强样式 */
@@ -623,12 +623,12 @@ body {
 }
 
 .summary-item .value.positive {
-    color: var(--success-color);
+    color: var(--error-color); /* 中国习惯：红色代表上涨 */
     font-weight: 600;
 }
 
 .summary-item .value.negative {
-    color: var(--error-color);
+    color: var(--success-color); /* 中国习惯：绿色代表下跌 */
     font-weight: 600;
 }
 
@@ -3115,11 +3115,11 @@ body {
 }
 
 .price-diff.positive {
-    color: var(--success-color);
+    color: var(--error-color); /* 中国习惯：红色代表上涨 */
 }
 
 .price-diff.negative {
-    color: var(--error-color);
+    color: var(--success-color); /* 中国习惯：绿色代表下跌 */
 }
 
 /* 信号加载和错误状态 */
@@ -3943,6 +3943,66 @@ body {
     gap: var(--spacing-xl);
 }
 
+/* 策略配置样式 */
+.strategy-backtest-config {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+@media (max-width: 768px) {
+    .strategy-backtest-config {
+        grid-template-columns: 1fr;
+    }
+}
+
+.config-group {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    border-left: 4px solid var(--primary-color);
+    border: 1px solid var(--border-color);
+}
+
+.config-group h5 {
+    margin: 0 0 var(--spacing-md) 0;
+    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.config-grid {
+    display: grid;
+    gap: var(--spacing-xs);
+}
+
+.config-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-xs) 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.config-item:last-child {
+    border-bottom: none;
+}
+
+.config-label {
+    font-weight: 500;
+    color: var(--text-secondary);
+    min-width: 100px;
+}
+
+.config-value {
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: right;
+    word-break: break-word;
+    max-width: 200px;
+}
+
 /* 回测结果网格布局 */
 .backtest-content-grid {
     display: grid;
@@ -4005,11 +4065,11 @@ body {
 }
 
 .metric-value.positive {
-    color: var(--success-color);
+    color: var(--error-color); /* 中国习惯：红色代表正收益 */
 }
 
 .metric-value.negative {
-    color: var(--error-color);
+    color: var(--success-color); /* 中国习惯：绿色代表负收益 */
 }
 
 /* 权益曲线区域 */
@@ -4098,12 +4158,12 @@ body {
 }
 
 .trades-table .profit {
-    color: var(--success-color);
+    color: var(--error-color); /* 中国习惯：红色代表赚钱 */
     font-weight: 600;
 }
 
 .trades-table .loss {
-    color: var(--error-color);
+    color: var(--success-color); /* 中国习惯：绿色代表亏钱 */
     font-weight: 600;
 }
 
@@ -4229,11 +4289,11 @@ body {
 }
 
 .score-value.positive {
-    color: #28a745;
+    color: #dc3545; /* 中国习惯：红色代表正面评分 */
 }
 
 .score-value.negative {
-    color: #dc3545;
+    color: #28a745; /* 中国习惯：绿色代表负面评分 */
 }
 
 .score-value.neutral {

@@ -1170,14 +1170,38 @@ func (s *BacktestService) GetBacktestResults(ctx context.Context, backtestID str
 	// 获取交易记录
 	trades, _ := s.backtestTrades[backtestID]
 
+	// 获取策略信息
+	strategy, err := s.strategyService.GetStrategy(ctx, backtest.StrategyID)
+	if err != nil {
+		s.logger.Warn("获取策略信息失败",
+			logger.String("strategy_id", backtest.StrategyID),
+			logger.ErrorField(err),
+		)
+		// 即使获取策略失败也不应该影响回测结果返回
+		strategy = nil
+	}
+
 	// 生成权益曲线（简化版）
 	equityCurve := s.generateEquityCurve(backtest, result)
 
+	// 构建回测配置信息
+	backtestConfig := models.BacktestConfig{
+		Name:        backtest.Name,
+		StartDate:   backtest.StartDate.Format("2006-01-02"),
+		EndDate:     backtest.EndDate.Format("2006-01-02"),
+		InitialCash: backtest.InitialCash,
+		Symbols:     backtest.Symbols,
+		Commission:  backtest.Commission,
+		CreatedAt:   backtest.CreatedAt.Format("2006-01-02 15:04:05"),
+	}
+
 	response := &models.BacktestResultsResponse{
-		BacktestID:  backtestID,
-		Performance: *result,
-		EquityCurve: equityCurve,
-		Trades:      trades,
+		BacktestID:     backtestID,
+		Performance:    *result,
+		EquityCurve:    equityCurve,
+		Trades:         trades,
+		Strategy:       strategy,
+		BacktestConfig: backtestConfig,
 	}
 
 	return response, nil

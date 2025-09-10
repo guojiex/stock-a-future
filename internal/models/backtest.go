@@ -107,11 +107,24 @@ type BacktestProgress struct {
 
 // BacktestResultsResponse 回测结果响应
 type BacktestResultsResponse struct {
-	BacktestID  string         `json:"backtest_id"`
-	Performance BacktestResult `json:"performance"`
-	EquityCurve []EquityPoint  `json:"equity_curve"`
-	Trades      []Trade        `json:"trades"`
-	Positions   []Position     `json:"positions,omitempty"`
+	BacktestID     string         `json:"backtest_id"`
+	Performance    BacktestResult `json:"performance"`
+	EquityCurve    []EquityPoint  `json:"equity_curve"`
+	Trades         []Trade        `json:"trades"`
+	Positions      []Position     `json:"positions,omitempty"`
+	Strategy       *Strategy      `json:"strategy"`        // 策略信息
+	BacktestConfig BacktestConfig `json:"backtest_config"` // 回测配置
+}
+
+// BacktestConfig 回测配置信息
+type BacktestConfig struct {
+	Name        string   `json:"name"`
+	StartDate   string   `json:"start_date"`
+	EndDate     string   `json:"end_date"`
+	InitialCash float64  `json:"initial_cash"`
+	Symbols     []string `json:"symbols"`
+	Commission  float64  `json:"commission"`
+	CreatedAt   string   `json:"created_at"`
 }
 
 // CreateBacktestRequest 创建回测请求

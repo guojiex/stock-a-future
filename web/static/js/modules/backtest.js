@@ -439,6 +439,9 @@ class BacktestModule {
         // 显示结果区域
         resultsDiv.style.display = 'block';
 
+        // 显示策略配置信息
+        this.displayStrategyConfig(results.strategy, results.backtest_config);
+
         // 显示性能指标
         this.displayPerformanceMetrics(results.performance);
 
@@ -447,6 +450,157 @@ class BacktestModule {
 
         // 显示交易记录
         this.displayTradeHistory(results.trades);
+    }
+
+    /**
+     * 显示策略配置信息
+     */
+    displayStrategyConfig(strategy, backtestConfig) {
+        const configSection = document.getElementById('strategyConfigSection');
+        if (!configSection) return;
+
+        let strategyInfo = '';
+        let backtestInfo = '';
+
+        // 策略信息
+        if (strategy) {
+            strategyInfo = `
+                <div class="config-group">
+                    <h5>🎯 策略配置</h5>
+                    <div class="config-grid">
+                        <div class="config-item">
+                            <span class="config-label">策略名称:</span>
+                            <span class="config-value">${strategy.name}</span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">策略类型:</span>
+                            <span class="config-value">${this.formatStrategyType(strategy.strategy_type)}</span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">策略描述:</span>
+                            <span class="config-value">${strategy.description}</span>
+                        </div>
+                        ${this.formatStrategyParameters(strategy.parameters)}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 回测配置信息
+        if (backtestConfig) {
+            backtestInfo = `
+                <div class="config-group">
+                    <h5>⚙️ 回测配置</h5>
+                    <div class="config-grid">
+                        <div class="config-item">
+                            <span class="config-label">回测名称:</span>
+                            <span class="config-value">${backtestConfig.name}</span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">回测期间:</span>
+                            <span class="config-value">${backtestConfig.start_date} 至 ${backtestConfig.end_date}</span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">初始资金:</span>
+                            <span class="config-value">¥${backtestConfig.initial_cash.toLocaleString()}</span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">手续费率:</span>
+                            <span class="config-value">${(backtestConfig.commission * 100).toFixed(3)}%</span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">股票池:</span>
+                            <span class="config-value">${backtestConfig.symbols.join(', ')}</span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">创建时间:</span>
+                            <span class="config-value">${backtestConfig.created_at}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        configSection.innerHTML = `
+            <div class="strategy-backtest-config">
+                ${strategyInfo}
+                ${backtestInfo}
+            </div>
+        `;
+    }
+
+    /**
+     * 格式化策略类型
+     */
+    formatStrategyType(type) {
+        const typeMap = {
+            'technical': '技术指标',
+            'fundamental': '基本面',
+            'ml': '机器学习',
+            'composite': '复合策略'
+        };
+        return typeMap[type] || type;
+    }
+
+    /**
+     * 格式化策略参数
+     */
+    formatStrategyParameters(parameters) {
+        if (!parameters || Object.keys(parameters).length === 0) {
+            return '';
+        }
+
+        return Object.entries(parameters).map(([key, value]) => `
+            <div class="config-item">
+                <span class="config-label">${this.formatParameterName(key)}:</span>
+                <span class="config-value">${this.formatParameterValue(key, value)}</span>
+            </div>
+        `).join('');
+    }
+
+    /**
+     * 格式化参数名称
+     */
+    formatParameterName(key) {
+        const nameMap = {
+            'fast_period': '快线周期',
+            'slow_period': '慢线周期',
+            'signal_period': '信号线周期',
+            'buy_threshold': '买入阈值',
+            'sell_threshold': '卖出阈值',
+            'short_period': '短期周期',
+            'long_period': '长期周期',
+            'ma_type': '均线类型',
+            'threshold': '阈值',
+            'period': '周期',
+            'overbought': '超买线',
+            'oversold': '超卖线',
+            'std_dev': '标准差倍数'
+        };
+        return nameMap[key] || key;
+    }
+
+    /**
+     * 格式化参数值
+     */
+    formatParameterValue(key, value) {
+        if (key === 'ma_type') {
+            const typeMap = {
+                'sma': '简单移动平均',
+                'ema': '指数移动平均',
+                'wma': '加权移动平均'
+            };
+            return typeMap[value] || value;
+        }
+        
+        if (typeof value === 'number') {
+            if (key.includes('threshold') || key === 'std_dev') {
+                return value.toFixed(2);
+            }
+            return value.toString();
+        }
+        
+        return value;
     }
 
     /**
