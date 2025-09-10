@@ -46,21 +46,25 @@ type BacktestService struct {
 	backtestProgress map[string]*models.BacktestProgress
 	runningBacktests map[string]context.CancelFunc // 用于取消运行中的回测
 
-	strategyService *StrategyService
-	logger          logger.Logger
-	mutex           sync.RWMutex
+	strategyService   *StrategyService
+	dataSourceService *DataSourceService
+	dailyCacheService *DailyCacheService // 使用现有的日线数据缓存服务
+	logger            logger.Logger
+	mutex             sync.RWMutex
 }
 
 // NewBacktestService 创建回测服务
-func NewBacktestService(strategyService *StrategyService, log logger.Logger) *BacktestService {
+func NewBacktestService(strategyService *StrategyService, dataSourceService *DataSourceService, dailyCacheService *DailyCacheService, log logger.Logger) *BacktestService {
 	return &BacktestService{
-		backtests:        make(map[string]*models.Backtest),
-		backtestResults:  make(map[string]*models.BacktestResult),
-		backtestTrades:   make(map[string][]models.Trade),
-		backtestProgress: make(map[string]*models.BacktestProgress),
-		runningBacktests: make(map[string]context.CancelFunc),
-		strategyService:  strategyService,
-		logger:           log,
+		backtests:         make(map[string]*models.Backtest),
+		backtestResults:   make(map[string]*models.BacktestResult),
+		backtestTrades:    make(map[string][]models.Trade),
+		backtestProgress:  make(map[string]*models.BacktestProgress),
+		runningBacktests:  make(map[string]context.CancelFunc),
+		strategyService:   strategyService,
+		dataSourceService: dataSourceService,
+		dailyCacheService: dailyCacheService,
+		logger:            log,
 	}
 }
 
@@ -331,7 +335,22 @@ func (s *BacktestService) runBacktestTask(ctx context.Context, backtest *models.
 		s.logger.Info("回测任务清理完成", logger.String("backtest_id", backtest.ID))
 	}()
 
-	// 模拟回测过程
+	// 预加载回测数据
+	s.logger.Info("开始预加载回测数据",
+		logger.String("backtest_id", backtest.ID),
+		logger.Int("symbols_count", len(backtest.Symbols)),
+	)
+
+	if err := s.preloadBacktestData(ctx, backtest.Symbols, backtest.StartDate, backtest.EndDate); err != nil {
+		s.logger.Error("预加载回测数据失败",
+			logger.String("backtest_id", backtest.ID),
+			logger.ErrorField(err),
+		)
+		s.updateBacktestStatus(backtest.ID, models.BacktestStatusFailed, "预加载数据失败")
+		return
+	}
+
+	// 计算回测参数
 	totalDays := int(backtest.EndDate.Sub(backtest.StartDate).Hours() / 24)
 	if totalDays <= 0 {
 		totalDays = 1
@@ -426,9 +445,18 @@ func (s *BacktestService) runBacktestTask(ctx context.Context, backtest *models.
 		for _, symbol := range backtest.Symbols {
 			// 移除每个股票的处理日志
 
-			// 生成模拟市场数据
-			//todo 使用真实数据
-			marketData := s.generateMockMarketData(symbol, currentDate)
+			// 获取真实市场数据
+			marketData, err := s.getRealMarketData(ctx, symbol, currentDate)
+			if err != nil {
+				// 如果获取真实数据失败，记录错误并跳过该股票该日期
+				s.logger.Error("获取真实市场数据失败，跳过该股票",
+					logger.String("backtest_id", backtest.ID),
+					logger.String("symbol", symbol),
+					logger.String("date", currentDate.Format("2006-01-02")),
+					logger.ErrorField(err),
+				)
+				continue // 跳过该股票该日期的处理
+			}
 
 			// 执行策略
 			signal, err := s.strategyService.ExecuteStrategy(ctx, strategy.ID, marketData)
@@ -453,7 +481,7 @@ func (s *BacktestService) runBacktestTask(ctx context.Context, backtest *models.
 		}
 
 		// 更新组合价值
-		s.updatePortfolioValue(portfolio, backtest.Symbols, currentDate)
+		s.updatePortfolioValue(ctx, portfolio, backtest.Symbols, currentDate)
 
 		// 记录权益曲线
 		equityCurve = append(equityCurve, models.EquityPoint{
@@ -506,7 +534,204 @@ func (s *BacktestService) runBacktestTask(ctx context.Context, backtest *models.
 	)
 }
 
-// generateMockMarketData 生成模拟市场数据
+// preloadBacktestData 预加载回测期间所有股票的历史数据
+func (s *BacktestService) preloadBacktestData(ctx context.Context, symbols []string, startDate, endDate time.Time) error {
+	s.logger.Info("开始预加载回测数据",
+		logger.Int("symbols_count", len(symbols)),
+		logger.String("start_date", startDate.Format("2006-01-02")),
+		logger.String("end_date", endDate.Format("2006-01-02")),
+	)
+
+	// 获取数据源客户端
+	client, err := s.dataSourceService.GetClient()
+	if err != nil {
+		return fmt.Errorf("获取数据源客户端失败: %w", err)
+	}
+
+	// 格式化日期
+	startDateStr := startDate.Format("20060102")
+	endDateStr := endDate.Format("20060102")
+
+	// 为每个股票预加载数据
+	for _, symbol := range symbols {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		// 检查缓存中是否已有数据
+		if s.dailyCacheService != nil {
+			if _, found := s.dailyCacheService.Get(symbol, startDateStr, endDateStr); found {
+				continue
+			}
+		}
+
+		// 从API获取数据
+		data, err := client.GetDailyData(symbol, startDateStr, endDateStr, "qfq")
+		if err != nil {
+			s.logger.Error("预加载股票数据失败",
+				logger.String("symbol", symbol),
+				logger.ErrorField(err),
+			)
+			// 继续处理其他股票，不中断整个预加载过程
+			continue
+		}
+
+		// 存入缓存
+		if s.dailyCacheService != nil && len(data) > 0 {
+			s.dailyCacheService.Set(symbol, startDateStr, endDateStr, data)
+		}
+	}
+
+	s.logger.Info("回测数据预加载完成")
+	return nil
+}
+
+// getRealMarketData 获取真实市场数据（从预加载的缓存中查找）
+func (s *BacktestService) getRealMarketData(ctx context.Context, symbol string, date time.Time) (*models.MarketData, error) {
+	// 从缓存中查找包含该日期的数据
+	if s.dailyCacheService == nil {
+		return nil, fmt.Errorf("缓存服务未启用")
+	}
+
+	// 尝试从较大的时间范围缓存中查找数据
+	// 首先尝试当月数据
+	monthStart := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.Location())
+	monthEnd := monthStart.AddDate(0, 1, -1)
+
+	monthStartStr := monthStart.Format("20060102")
+	monthEndStr := monthEnd.Format("20060102")
+
+	if cachedData, found := s.dailyCacheService.Get(symbol, monthStartStr, monthEndStr); found {
+		return s.findDataForDate(cachedData, symbol, date)
+	}
+
+	// 如果没有月度缓存，尝试查找包含该日期的任何缓存
+	// 这里可以扩展更复杂的缓存查找逻辑
+	// 暂时回退到直接API调用
+	return s.getRealMarketDataDirect(ctx, symbol, date)
+}
+
+// getRealMarketDataDirect 直接从API获取市场数据（作为备用方案）
+func (s *BacktestService) getRealMarketDataDirect(ctx context.Context, symbol string, date time.Time) (*models.MarketData, error) {
+	dateStr := date.Format("20060102")
+
+	// 获取数据源客户端
+	client, err := s.dataSourceService.GetClient()
+	if err != nil {
+		return nil, fmt.Errorf("获取数据源客户端失败: %w", err)
+	}
+
+	// 尝试获取前后一周的数据，找到最近的交易日
+	startDate := date.AddDate(0, 0, -7)
+	endDate := date.AddDate(0, 0, 7)
+	startDateStr := startDate.Format("20060102")
+	endDateStr := endDate.Format("20060102")
+
+	weekData, err := client.GetDailyData(symbol, startDateStr, endDateStr, "qfq")
+	if err != nil {
+		return nil, fmt.Errorf("获取股票数据失败: %w", err)
+	}
+
+	if len(weekData) == 0 {
+		return nil, fmt.Errorf("股票 %s 在 %s 前后一周都无交易数据", symbol, dateStr)
+	}
+
+	// 存入缓存
+	if s.dailyCacheService != nil {
+		s.dailyCacheService.Set(symbol, startDateStr, endDateStr, weekData)
+	}
+
+	return s.findDataForDate(weekData, symbol, date)
+}
+
+// findDataForDate 从数据列表中找到指定日期的数据
+func (s *BacktestService) findDataForDate(dailyData []models.StockDaily, symbol string, targetDate time.Time) (*models.MarketData, error) {
+	targetDateStr := targetDate.Format("20060102")
+
+	// 首先尝试精确匹配
+	for _, data := range dailyData {
+		// 从ISO格式转换为YYYYMMDD格式进行比较
+		if tradeTime, err := time.Parse("2006-01-02T15:04:05.000", data.TradeDate); err == nil {
+			tradeDateStr := tradeTime.Format("20060102")
+			if tradeDateStr == targetDateStr {
+				return s.convertStockDailyToMarketData(data, symbol, targetDate)
+			}
+		}
+	}
+
+	// 如果没有精确匹配，找最近的交易日
+	var closestData *models.StockDaily
+	minDiff := int64(^uint64(0) >> 1) // 最大int64值
+
+	for _, data := range dailyData {
+		// 使用正确的ISO日期格式解析
+		tradeTime, err := time.Parse("2006-01-02T15:04:05.000", data.TradeDate)
+		if err != nil {
+			continue
+		}
+
+		diff := targetDate.Unix() - tradeTime.Unix()
+		if diff < 0 {
+			diff = -diff
+		}
+
+		if diff < minDiff {
+			minDiff = diff
+			closestData = &data
+		}
+	}
+
+	if closestData == nil {
+		return nil, fmt.Errorf("无法找到股票 %s 在 %s 的有效交易数据", symbol, targetDateStr)
+	}
+
+	// 只在使用非精确匹配时记录日志
+	if closestTradeTime, err := time.Parse("2006-01-02T15:04:05.000", closestData.TradeDate); err == nil {
+		closestDateStr := closestTradeTime.Format("20060102")
+		if closestDateStr != targetDateStr {
+			s.logger.Debug("使用最近交易日",
+				logger.String("symbol", symbol),
+				logger.String("target", targetDateStr),
+				logger.String("actual", closestDateStr),
+			)
+		}
+	}
+
+	return s.convertStockDailyToMarketData(*closestData, symbol, targetDate)
+}
+
+// convertStockDailyToMarketData 将StockDaily转换为MarketData
+func (s *BacktestService) convertStockDailyToMarketData(stockDaily models.StockDaily, symbol string, date time.Time) (*models.MarketData, error) {
+	// 转换价格数据（去掉无意义的精度警告）
+	open, _ := stockDaily.Open.Float64()
+	high, _ := stockDaily.High.Float64()
+	low, _ := stockDaily.Low.Float64()
+	close, _ := stockDaily.Close.Float64()
+
+	// 转换成交量（注意：StockDaily.Vol是手，需要转换为股）
+	vol, _ := stockDaily.Vol.Float64()
+	volume := int64(vol * 100) // 1手 = 100股
+
+	// 转换成交额（注意：StockDaily.Amount是千元，需要转换为元）
+	amount, _ := stockDaily.Amount.Float64()
+	amountInYuan := amount * 1000 // 千元转元
+
+	return &models.MarketData{
+		Symbol:   symbol,
+		Date:     date,
+		Open:     open,
+		High:     high,
+		Low:      low,
+		Close:    close,
+		Volume:   volume,
+		Amount:   amountInYuan,
+		AdjClose: close, // 使用前复权数据，收盘价就是复权价
+	}, nil
+}
+
+// generateMockMarketData 生成模拟市场数据（保留作为备用）
 func (s *BacktestService) generateMockMarketData(symbol string, date time.Time) *models.MarketData {
 	// 使用日期作为随机种子，确保相同日期生成相同数据
 	rand.Seed(date.Unix() + int64(len(symbol)))
@@ -640,13 +865,20 @@ func (s *BacktestService) updatePortfolioWithTrade(portfolio *models.Portfolio, 
 }
 
 // updatePortfolioValue 更新组合价值
-func (s *BacktestService) updatePortfolioValue(portfolio *models.Portfolio, symbols []string, date time.Time) {
+func (s *BacktestService) updatePortfolioValue(ctx context.Context, portfolio *models.Portfolio, symbols []string, date time.Time) {
 	holdingsValue := 0.0
 
 	for symbol, position := range portfolio.Positions {
 		if position.Quantity > 0 {
 			// 获取当前市价
-			marketData := s.generateMockMarketData(symbol, date)
+			marketData, err := s.getRealMarketData(ctx, symbol, date)
+			if err != nil {
+				// 如果获取数据失败，使用上一次的市值继续计算
+				// 保持原有的市值不变
+				holdingsValue += position.MarketValue
+				continue
+			}
+
 			marketValue := float64(position.Quantity) * marketData.Close
 			holdingsValue += marketValue
 

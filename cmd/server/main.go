@@ -181,12 +181,16 @@ func main() {
 		logger.Info("✓ 数据清理服务已启动")
 	}
 
+	// 创建数据源服务
+	dataSourceService := service.NewDataSourceService(cfg)
+	logger.Info("✓ 数据源服务已创建")
+
 	// 创建策略服务
 	strategyService := service.NewStrategyService(logger.GetGlobalLogger())
 	logger.Info("✓ 策略服务已创建")
 
 	// 创建回测服务
-	backtestService := service.NewBacktestService(strategyService, logger.GetGlobalLogger())
+	backtestService := service.NewBacktestService(strategyService, dataSourceService, cacheService, logger.GetGlobalLogger())
 	logger.Info("✓ 回测服务已创建")
 
 	// 创建处理器
