@@ -468,7 +468,7 @@ class BacktestModule {
         ];
 
         metricsGrid.innerHTML = metrics.map(metric => `
-            <div class="metric-card">
+            <div class="metric-item">
                 <div class="metric-label">${metric.label}</div>
                 <div class="metric-value ${this.getMetricClass(metric.value, metric.label)}">
                     ${this.formatMetricValue(metric.value, metric.format)}

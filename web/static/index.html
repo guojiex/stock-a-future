@@ -364,37 +364,43 @@
                                     <div class="backtest-results" id="backtestResults" style="display: none;">
                                         <h4>📊 回测结果</h4>
                                         
-                                        <!-- 性能指标 -->
-                                        <div class="performance-metrics">
-                                            <div class="metrics-grid" id="metricsGrid">
-                                                <!-- 指标将动态生成 -->
+                                        <!-- 回测结果网格布局 -->
+                                        <div class="backtest-content-grid">
+                                            <!-- 左侧：性能指标 -->
+                                            <div class="performance-metrics">
+                                                <h5>📈 性能指标</h5>
+                                                <div class="metrics-grid" id="metricsGrid">
+                                                    <!-- 指标将动态生成 -->
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        <!-- 权益曲线图 -->
-                                        <div class="equity-curve">
-                                            <h5>📈 权益曲线</h5>
-                                            <div id="equityChart" style="width: 100%; height: 400px;"></div>
-                                        </div>
+                                            <!-- 右侧：权益曲线图 -->
+                                            <div class="equity-curve">
+                                                <h5>📈 权益曲线</h5>
+                                                <div id="equityChart" style="width: 100%; height: 400px;"></div>
+                                            </div>
 
-                                        <!-- 交易记录 -->
-                                        <div class="trade-history">
-                                            <h5>📋 交易记录</h5>
-                                            <div class="table-container">
-                                                <table id="tradesTable" class="trades-table">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>时间</th>
-                                                            <th>股票</th>
-                                                            <th>方向</th>
-                                                            <th>数量</th>
-                                                            <th>价格</th>
-                                                            <th>手续费</th>
-                                                            <th>盈亏</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody></tbody>
-                                                </table>
+                                            <!-- 底部：交易记录（跨越两列） -->
+                                            <div class="trade-history">
+                                                <h5>📋 交易记录</h5>
+                                                <div class="table-container">
+                                                    <div class="table-wrapper">
+                                                        <table id="tradesTable" class="trades-table">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>时间</th>
+                                                                    <th>股票</th>
+                                                                    <th>方向</th>
+                                                                    <th>数量</th>
+                                                                    <th>价格</th>
+                                                                    <th>手续费</th>
+                                                                    <th>盈亏</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody></tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
