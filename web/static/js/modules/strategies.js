@@ -273,11 +273,6 @@ class StrategiesModule {
                 
                 <div class="detail-content">
                     <div class="detail-item">
-                        <label>描述:</label>
-                        <p>${strategy.description}</p>
-                    </div>
-                    
-                    <div class="detail-item">
                         <label>策略类型:</label>
                         <span>${this.getTypeText(strategy.strategy_type)}</span>
                     </div>
@@ -287,7 +282,12 @@ class StrategiesModule {
                         <span>${this.formatDate(strategy.created_at)}</span>
                     </div>
                     
-                    <div class="detail-item">
+                    <div class="detail-item full-width">
+                        <label>描述:</label>
+                        <p>${strategy.description}</p>
+                    </div>
+                    
+                    <div class="detail-item full-width">
                         <label>参数配置:</label>
                         <div class="parameters-detail">
                             ${this.renderParametersDetail(strategy.parameters)}
