@@ -173,6 +173,9 @@ func (h *BacktestHandler) createBacktest(w http.ResponseWriter, r *http.Request)
 		CreatedBy:   "user", // TODO: 从认证信息获取
 	}
 
+	// 记录原始名称，用于检查是否被重命名
+	originalName := req.Name
+
 	// 调用服务层创建回测
 	if err := h.backtestService.CreateBacktest(r.Context(), backtest); err != nil {
 		h.logger.Error("创建回测失败", logger.ErrorField(err))
@@ -194,10 +197,16 @@ func (h *BacktestHandler) createBacktest(w http.ResponseWriter, r *http.Request)
 	// 返回创建的回测信息（包含策略名称）
 	backtest.StrategyName = strategy.Name
 
+	// 准备响应消息
+	message := "回测创建并启动成功"
+	if backtest.Name != originalName {
+		message = fmt.Sprintf("回测创建并启动成功。由于名称重复，已自动重命名为：%s", backtest.Name)
+	}
+
 	h.writeJSONResponse(w, map[string]interface{}{
 		"success": true,
 		"data":    backtest,
-		"message": "回测创建并启动成功",
+		"message": message,
 	})
 }
 

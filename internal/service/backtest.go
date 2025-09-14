@@ -164,12 +164,8 @@ func (s *BacktestService) CreateBacktest(ctx context.Context, backtest *models.B
 		return ErrBacktestExists
 	}
 
-	// 检查名称是否重复
-	for _, existing := range s.backtests {
-		if existing.Name == backtest.Name {
-			return fmt.Errorf("回测名称已存在: %s", backtest.Name)
-		}
-	}
+	// 自动处理重复名称，生成唯一名称
+	backtest.Name = s.generateUniqueBacktestName(backtest.Name)
 
 	// 设置时间戳
 	now := time.Now()
@@ -199,13 +195,9 @@ func (s *BacktestService) UpdateBacktest(ctx context.Context, backtestID string,
 
 	// 更新字段
 	if req.Name != nil {
-		// 检查名称是否重复
-		for id, existing := range s.backtests {
-			if id != backtestID && existing.Name == *req.Name {
-				return fmt.Errorf("回测名称已存在: %s", *req.Name)
-			}
-		}
-		backtest.Name = *req.Name
+		// 生成唯一名称（排除当前回测）
+		uniqueName := s.generateUniqueBacktestNameForUpdate(*req.Name, backtestID)
+		backtest.Name = uniqueName
 	}
 
 	if req.Status != nil {
@@ -247,6 +239,76 @@ func (s *BacktestService) DeleteBacktest(ctx context.Context, backtestID string)
 	s.logger.Info("回测删除成功", logger.String("backtest_id", backtestID))
 
 	return nil
+}
+
+// generateUniqueBacktestName 生成唯一的回测名称
+// 如果名称已存在，会自动在后面添加序号，如 "原名称 (2)"
+func (s *BacktestService) generateUniqueBacktestName(originalName string) string {
+	// 检查原始名称是否已存在
+	if !s.isBacktestNameExists(originalName) {
+		return originalName
+	}
+
+	// 如果存在，尝试添加序号
+	counter := 2
+	for {
+		newName := fmt.Sprintf("%s (%d)", originalName, counter)
+		if !s.isBacktestNameExists(newName) {
+			return newName
+		}
+		counter++
+
+		// 防止无限循环，最多尝试1000次
+		if counter > 1000 {
+			// 如果还是重复，使用时间戳确保唯一性
+			return fmt.Sprintf("%s (%d)", originalName, time.Now().Unix())
+		}
+	}
+}
+
+// isBacktestNameExists 检查回测名称是否已存在
+func (s *BacktestService) isBacktestNameExists(name string) bool {
+	for _, existing := range s.backtests {
+		if existing.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+// generateUniqueBacktestNameForUpdate 为更新操作生成唯一的回测名称
+// 排除指定的回测ID，避免与自身冲突
+func (s *BacktestService) generateUniqueBacktestNameForUpdate(originalName string, excludeID string) string {
+	// 检查原始名称是否已存在（排除当前回测）
+	if !s.isBacktestNameExistsExcluding(originalName, excludeID) {
+		return originalName
+	}
+
+	// 如果存在，尝试添加序号
+	counter := 2
+	for {
+		newName := fmt.Sprintf("%s (%d)", originalName, counter)
+		if !s.isBacktestNameExistsExcluding(newName, excludeID) {
+			return newName
+		}
+		counter++
+
+		// 防止无限循环，最多尝试1000次
+		if counter > 1000 {
+			// 如果还是重复，使用时间戳确保唯一性
+			return fmt.Sprintf("%s (%d)", originalName, time.Now().Unix())
+		}
+	}
+}
+
+// isBacktestNameExistsExcluding 检查回测名称是否已存在（排除指定ID）
+func (s *BacktestService) isBacktestNameExistsExcluding(name string, excludeID string) bool {
+	for id, existing := range s.backtests {
+		if id != excludeID && existing.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // StartBacktest 启动回测
