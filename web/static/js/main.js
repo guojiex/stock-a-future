@@ -18,8 +18,6 @@ class StockAFutureApp {
         this.fundamentalModule = null;
         this.strategiesModule = null;
         this.backtestModule = null;
-        
-        this.init();
     }
 
     /**
@@ -232,6 +230,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 创建应用实例
         stockApp = new StockAFutureApp();
         
+        // 等待应用初始化完成
+        await stockApp.init();
+        
         // 将应用实例挂载到全局对象，方便调试
         window.stockApp = stockApp;
         
@@ -241,6 +242,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         if (stockApp.strategiesModule) {
             window.strategiesModule = stockApp.strategiesModule;
+            console.log('[主应用] strategiesModule 已挂载到全局:', stockApp.strategiesModule);
+        } else {
+            console.error('[主应用] strategiesModule 未正确初始化');
         }
         if (stockApp.backtestModule) {
             window.backtestModule = stockApp.backtestModule;

@@ -869,6 +869,109 @@ class ApiService {
         }
     }
 
+    /**
+     * 更新策略
+     */
+    async updateStrategy(strategyId, updateData) {
+        const endpoint = `/api/v1/strategies/${strategyId}`;
+        
+        console.log(`[API] 更新策略请求:`, {
+            strategyId,
+            updateData,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData)
+            });
+            
+            console.log(`[API] 更新策略响应:`, {
+                success: response.success,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            return response;
+            
+        } catch (error) {
+            console.error(`[API] 更新策略失败:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 创建策略
+     */
+    async createStrategy(strategyData) {
+        const endpoint = '/api/v1/strategies';
+        
+        console.log(`[API] 创建策略请求:`, {
+            strategyData,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(strategyData)
+            });
+            
+            console.log(`[API] 创建策略响应:`, {
+                success: response.success,
+                hasData: !!response.data,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            return response;
+            
+        } catch (error) {
+            console.error(`[API] 创建策略失败:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 删除策略
+     */
+    async deleteStrategy(strategyId) {
+        const endpoint = `/api/v1/strategies/${strategyId}`;
+        
+        console.log(`[API] 删除策略请求:`, {
+            strategyId,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint, {
+                method: 'DELETE'
+            });
+            
+            console.log(`[API] 删除策略响应:`, {
+                success: response.success,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            return response;
+            
+        } catch (error) {
+            console.error(`[API] 删除策略失败:`, error);
+            throw error;
+        }
+    }
+
     // ==================== 回测系统 API ====================
 
     /**
@@ -1035,4 +1138,4 @@ class ApiService {
 window.ApiService = ApiService;
 
 // 版本标识 - 用于调试缓存问题
-console.log('[API] ApiService loaded - version 1.3 with strategies and backtest support');
+console.log('[API] ApiService loaded - version 1.4 with strategy editing support');

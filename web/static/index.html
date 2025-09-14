@@ -484,6 +484,84 @@
         </div>
     </div>
 
+    <!-- 策略编辑模态框 -->
+    <div id="editStrategyModal" class="modal" style="display: none;">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>✏️ 编辑策略</h3>
+                <button id="closeEditStrategyBtn" class="btn-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editStrategyForm" class="strategy-form">
+                    <div class="form-section">
+                        <h4>基本信息</h4>
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label for="editStrategyName">策略名称 *</label>
+                                <input type="text" id="editStrategyName" name="name" required maxlength="100" 
+                                       placeholder="输入策略名称">
+                                <small>最多100个字符</small>
+                            </div>
+                            <div class="input-group">
+                                <label for="editStrategyType">策略类型</label>
+                                <select id="editStrategyType" name="strategy_type" disabled>
+                                    <option value="technical">技术指标</option>
+                                    <option value="fundamental">基本面</option>
+                                    <option value="ml">机器学习</option>
+                                    <option value="composite">复合策略</option>
+                                </select>
+                                <small>策略类型创建后不可修改</small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="input-group full-width">
+                                <label for="editStrategyDescription">策略描述</label>
+                                <textarea id="editStrategyDescription" name="description" rows="3" maxlength="1000"
+                                          placeholder="描述策略的交易逻辑和特点"></textarea>
+                                <small>最多1000个字符</small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label for="editStrategyStatus">策略状态</label>
+                                <select id="editStrategyStatus" name="status">
+                                    <option value="active">活跃</option>
+                                    <option value="inactive">非活跃</option>
+                                    <option value="testing">测试中</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h4>参数配置</h4>
+                        <div id="editStrategyParameters">
+                            <!-- 动态生成的参数表单 -->
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h4>策略代码</h4>
+                        <div class="input-group full-width">
+                            <label for="editStrategyCode">策略代码 (可选)</label>
+                            <textarea id="editStrategyCode" name="code" rows="8" 
+                                      placeholder="输入策略的具体实现代码..."></textarea>
+                            <small>用于自定义策略的具体实现逻辑</small>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" id="cancelEditStrategy" class="btn btn-secondary">取消</button>
+                        <button type="button" id="resetEditStrategy" class="btn btn-outline">重置</button>
+                        <button type="submit" id="saveEditStrategy" class="btn btn-primary">保存修改</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- 加载遮罩 -->
     <div id="loadingOverlay" class="loading-overlay" style="display: none;">
         <div class="loading-content">
@@ -515,6 +593,7 @@
     <script src="js/modules/events.js"></script>
     
     <!-- 工具函数 -->
+    <script src="js/utils/safe-call.js"></script>
     <script src="js/utils/helpers.js"></script>
     
     <!-- 主入口文件 -->
