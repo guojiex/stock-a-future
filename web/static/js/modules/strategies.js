@@ -475,19 +475,35 @@ class StrategiesModule {
         if (!strategy) return;
 
         try {
-            const newStatus = strategy.status === 'active' ? 'inactive' : 'active';
+            const isCurrentlyActive = strategy.status === 'active';
+            const newStatus = isCurrentlyActive ? 'inactive' : 'active';
             
-            // 更新本地状态
-            strategy.status = newStatus;
+            // 调用后端API进行状态切换
+            let response;
+            if (isCurrentlyActive) {
+                response = await this.apiService.deactivateStrategy(strategyId);
+            } else {
+                response = await this.apiService.activateStrategy(strategyId);
+            }
             
-            // 重新显示策略列表
-            this.displayStrategies();
-            
-            this.showMessage(`策略已${newStatus === 'active' ? '启用' : '禁用'}`, 'success');
+            if (response && response.success) {
+                // 只有在后端成功响应后才更新本地状态
+                strategy.status = newStatus;
+                
+                // 重新显示策略列表
+                this.displayStrategies();
+                
+                this.showMessage(`策略已${newStatus === 'active' ? '启用' : '禁用'}`, 'success');
+            } else {
+                throw new Error(response?.error || '切换策略状态失败');
+            }
             
         } catch (error) {
             console.error('切换策略状态失败:', error);
-            this.showMessage('切换策略状态失败', 'error');
+            this.showMessage(`切换策略状态失败: ${error.message}`, 'error');
+            
+            // 发生错误时重新显示策略列表以恢复正确状态
+            this.displayStrategies();
         }
     }
 

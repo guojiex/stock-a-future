@@ -972,6 +972,66 @@ class ApiService {
         }
     }
 
+    /**
+     * 激活策略
+     */
+    async activateStrategy(strategyId) {
+        const endpoint = `/api/v1/strategies/${strategyId}/activate`;
+        
+        console.log(`[API] 激活策略请求:`, {
+            strategyId,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint, {
+                method: 'POST'
+            });
+            
+            console.log(`[API] 激活策略响应:`, {
+                success: response.success,
+                message: response.message,
+                timestamp: new Date().toISOString()
+            });
+            
+            return response;
+        } catch (error) {
+            console.error(`[API] 激活策略失败:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 停用策略
+     */
+    async deactivateStrategy(strategyId) {
+        const endpoint = `/api/v1/strategies/${strategyId}/deactivate`;
+        
+        console.log(`[API] 停用策略请求:`, {
+            strategyId,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint, {
+                method: 'POST'
+            });
+            
+            console.log(`[API] 停用策略响应:`, {
+                success: response.success,
+                message: response.message,
+                timestamp: new Date().toISOString()
+            });
+            
+            return response;
+        } catch (error) {
+            console.error(`[API] 停用策略失败:`, error);
+            throw error;
+        }
+    }
+
     // ==================== 回测系统 API ====================
 
     /**
