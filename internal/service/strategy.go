@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"sort"
 	"strings"
 	"time"
 
@@ -59,6 +60,26 @@ func (s *StrategyService) GetStrategiesList(ctx context.Context, req *models.Str
 			results = append(results, *strategy)
 		}
 	}
+
+	// 稳定排序：优先按状态排序（active > testing > inactive），然后按创建时间排序（新的在前）
+	sort.Slice(results, func(i, j int) bool {
+		// 首先按状态排序
+		statusPriority := map[models.StrategyStatus]int{
+			models.StrategyStatusActive:   1,
+			models.StrategyStatusTesting:  2,
+			models.StrategyStatusInactive: 3,
+		}
+
+		statusI := statusPriority[results[i].Status]
+		statusJ := statusPriority[results[j].Status]
+
+		if statusI != statusJ {
+			return statusI < statusJ
+		}
+
+		// 状态相同时，按创建时间降序排序（新的在前）
+		return results[i].CreatedAt.After(results[j].CreatedAt)
+	})
 
 	total := len(results)
 

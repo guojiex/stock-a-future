@@ -3918,12 +3918,6 @@ body {
     gap: var(--spacing-lg);
 }
 
-.performance-metrics {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--spacing-md);
-}
-
 .metric-item {
     display: flex;
     flex-direction: column;
@@ -4188,7 +4182,7 @@ body {
 /* 回测结果网格布局 */
 .backtest-content-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 2fr 1fr; /* 左侧指标区域占更多空间，右侧图表区域相对较小 */
     gap: var(--spacing-xl);
     align-items: start;
 }
@@ -4197,31 +4191,33 @@ body {
 .performance-metrics {
     background: var(--bg-secondary);
     border-radius: var(--radius-md);
-    padding: var(--spacing-lg);
+    padding: var(--spacing-md); /* 减少内边距，让内容更紧凑 */
     border: 1px solid var(--border-color);
 }
 
 .performance-metrics h5 {
-    margin: 0 0 var(--spacing-md) 0;
-    font-size: 1.125rem;
+    margin: 0 0 var(--spacing-sm) 0; /* 减少底部边距 */
+    font-size: 1rem; /* 稍微减小字体 */
     font-weight: 600;
     color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: var(--spacing-xs);
+    padding: var(--spacing-xs) 0; /* 减少内边距 */
 }
 
 /* 指标网格布局 */
 .metrics-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: var(--spacing-md);
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* 减小最小宽度，让更多指标能在一行显示 */
+    gap: var(--spacing-sm); /* 减小间距 */
+    margin-top: 0; /* 确保没有额外的顶部边距 */
 }
 
 .metric-item {
     background: var(--bg-primary);
     border-radius: var(--radius-sm);
-    padding: var(--spacing-md);
+    padding: var(--spacing-sm); /* 减少内边距让指标更紧凑 */
     border: 1px solid var(--border-color);
     text-align: center;
     transition: all 0.2s ease;
@@ -4366,7 +4362,7 @@ body {
 /* 响应式设计 */
 @media (max-width: 1200px) {
     .backtest-content-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr; /* 在小屏幕上垂直排列 */
         gap: var(--spacing-lg);
     }
     
