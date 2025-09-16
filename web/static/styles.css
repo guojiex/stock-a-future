@@ -4983,3 +4983,249 @@ body {
         width: 100%;
     }
 }
+
+/* 多选策略样式 */
+.strategy-selector {
+    position: relative;
+    width: 100%;
+}
+
+.strategy-dropdown {
+    position: relative;
+    width: 100%;
+}
+
+.dropdown-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background-color: var(--bg-primary);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 48px;
+}
+
+.dropdown-header:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.dropdown-header.active {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.dropdown-header .placeholder {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.dropdown-header .selected-count {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.dropdown-arrow {
+    font-size: 12px;
+    color: var(--text-secondary);
+    transition: transform 0.2s ease;
+}
+
+.dropdown-header.active .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.dropdown-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: var(--bg-primary);
+    border: 2px solid var(--primary-color);
+    border-top: none;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: var(--shadow-lg);
+}
+
+.dropdown-controls {
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+    position: sticky;
+    top: 0;
+    z-index: 1001;
+}
+
+.select-all-btn,
+.clear-all-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    flex: 1;
+    justify-content: center;
+}
+
+.select-all-btn:hover {
+    background-color: rgba(37, 99, 235, 0.1);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.clear-all-btn:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-color: var(--error-color);
+    color: var(--error-color);
+}
+
+.control-icon {
+    font-size: 14px;
+    line-height: 1;
+}
+
+.control-text {
+    font-size: 11px;
+}
+
+.dropdown-option {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dropdown-option:last-child {
+    border-bottom: none;
+}
+
+.dropdown-option:hover {
+    background-color: var(--bg-secondary);
+}
+
+.dropdown-option.selected {
+    background-color: rgba(37, 99, 235, 0.1);
+    color: var(--primary-color);
+}
+
+.dropdown-option input[type="checkbox"] {
+    margin-right: 12px;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary-color);
+}
+
+.dropdown-option .strategy-info {
+    flex: 1;
+}
+
+.dropdown-option .strategy-name {
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.dropdown-option .strategy-type {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.selected-strategies {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.strategy-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    gap: 8px;
+}
+
+.strategy-tag .remove-btn {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    margin-left: 4px;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+
+.strategy-tag .remove-btn:hover {
+    opacity: 1;
+}
+
+.strategy-selector .validation-error {
+    margin-top: 8px;
+    color: var(--error-color);
+    font-size: 12px;
+}
+
+.strategy-selector .helper-text {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .dropdown-list {
+        max-height: 150px;
+    }
+    
+    .dropdown-controls {
+        padding: 6px 8px;
+        gap: 6px;
+    }
+    
+    .select-all-btn,
+    .clear-all-btn {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+    
+    .control-icon {
+        font-size: 12px;
+    }
+    
+    .control-text {
+        font-size: 10px;
+    }
+    
+    .dropdown-option {
+        padding: 10px 12px;
+    }
+    
+    .strategy-tag {
+        font-size: 11px;
+        padding: 4px 8px;
+    }
+}

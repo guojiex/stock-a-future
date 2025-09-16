@@ -301,10 +301,21 @@
                                                         <input type="text" id="backtestName" placeholder="例如: MACD策略-2024年测试">
                                                     </div>
                                                     <div class="input-group">
-                                                        <label for="backtestStrategy">选择策略</label>
-                                                        <select id="backtestStrategy" class="form-select">
-                                                            <option value="">请选择策略</option>
-                                                        </select>
+                                                        <label for="backtestStrategies">选择策略（可多选）</label>
+                                                        <div class="strategy-selector">
+                                                            <div class="strategy-dropdown" id="strategyDropdown">
+                                                                <div class="dropdown-header" id="dropdownHeader">
+                                                                    <span class="placeholder">请选择策略...</span>
+                                                                    <span class="dropdown-arrow">▼</span>
+                                                                </div>
+                                                                <div class="dropdown-list" id="dropdownList" style="display: none;">
+                                                                    <!-- 控制按钮和策略选项将在这里动态生成 -->
+                                                                </div>
+                                                            </div>
+                                                            <div class="selected-strategies" id="selectedStrategies">
+                                                                <!-- 已选择的策略将在这里显示 -->
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
 

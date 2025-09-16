@@ -11,6 +11,10 @@ class BacktestModule {
         this.isRunning = false;
         this.progressInterval = null;
         
+        // 多选策略相关数据
+        this.availableStrategies = [];
+        this.selectedStrategyIds = [];
+        
         this.init();
     }
 
@@ -262,7 +266,6 @@ class BacktestModule {
      */
     getBacktestConfig() {
         const backtestName = document.getElementById('backtestName')?.value?.trim() || '';
-        const backtestStrategy = document.getElementById('backtestStrategy')?.value || '';
         const backtestStartDate = document.getElementById('backtestStartDate')?.value || '';
         const backtestEndDate = document.getElementById('backtestEndDate')?.value || '';
         const initialCash = parseFloat(document.getElementById('initialCash')?.value || 1000000);
@@ -277,7 +280,7 @@ class BacktestModule {
 
         return {
             name: backtestName,
-            strategy_id: backtestStrategy,
+            strategy_ids: this.selectedStrategyIds, // 使用多选策略ID数组
             start_date: backtestStartDate,
             end_date: backtestEndDate,
             initial_cash: initialCash,
@@ -295,8 +298,13 @@ class BacktestModule {
             return false;
         }
 
-        if (!config.strategy_id) {
-            this.showMessage('请选择策略', 'warning');
+        if (!config.strategy_ids || config.strategy_ids.length === 0) {
+            this.showMessage('请选择至少一个策略', 'warning');
+            return false;
+        }
+
+        if (config.strategy_ids.length > 5) {
+            this.showMessage('最多只能选择5个策略', 'warning');
             return false;
         }
 
@@ -849,49 +857,302 @@ class BacktestModule {
     }
 
     /**
-     * 更新策略选择框
+     * 更新策略选择组件（支持多选）
      */
     updateStrategiesSelect(strategies) {
-        const select = document.getElementById('backtestStrategy');
-        if (!select) {
-            console.warn('[Backtest] 找不到策略选择框元素');
-            return;
-        }
-
         // 验证strategies是数组
         if (!Array.isArray(strategies)) {
             console.error('[Backtest] strategies不是数组:', typeof strategies, strategies);
             return;
         }
 
-        console.log(`[Backtest] 更新策略选择框，共 ${strategies.length} 个策略`);
+        console.log(`[Backtest] 更新多选策略组件，共 ${strategies.length} 个策略`);
 
-        // 清空现有选项（保留默认选项）
-        const defaultOption = select.querySelector('option[value=""]');
-        select.innerHTML = '';
-        if (defaultOption) {
-            select.appendChild(defaultOption);
-        } else {
-            // 添加默认选项
-            const defaultOpt = document.createElement('option');
-            defaultOpt.value = '';
-            defaultOpt.textContent = '请选择策略';
-            select.appendChild(defaultOpt);
+        // 保存策略数据
+        this.availableStrategies = strategies;
+        this.selectedStrategyIds = [];
+
+        // 初始化多选下拉框
+        this.initStrategyMultiSelect();
+    }
+
+    /**
+     * 初始化多选策略下拉框
+     */
+    initStrategyMultiSelect() {
+        const dropdownHeader = document.getElementById('dropdownHeader');
+        const dropdownList = document.getElementById('dropdownList');
+        const selectedStrategiesContainer = document.getElementById('selectedStrategies');
+
+        if (!dropdownHeader || !dropdownList || !selectedStrategiesContainer) {
+            console.warn('[Backtest] 找不到多选策略组件元素');
+            return;
         }
 
+        // 清空下拉列表
+        dropdownList.innerHTML = '';
+
+        // 首先添加控制按钮
+        const controlsDiv = document.createElement('div');
+        controlsDiv.className = 'dropdown-controls';
+        controlsDiv.innerHTML = `
+            <button type="button" class="select-all-btn" id="selectAllStrategies">
+                <span class="control-icon">☑</span>
+                <span class="control-text">全选</span>
+            </button>
+            <button type="button" class="clear-all-btn" id="clearAllStrategies">
+                <span class="control-icon">☐</span>
+                <span class="control-text">清空</span>
+            </button>
+        `;
+        dropdownList.appendChild(controlsDiv);
+
         // 添加策略选项
-        strategies.forEach((strategy, index) => {
-            try {
-                const option = document.createElement('option');
-                option.value = strategy.id;
-                option.textContent = `${strategy.name} (${strategy.strategy_type})`;
-                select.appendChild(option);
-                
-                console.log(`[Backtest] 添加策略选项 ${index + 1}: ${strategy.name}`);
-            } catch (error) {
-                console.error(`[Backtest] 添加策略选项失败:`, strategy, error);
+        this.availableStrategies.forEach(strategy => {
+            const option = document.createElement('div');
+            option.className = 'dropdown-option';
+            option.innerHTML = `
+                <input type="checkbox" id="strategy_${strategy.id}" value="${strategy.id}">
+                <div class="strategy-info">
+                    <div class="strategy-name">${strategy.name}</div>
+                    <div class="strategy-type">${strategy.strategy_type}</div>
+                </div>
+            `;
+
+            // 添加点击事件
+            option.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.toggleStrategySelection(strategy.id);
+            });
+
+            // 复选框点击事件
+            const checkbox = option.querySelector('input[type="checkbox"]');
+            checkbox.addEventListener('change', (e) => {
+                e.stopPropagation();
+                this.toggleStrategySelection(strategy.id);
+            });
+
+            dropdownList.appendChild(option);
+        });
+
+        // 绑定控制按钮事件
+        this.bindControlButtonEvents();
+
+        // 下拉框头部点击事件
+        dropdownHeader.addEventListener('click', () => {
+            this.toggleDropdown();
+        });
+
+        // 点击外部关闭下拉框
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.strategy-dropdown')) {
+                this.closeDropdown();
             }
         });
+
+        // 初始化显示
+        this.updateSelectedStrategiesDisplay();
+    }
+
+    /**
+     * 绑定控制按钮事件
+     */
+    bindControlButtonEvents() {
+        // 全选按钮事件
+        const selectAllBtn = document.getElementById('selectAllStrategies');
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.selectAllStrategies();
+            });
+        }
+
+        // 清空按钮事件
+        const clearAllBtn = document.getElementById('clearAllStrategies');
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.clearAllStrategies();
+            });
+        }
+    }
+
+    /**
+     * 切换策略选择状态
+     */
+    toggleStrategySelection(strategyId) {
+        const index = this.selectedStrategyIds.indexOf(strategyId);
+        
+        if (index > -1) {
+            // 取消选择
+            this.selectedStrategyIds.splice(index, 1);
+        } else {
+            // 添加选择（限制最多5个）
+            if (this.selectedStrategyIds.length >= 5) {
+                this.showMessage('最多只能选择5个策略', 'warning');
+                return;
+            }
+            this.selectedStrategyIds.push(strategyId);
+        }
+
+        this.updateSelectedStrategiesDisplay();
+        this.updateDropdownOptions();
+    }
+
+    /**
+     * 切换下拉框显示/隐藏
+     */
+    toggleDropdown() {
+        const dropdownHeader = document.getElementById('dropdownHeader');
+        const dropdownList = document.getElementById('dropdownList');
+
+        if (!dropdownHeader || !dropdownList) return;
+
+        const isOpen = dropdownList.style.display === 'block';
+        
+        if (isOpen) {
+            this.closeDropdown();
+        } else {
+            this.openDropdown();
+        }
+    }
+
+    /**
+     * 打开下拉框
+     */
+    openDropdown() {
+        const dropdownHeader = document.getElementById('dropdownHeader');
+        const dropdownList = document.getElementById('dropdownList');
+
+        if (dropdownHeader && dropdownList) {
+            dropdownHeader.classList.add('active');
+            dropdownList.style.display = 'block';
+        }
+    }
+
+    /**
+     * 关闭下拉框
+     */
+    closeDropdown() {
+        const dropdownHeader = document.getElementById('dropdownHeader');
+        const dropdownList = document.getElementById('dropdownList');
+
+        if (dropdownHeader && dropdownList) {
+            dropdownHeader.classList.remove('active');
+            dropdownList.style.display = 'none';
+        }
+    }
+
+    /**
+     * 更新已选择策略的显示
+     */
+    updateSelectedStrategiesDisplay() {
+        const dropdownHeader = document.getElementById('dropdownHeader');
+        const selectedStrategiesContainer = document.getElementById('selectedStrategies');
+
+        if (!dropdownHeader || !selectedStrategiesContainer) return;
+
+        // 更新下拉框头部显示
+        const placeholderSpan = dropdownHeader.querySelector('.placeholder') || 
+                               dropdownHeader.querySelector('.selected-count');
+        
+        if (this.selectedStrategyIds.length === 0) {
+            placeholderSpan.textContent = '请选择策略...';
+            placeholderSpan.className = 'placeholder';
+        } else {
+            placeholderSpan.textContent = `已选择 ${this.selectedStrategyIds.length} 个策略`;
+            placeholderSpan.className = 'selected-count';
+        }
+
+        // 更新已选择策略标签
+        selectedStrategiesContainer.innerHTML = '';
+        
+        this.selectedStrategyIds.forEach(strategyId => {
+            const strategy = this.availableStrategies.find(s => s.id === strategyId);
+            if (!strategy) return;
+
+            const tag = document.createElement('div');
+            tag.className = 'strategy-tag';
+            tag.innerHTML = `
+                <span>${strategy.name}</span>
+                <button type="button" class="remove-btn" onclick="backtestModule.removeStrategySelection('${strategyId}')">&times;</button>
+            `;
+            
+            selectedStrategiesContainer.appendChild(tag);
+        });
+    }
+
+    /**
+     * 更新下拉选项的选中状态
+     */
+    updateDropdownOptions() {
+        const dropdownList = document.getElementById('dropdownList');
+        if (!dropdownList) return;
+
+        const options = dropdownList.querySelectorAll('.dropdown-option');
+        options.forEach(option => {
+            const checkbox = option.querySelector('input[type="checkbox"]');
+            if (checkbox) {
+                const strategyId = checkbox.value;
+                const isSelected = this.selectedStrategyIds.includes(strategyId);
+                
+                checkbox.checked = isSelected;
+                option.classList.toggle('selected', isSelected);
+            }
+        });
+    }
+
+    /**
+     * 移除策略选择
+     */
+    removeStrategySelection(strategyId) {
+        const index = this.selectedStrategyIds.indexOf(strategyId);
+        if (index > -1) {
+            this.selectedStrategyIds.splice(index, 1);
+            this.updateSelectedStrategiesDisplay();
+            this.updateDropdownOptions();
+        }
+    }
+
+    /**
+     * 全选策略
+     */
+    selectAllStrategies() {
+        if (!this.availableStrategies || this.availableStrategies.length === 0) {
+            this.showMessage('没有可选择的策略', 'warning');
+            return;
+        }
+
+        // 检查是否超过最大限制
+        if (this.availableStrategies.length > 5) {
+            this.showMessage('最多只能选择5个策略，将选择前5个', 'warning');
+            this.selectedStrategyIds = this.availableStrategies.slice(0, 5).map(s => s.id);
+        } else {
+            this.selectedStrategyIds = this.availableStrategies.map(s => s.id);
+        }
+
+        this.updateSelectedStrategiesDisplay();
+        this.updateDropdownOptions();
+        
+        console.log(`[Backtest] 全选策略完成，已选择 ${this.selectedStrategyIds.length} 个策略`);
+    }
+
+    /**
+     * 清空所有策略选择
+     */
+    clearAllStrategies() {
+        if (this.selectedStrategyIds.length === 0) {
+            this.showMessage('当前没有已选择的策略', 'info');
+            return;
+        }
+
+        const previousCount = this.selectedStrategyIds.length;
+        this.selectedStrategyIds = [];
+        
+        this.updateSelectedStrategiesDisplay();
+        this.updateDropdownOptions();
+        
+        console.log(`[Backtest] 清空策略选择完成，已清除 ${previousCount} 个策略`);
     }
 
     /**

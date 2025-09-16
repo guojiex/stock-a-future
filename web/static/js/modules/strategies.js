@@ -555,11 +555,20 @@ class StrategiesModule {
             backtestTab.click();
         }
 
-        // 设置策略选择
+        // 设置策略选择（支持多选）
         setTimeout(() => {
-            const strategySelect = document.getElementById('backtestStrategy');
-            if (strategySelect) {
-                strategySelect.value = strategyId;
+            // 如果回测模块存在且支持多选，使用多选方式
+            if (window.backtestModule && window.backtestModule.selectedStrategyIds !== undefined) {
+                // 清空当前选择
+                window.backtestModule.selectedStrategyIds = [];
+                // 添加当前策略
+                window.backtestModule.toggleStrategySelection(strategyId);
+            } else {
+                // 兼容旧的单选方式
+                const strategySelect = document.getElementById('backtestStrategy');
+                if (strategySelect) {
+                    strategySelect.value = strategyId;
+                }
             }
         }, 100);
 

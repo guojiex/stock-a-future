@@ -40,11 +40,13 @@ var (
 type BacktestService struct {
 	// 在真实环境中，这里会有数据库连接
 	// 目前使用内存存储进行演示
-	backtests        map[string]*models.Backtest
-	backtestResults  map[string]*models.BacktestResult
-	backtestTrades   map[string][]models.Trade
-	backtestProgress map[string]*models.BacktestProgress
-	runningBacktests map[string]context.CancelFunc // 用于取消运行中的回测
+	backtests            map[string]*models.Backtest
+	backtestResults      map[string]*models.BacktestResult  // 单策略结果（兼容性）
+	backtestMultiResults map[string][]models.BacktestResult // 多策略结果
+	backtestEquityCurves map[string][]models.EquityPoint    // 组合权益曲线
+	backtestTrades       map[string][]models.Trade
+	backtestProgress     map[string]*models.BacktestProgress
+	runningBacktests     map[string]context.CancelFunc // 用于取消运行中的回测
 
 	strategyService   *StrategyService
 	dataSourceService *DataSourceService
@@ -56,15 +58,17 @@ type BacktestService struct {
 // NewBacktestService 创建回测服务
 func NewBacktestService(strategyService *StrategyService, dataSourceService *DataSourceService, dailyCacheService *DailyCacheService, log logger.Logger) *BacktestService {
 	return &BacktestService{
-		backtests:         make(map[string]*models.Backtest),
-		backtestResults:   make(map[string]*models.BacktestResult),
-		backtestTrades:    make(map[string][]models.Trade),
-		backtestProgress:  make(map[string]*models.BacktestProgress),
-		runningBacktests:  make(map[string]context.CancelFunc),
-		strategyService:   strategyService,
-		dataSourceService: dataSourceService,
-		dailyCacheService: dailyCacheService,
-		logger:            log,
+		backtests:            make(map[string]*models.Backtest),
+		backtestResults:      make(map[string]*models.BacktestResult),
+		backtestMultiResults: make(map[string][]models.BacktestResult),
+		backtestEquityCurves: make(map[string][]models.EquityPoint),
+		backtestTrades:       make(map[string][]models.Trade),
+		backtestProgress:     make(map[string]*models.BacktestProgress),
+		runningBacktests:     make(map[string]context.CancelFunc),
+		strategyService:      strategyService,
+		dataSourceService:    dataSourceService,
+		dailyCacheService:    dailyCacheService,
+		logger:               log,
 	}
 }
 
@@ -311,14 +315,23 @@ func (s *BacktestService) isBacktestNameExistsExcluding(name string, excludeID s
 	return false
 }
 
-// StartBacktest 启动回测
-func (s *BacktestService) StartBacktest(ctx context.Context, backtest *models.Backtest, strategy *models.Strategy) error {
+// StartBacktest 启动回测（支持多策略）
+func (s *BacktestService) StartBacktest(ctx context.Context, backtest *models.Backtest, strategies []*models.Strategy) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	// 检查回测状态
 	if backtest.Status != models.BacktestStatusPending {
 		return fmt.Errorf("回测状态不允许启动: %s", backtest.Status)
+	}
+
+	// 验证策略数量
+	if len(strategies) == 0 {
+		return fmt.Errorf("至少需要一个策略")
+	}
+
+	if len(strategies) != len(backtest.StrategyIDs) {
+		return fmt.Errorf("策略数量与配置不匹配")
 	}
 
 	// 更新状态
@@ -332,17 +345,18 @@ func (s *BacktestService) StartBacktest(ctx context.Context, backtest *models.Ba
 		BacktestID: backtest.ID,
 		Status:     string(models.BacktestStatusRunning),
 		Progress:   0,
-		Message:    "初始化回测环境...",
+		Message:    fmt.Sprintf("初始化多策略回测环境... (%d个策略)", len(strategies)),
 	}
 
 	// 创建可取消的上下文，根据回测时间范围动态设置超时
 	totalDays := int(backtest.EndDate.Sub(backtest.StartDate).Hours() / 24)
-	// 计算合理的超时时间：每天至少10秒，最少5分钟，最多2小时
-	timeoutMinutes := maxInt(5, minInt(120, totalDays/6))
+	// 多策略需要更多时间，超时时间适当增加
+	timeoutMinutes := maxInt(10, minInt(240, totalDays/3*len(strategies)))
 	timeout := time.Duration(timeoutMinutes) * time.Minute
 
-	s.logger.Info("设置回测超时时间",
+	s.logger.Info("设置多策略回测超时时间",
 		logger.String("backtest_id", backtest.ID),
+		logger.Int("strategies_count", len(strategies)),
 		logger.Int("total_days", totalDays),
 		logger.Int("timeout_minutes", timeoutMinutes),
 	)
@@ -350,236 +364,25 @@ func (s *BacktestService) StartBacktest(ctx context.Context, backtest *models.Ba
 	backtestCtx, cancel := context.WithTimeout(ctx, timeout)
 	s.runningBacktests[backtest.ID] = cancel
 
-	s.logger.Info("准备启动回测goroutine",
+	s.logger.Info("准备启动多策略回测goroutine",
 		logger.String("backtest_id", backtest.ID),
-		logger.String("strategy_id", strategy.ID),
+		logger.Any("strategy_ids", backtest.StrategyIDs),
 		logger.Int("total_days", int(backtest.EndDate.Sub(backtest.StartDate).Hours()/24)),
 		logger.String("start_date", backtest.StartDate.Format("2006-01-02")),
 		logger.String("end_date", backtest.EndDate.Format("2006-01-02")),
 		logger.Int("symbols_count", len(backtest.Symbols)),
 	)
 
-	// 启动后台回测任务
-	go s.runBacktestTask(backtestCtx, backtest, strategy)
+	// 启动后台多策略回测任务
+	go s.runMultiStrategyBacktestTask(backtestCtx, backtest, strategies)
 
-	s.logger.Info("回测启动成功",
+	s.logger.Info("多策略回测启动成功",
 		logger.String("backtest_id", backtest.ID),
-		logger.String("strategy_id", strategy.ID),
+		logger.Any("strategy_ids", backtest.StrategyIDs),
 		logger.String("status", "goroutine_launched"),
 	)
 
 	return nil
-}
-
-// runBacktestTask 运行回测任务
-func (s *BacktestService) runBacktestTask(ctx context.Context, backtest *models.Backtest, strategy *models.Strategy) {
-	// 立即输出日志，确保goroutine已启动
-	s.logger.Info("🚀 回测goroutine已启动",
-		logger.String("backtest_id", backtest.ID),
-		logger.String("goroutine_status", "started"),
-	)
-
-	s.logger.Info("回测任务开始执行",
-		logger.String("backtest_id", backtest.ID),
-		logger.String("goroutine", "runBacktestTask"),
-	)
-
-	defer func() {
-		if r := recover(); r != nil {
-			s.logger.Error("回测任务出现panic",
-				logger.String("backtest_id", backtest.ID),
-				logger.Any("panic", r),
-			)
-		}
-		s.mutex.Lock()
-		delete(s.runningBacktests, backtest.ID)
-		s.mutex.Unlock()
-		s.logger.Info("回测任务清理完成", logger.String("backtest_id", backtest.ID))
-	}()
-
-	// 预加载回测数据
-	s.logger.Info("开始预加载回测数据",
-		logger.String("backtest_id", backtest.ID),
-		logger.Int("symbols_count", len(backtest.Symbols)),
-	)
-
-	if err := s.preloadBacktestData(ctx, backtest.Symbols, backtest.StartDate, backtest.EndDate); err != nil {
-		s.logger.Error("预加载回测数据失败",
-			logger.String("backtest_id", backtest.ID),
-			logger.ErrorField(err),
-		)
-		s.updateBacktestStatus(backtest.ID, models.BacktestStatusFailed, "预加载数据失败")
-		return
-	}
-
-	// 计算回测参数
-	totalDays := int(backtest.EndDate.Sub(backtest.StartDate).Hours() / 24)
-	if totalDays <= 0 {
-		totalDays = 1
-	}
-
-	s.logger.Info("回测参数计算完成",
-		logger.String("backtest_id", backtest.ID),
-		logger.Int("total_days", totalDays),
-	)
-
-	// 初始化组合
-	portfolio := &models.Portfolio{
-		Cash:       backtest.InitialCash,
-		Positions:  make(map[string]models.Position),
-		TotalValue: backtest.InitialCash,
-	}
-
-	var trades []models.Trade
-	var equityCurve []models.EquityPoint
-	var dailyReturns []float64
-
-	// 模拟每日回测
-	s.logger.Info("开始回测循环",
-		logger.String("backtest_id", backtest.ID),
-		logger.Int("total_days", totalDays),
-		logger.String("start_date", backtest.StartDate.Format("2006-01-02")),
-		logger.String("end_date", backtest.EndDate.Format("2006-01-02")),
-	)
-
-	// 用于控制日志输出频率
-	var lastLoggedProgress int = -1
-	const progressLogInterval = 10 // 每10%打印一次进度
-
-	for day := 0; day <= totalDays; day++ {
-
-		select {
-		case <-ctx.Done():
-			// 回测被取消或超时
-			if ctx.Err() == context.DeadlineExceeded {
-				s.logger.Error("回测超时",
-					logger.String("backtest_id", backtest.ID),
-					logger.ErrorField(ctx.Err()),
-				)
-				s.updateBacktestStatus(backtest.ID, models.BacktestStatusFailed, "回测执行超时")
-			} else {
-				s.logger.Info("回测被取消",
-					logger.String("backtest_id", backtest.ID),
-					logger.ErrorField(ctx.Err()),
-				)
-				s.updateBacktestStatus(backtest.ID, models.BacktestStatusCancelled, "回测已取消")
-			}
-			return
-		default:
-		}
-
-		currentDate := backtest.StartDate.AddDate(0, 0, day)
-
-		if currentDate.After(backtest.EndDate) {
-			s.logger.Info("回测日期超出范围，结束循环",
-				logger.String("backtest_id", backtest.ID),
-				logger.String("current_date", currentDate.Format("2006-01-02")),
-			)
-			break
-		}
-
-		// 更新进度
-		progress := int(float64(day) / float64(totalDays) * 100)
-
-		// 只在进度达到特定节点时打印日志
-		if progress >= lastLoggedProgress+progressLogInterval || day == 0 || day == totalDays {
-			s.logger.Info("回测进度更新",
-				logger.String("backtest_id", backtest.ID),
-				logger.Int("progress", progress),
-				logger.String("current_date", currentDate.Format("2006-01-02")),
-				logger.Int("day", day),
-				logger.Int("total_days", totalDays),
-			)
-			lastLoggedProgress = progress
-		}
-		s.updateBacktestProgress(backtest.ID, progress, fmt.Sprintf("回测进行中... %s", currentDate.Format("2006-01-02")))
-
-		// 模拟每个股票的交易
-
-		for _, symbol := range backtest.Symbols {
-			// 移除每个股票的处理日志
-
-			// 获取真实市场数据
-			marketData, err := s.getRealMarketData(ctx, symbol, currentDate)
-			if err != nil {
-				// 如果获取真实数据失败，记录错误并跳过该股票该日期
-				s.logger.Error("获取真实市场数据失败，跳过该股票",
-					logger.String("backtest_id", backtest.ID),
-					logger.String("symbol", symbol),
-					logger.String("date", currentDate.Format("2006-01-02")),
-					logger.ErrorField(err),
-				)
-				continue // 跳过该股票该日期的处理
-			}
-
-			// 执行策略
-			signal, err := s.strategyService.ExecuteStrategy(ctx, strategy.ID, marketData)
-			if err != nil {
-				s.logger.Error("策略执行失败",
-					logger.String("backtest_id", backtest.ID),
-					logger.String("strategy_id", strategy.ID),
-					logger.String("symbol", symbol),
-					logger.String("date", currentDate.Format("2006-01-02")),
-					logger.ErrorField(err),
-				)
-				continue
-			}
-
-			// 移除策略执行成功日志
-
-			// 根据信号执行交易
-			if trade := s.executeSignal(signal, marketData, portfolio, backtest); trade != nil {
-				trades = append(trades, *trade)
-				// 移除交易执行成功日志
-			}
-		}
-
-		// 更新组合价值
-		s.updatePortfolioValue(ctx, portfolio, backtest.Symbols, currentDate)
-
-		// 记录权益曲线
-		equityCurve = append(equityCurve, models.EquityPoint{
-			Date:           currentDate.Format("2006-01-02"),
-			PortfolioValue: portfolio.TotalValue,
-			Cash:           portfolio.Cash,
-			Holdings:       portfolio.TotalValue - portfolio.Cash,
-		})
-
-		// 计算日收益率
-		if len(equityCurve) > 1 {
-			prevValue := equityCurve[len(equityCurve)-2].PortfolioValue
-			if prevValue > 0 {
-				dailyReturn := (portfolio.TotalValue - prevValue) / prevValue
-				dailyReturns = append(dailyReturns, dailyReturn)
-			}
-		}
-
-	}
-
-	// 计算最终结果
-	result := s.calculateBacktestResult(backtest, dailyReturns, portfolio)
-
-	// 保存结果
-	s.mutex.Lock()
-	s.backtestResults[backtest.ID] = result
-	s.backtestTrades[backtest.ID] = trades
-
-	// 更新回测状态
-	backtest.Status = models.BacktestStatusCompleted
-	backtest.Progress = 100
-	now := time.Now()
-	backtest.CompletedAt = &now
-	s.mutex.Unlock()
-
-	// 最终进度更新
-	s.updateBacktestProgress(backtest.ID, 100, "回测完成")
-
-	s.logger.Info("回测任务完成",
-		logger.String("backtest_id", backtest.ID),
-		logger.Int("total_trades", len(trades)),
-		logger.Float64("final_value", portfolio.TotalValue),
-		logger.Float64("total_return", result.TotalReturn),
-	)
 }
 
 // preloadBacktestData 预加载回测期间所有股票的历史数据
@@ -1230,17 +1033,32 @@ func (s *BacktestService) GetBacktestResults(ctx context.Context, backtestID str
 	}
 
 	// 获取交易记录
-	trades, _ := s.backtestTrades[backtestID]
+	trades := s.backtestTrades[backtestID]
 
-	// 获取策略信息
-	strategy, err := s.strategyService.GetStrategy(ctx, backtest.StrategyID)
-	if err != nil {
-		s.logger.Warn("获取策略信息失败",
-			logger.String("strategy_id", backtest.StrategyID),
-			logger.ErrorField(err),
-		)
-		// 即使获取策略失败也不应该影响回测结果返回
-		strategy = nil
+	// 获取策略信息 - 修复兼容性处理逻辑
+	var strategy *models.Strategy
+
+	// 优先使用多策略ID，兼容旧的单策略ID
+	var strategyID string
+	if len(backtest.StrategyIDs) > 0 {
+		// 多策略情况下，使用第一个策略作为主策略（兼容旧接口）
+		strategyID = backtest.StrategyIDs[0]
+	} else if backtest.StrategyID != "" {
+		// 兼容旧的单策略
+		strategyID = backtest.StrategyID
+	}
+
+	if strategyID != "" {
+		var err error
+		strategy, err = s.strategyService.GetStrategy(ctx, strategyID)
+		if err != nil {
+			s.logger.Warn("获取策略信息失败",
+				logger.String("strategy_id", strategyID),
+				logger.ErrorField(err),
+			)
+			// 即使获取策略失败也不应该影响回测结果返回
+			strategy = nil
+		}
 	}
 
 	// 生成权益曲线（简化版）
@@ -1257,13 +1075,76 @@ func (s *BacktestService) GetBacktestResults(ctx context.Context, backtestID str
 		CreatedAt:   backtest.CreatedAt.Format("2006-01-02 15:04:05"),
 	}
 
+	// 检查是否有多策略结果
+	multiResults, hasMultiResults := s.backtestMultiResults[backtestID]
+	combinedEquityCurve, hasEquityCurve := s.backtestEquityCurves[backtestID]
+
+	var strategies []*models.Strategy
+	var performanceResults []models.BacktestResult
+	var finalEquityCurve []models.EquityPoint
+
+	if hasMultiResults && len(multiResults) > 0 {
+		// 多策略结果
+		performanceResults = multiResults
+
+		// 获取所有策略信息
+		strategyIDs := backtest.StrategyIDs
+		if len(strategyIDs) == 0 && backtest.StrategyID != "" {
+			// 兼容性处理
+			strategyIDs = []string{backtest.StrategyID}
+		}
+
+		for _, strategyID := range strategyIDs {
+			// 跳过空的策略ID
+			if strings.TrimSpace(strategyID) == "" {
+				s.logger.Warn("跳过空的策略ID",
+					logger.String("backtest_id", backtestID),
+				)
+				continue
+			}
+
+			strategy, err := s.strategyService.GetStrategy(ctx, strategyID)
+			if err != nil {
+				s.logger.Warn("获取策略信息失败",
+					logger.String("strategy_id", strategyID),
+					logger.ErrorField(err),
+				)
+				// 创建默认策略信息
+				strategy = &models.Strategy{
+					ID:   strategyID,
+					Name: fmt.Sprintf("策略-%s", strategyID),
+				}
+			}
+			strategies = append(strategies, strategy)
+		}
+
+		// 使用组合权益曲线
+		if hasEquityCurve && len(combinedEquityCurve) > 0 {
+			finalEquityCurve = combinedEquityCurve
+		} else {
+			finalEquityCurve = equityCurve
+		}
+	} else {
+		// 单策略结果（兼容性）
+		performanceResults = []models.BacktestResult{*result}
+		strategies = []*models.Strategy{strategy}
+		finalEquityCurve = equityCurve
+	}
+
+	// 计算组合整体指标（如果是多策略）
+	var combinedMetrics *models.BacktestResult
+	if len(performanceResults) > 1 {
+		combinedMetrics = s.calculateCombinedMetrics(performanceResults)
+	}
+
 	response := &models.BacktestResultsResponse{
-		BacktestID:     backtestID,
-		Performance:    *result,
-		EquityCurve:    equityCurve,
-		Trades:         trades,
-		Strategy:       strategy,
-		BacktestConfig: backtestConfig,
+		BacktestID:      backtestID,
+		Performance:     performanceResults,
+		EquityCurve:     finalEquityCurve,
+		Trades:          trades,
+		Strategies:      strategies,
+		BacktestConfig:  backtestConfig,
+		CombinedMetrics: combinedMetrics,
 	}
 
 	return response, nil
@@ -1345,4 +1226,457 @@ func (s *BacktestService) updateBacktestProgress(backtestID string, progress int
 	if backtest, exists := s.backtests[backtestID]; exists {
 		backtest.Progress = progress
 	}
+}
+
+// runMultiStrategyBacktestTask 运行多策略回测任务
+func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, backtest *models.Backtest, strategies []*models.Strategy) {
+	// 立即输出日志，确保goroutine已启动
+	s.logger.Info("🚀 多策略回测goroutine已启动",
+		logger.String("backtest_id", backtest.ID),
+		logger.String("goroutine_status", "started"),
+		logger.Int("strategies_count", len(strategies)),
+	)
+
+	defer func() {
+		if r := recover(); r != nil {
+			s.logger.Error("多策略回测任务出现panic",
+				logger.String("backtest_id", backtest.ID),
+				logger.Any("panic", r),
+			)
+		}
+		s.mutex.Lock()
+		delete(s.runningBacktests, backtest.ID)
+		s.mutex.Unlock()
+		s.logger.Info("多策略回测任务清理完成", logger.String("backtest_id", backtest.ID))
+	}()
+
+	// 预加载回测数据
+	s.logger.Info("开始预加载多策略回测数据",
+		logger.String("backtest_id", backtest.ID),
+		logger.Int("symbols_count", len(backtest.Symbols)),
+		logger.Int("strategies_count", len(strategies)),
+	)
+
+	if err := s.preloadBacktestData(ctx, backtest.Symbols, backtest.StartDate, backtest.EndDate); err != nil {
+		s.logger.Error("预加载回测数据失败",
+			logger.String("backtest_id", backtest.ID),
+			logger.ErrorField(err),
+		)
+		s.updateBacktestStatus(backtest.ID, models.BacktestStatusFailed, "预加载数据失败")
+		return
+	}
+
+	// 计算回测参数
+	totalDays := int(backtest.EndDate.Sub(backtest.StartDate).Hours() / 24)
+	if totalDays <= 0 {
+		totalDays = 1
+	}
+
+	s.logger.Info("多策略回测参数计算完成",
+		logger.String("backtest_id", backtest.ID),
+		logger.Int("total_days", totalDays),
+		logger.Int("strategies_count", len(strategies)),
+	)
+
+	// 为每个策略创建独立的投资组合
+	strategyPortfolios := make(map[string]*models.Portfolio)
+	strategyTrades := make(map[string][]models.Trade)
+	strategyEquityCurves := make(map[string][]models.EquityPoint)
+	strategyDailyReturns := make(map[string][]float64)
+
+	// 计算每个策略的初始资金（平均分配）
+	initialCashPerStrategy := backtest.InitialCash / float64(len(strategies))
+
+	for _, strategy := range strategies {
+		strategyPortfolios[strategy.ID] = &models.Portfolio{
+			Cash:       initialCashPerStrategy,
+			Positions:  make(map[string]models.Position),
+			TotalValue: initialCashPerStrategy,
+		}
+		strategyTrades[strategy.ID] = []models.Trade{}
+		strategyEquityCurves[strategy.ID] = []models.EquityPoint{}
+		strategyDailyReturns[strategy.ID] = []float64{}
+	}
+
+	// 模拟每日回测
+	s.logger.Info("开始多策略回测循环",
+		logger.String("backtest_id", backtest.ID),
+		logger.Int("total_days", totalDays),
+		logger.String("start_date", backtest.StartDate.Format("2006-01-02")),
+		logger.String("end_date", backtest.EndDate.Format("2006-01-02")),
+		logger.Int("strategies_count", len(strategies)),
+	)
+
+	// 用于控制日志输出频率
+	var lastLoggedProgress int = -1
+	const progressLogInterval = 10 // 每10%打印一次进度
+
+	for day := 0; day <= totalDays; day++ {
+		select {
+		case <-ctx.Done():
+			// 回测被取消或超时
+			if ctx.Err() == context.DeadlineExceeded {
+				s.logger.Error("多策略回测超时",
+					logger.String("backtest_id", backtest.ID),
+					logger.ErrorField(ctx.Err()),
+				)
+				s.updateBacktestStatus(backtest.ID, models.BacktestStatusFailed, "回测执行超时")
+			} else {
+				s.logger.Info("多策略回测被取消",
+					logger.String("backtest_id", backtest.ID),
+					logger.ErrorField(ctx.Err()),
+				)
+				s.updateBacktestStatus(backtest.ID, models.BacktestStatusCancelled, "回测已取消")
+			}
+			return
+		default:
+		}
+
+		currentDate := backtest.StartDate.AddDate(0, 0, day)
+
+		if currentDate.After(backtest.EndDate) {
+			s.logger.Info("多策略回测日期超出范围，结束循环",
+				logger.String("backtest_id", backtest.ID),
+				logger.String("current_date", currentDate.Format("2006-01-02")),
+			)
+			break
+		}
+
+		// 更新进度
+		progress := int(float64(day) / float64(totalDays) * 100)
+
+		// 只在进度达到特定节点时打印日志
+		if progress >= lastLoggedProgress+progressLogInterval || day == 0 || day == totalDays {
+			s.logger.Info("多策略回测进度更新",
+				logger.String("backtest_id", backtest.ID),
+				logger.Int("progress", progress),
+				logger.String("current_date", currentDate.Format("2006-01-02")),
+				logger.Int("day", day),
+				logger.Int("total_days", totalDays),
+			)
+			lastLoggedProgress = progress
+		}
+		s.updateBacktestProgress(backtest.ID, progress, fmt.Sprintf("多策略回测进行中... %s", currentDate.Format("2006-01-02")))
+
+		// 对每个股票执行所有策略
+		for _, symbol := range backtest.Symbols {
+			// 获取真实市场数据
+			marketData, err := s.getRealMarketData(ctx, symbol, currentDate)
+			if err != nil {
+				s.logger.Error("获取真实市场数据失败，跳过该股票",
+					logger.String("backtest_id", backtest.ID),
+					logger.String("symbol", symbol),
+					logger.String("date", currentDate.Format("2006-01-02")),
+					logger.ErrorField(err),
+				)
+				continue
+			}
+
+			// 为每个策略执行交易逻辑
+			for _, strategy := range strategies {
+				portfolio := strategyPortfolios[strategy.ID]
+
+				// 执行策略
+				signal, err := s.strategyService.ExecuteStrategy(ctx, strategy.ID, marketData)
+				if err != nil {
+					s.logger.Error("策略执行失败",
+						logger.String("backtest_id", backtest.ID),
+						logger.String("strategy_id", strategy.ID),
+						logger.String("symbol", symbol),
+						logger.String("date", currentDate.Format("2006-01-02")),
+						logger.ErrorField(err),
+					)
+					continue
+				}
+
+				// 根据信号执行交易
+				if trade := s.executeSignalForStrategy(signal, marketData, portfolio, backtest, strategy.ID); trade != nil {
+					strategyTrades[strategy.ID] = append(strategyTrades[strategy.ID], *trade)
+				}
+			}
+		}
+
+		// 更新每个策略的组合价值
+		for _, strategy := range strategies {
+			portfolio := strategyPortfolios[strategy.ID]
+			s.updatePortfolioValue(ctx, portfolio, backtest.Symbols, currentDate)
+
+			// 记录权益曲线
+			strategyEquityCurves[strategy.ID] = append(strategyEquityCurves[strategy.ID], models.EquityPoint{
+				Date:           currentDate.Format("2006-01-02"),
+				PortfolioValue: portfolio.TotalValue,
+				Cash:           portfolio.Cash,
+				Holdings:       portfolio.TotalValue - portfolio.Cash,
+			})
+
+			// 计算日收益率
+			if len(strategyEquityCurves[strategy.ID]) > 1 {
+				prevValue := strategyEquityCurves[strategy.ID][len(strategyEquityCurves[strategy.ID])-2].PortfolioValue
+				if prevValue > 0 {
+					dailyReturn := (portfolio.TotalValue - prevValue) / prevValue
+					strategyDailyReturns[strategy.ID] = append(strategyDailyReturns[strategy.ID], dailyReturn)
+				}
+			}
+		}
+
+		// 添加小延迟以避免过于频繁的操作
+		time.Sleep(1 * time.Millisecond)
+	}
+
+	// 回测完成，计算和保存结果
+	s.logger.Info("多策略回测循环完成，开始计算结果",
+		logger.String("backtest_id", backtest.ID),
+		logger.Int("strategies_count", len(strategies)),
+	)
+
+	// 为每个策略计算性能指标
+	var allResults []models.BacktestResult
+	var allTrades []models.Trade
+	var combinedEquityCurve []models.EquityPoint
+
+	for _, strategy := range strategies {
+		// 计算该策略的性能指标
+		performanceMetrics := &models.PerformanceMetrics{
+			Returns:      strategyDailyReturns[strategy.ID],
+			RiskFreeRate: 0.03 / 252, // 假设年化无风险利率3%
+		}
+
+		result := performanceMetrics.CalculateMetrics()
+		result.ID = fmt.Sprintf("%s_%s", backtest.ID, strategy.ID)
+		result.BacktestID = backtest.ID
+		result.StrategyID = strategy.ID
+		result.StrategyName = strategy.Name
+		result.CreatedAt = time.Now()
+
+		allResults = append(allResults, *result)
+
+		// 合并交易记录
+		allTrades = append(allTrades, strategyTrades[strategy.ID]...)
+
+		s.logger.Info("策略性能计算完成",
+			logger.String("backtest_id", backtest.ID),
+			logger.String("strategy_id", strategy.ID),
+			logger.String("strategy_name", strategy.Name),
+			logger.Float64("total_return", result.TotalReturn),
+			logger.Float64("sharpe_ratio", result.SharpeRatio),
+			logger.Int("total_trades", result.TotalTrades),
+		)
+	}
+
+	// 计算组合整体权益曲线（所有策略的平均或加权组合）
+	if len(strategies) > 0 {
+		maxLen := 0
+		for _, curve := range strategyEquityCurves {
+			if len(curve) > maxLen {
+				maxLen = len(curve)
+			}
+		}
+
+		for i := 0; i < maxLen; i++ {
+			var totalValue, totalCash, totalHoldings float64
+			var date string
+			count := 0
+
+			for _, curve := range strategyEquityCurves {
+				if i < len(curve) {
+					totalValue += curve[i].PortfolioValue
+					totalCash += curve[i].Cash
+					totalHoldings += curve[i].Holdings
+					date = curve[i].Date
+					count++
+				}
+			}
+
+			if count > 0 {
+				combinedEquityCurve = append(combinedEquityCurve, models.EquityPoint{
+					Date:           date,
+					PortfolioValue: totalValue / float64(count), // 平均值
+					Cash:           totalCash / float64(count),
+					Holdings:       totalHoldings / float64(count),
+				})
+			}
+		}
+	}
+
+	// 保存结果到内存（在真实环境中应该保存到数据库）
+	s.backtestTrades[backtest.ID] = allTrades
+
+	// 保存多策略结果到新的存储结构
+	s.backtestMultiResults[backtest.ID] = allResults
+	s.backtestEquityCurves[backtest.ID] = combinedEquityCurve
+
+	// 保存第一个策略的结果作为主结果（兼容性）
+	if len(allResults) > 0 {
+		s.backtestResults[backtest.ID] = &allResults[0]
+	}
+
+	// 更新回测状态
+	backtest.Status = models.BacktestStatusCompleted
+	backtest.Progress = 100
+	now := time.Now()
+	backtest.CompletedAt = &now
+
+	s.updateBacktestStatus(backtest.ID, models.BacktestStatusCompleted, "多策略回测完成")
+
+	s.logger.Info("🎉 多策略回测任务完成",
+		logger.String("backtest_id", backtest.ID),
+		logger.Int("strategies_count", len(strategies)),
+		logger.Int("total_trades", len(allTrades)),
+		logger.Int("equity_points", len(combinedEquityCurve)),
+	)
+}
+
+// executeSignalForStrategy 为特定策略执行交易信号
+func (s *BacktestService) executeSignalForStrategy(signal *models.Signal, marketData *models.MarketData, portfolio *models.Portfolio, backtest *models.Backtest, strategyID string) *models.Trade {
+	if signal == nil || signal.SignalType == models.SignalTypeHold {
+		return nil
+	}
+
+	symbol := marketData.Symbol
+	price := marketData.Close
+
+	switch signal.SignalType {
+	case models.SignalTypeBuy:
+		// 买入逻辑
+		maxInvestment := portfolio.Cash * 0.2 // 每次最多投入20%的现金
+		if maxInvestment < 1000 {             // 最小投资金额
+			return nil
+		}
+
+		quantity := int(maxInvestment / price)
+		if quantity <= 0 {
+			return nil
+		}
+
+		cost := float64(quantity) * price
+		commission := cost * backtest.Commission
+		totalCost := cost + commission
+
+		if totalCost > portfolio.Cash {
+			return nil
+		}
+
+		// 执行买入
+		portfolio.Cash -= totalCost
+		if position, exists := portfolio.Positions[symbol]; exists {
+			// 更新现有持仓
+			totalShares := position.Quantity + quantity
+			totalCost := position.AvgPrice*float64(position.Quantity) + cost
+			position.AvgPrice = totalCost / float64(totalShares)
+			position.Quantity = totalShares
+			position.MarketValue = float64(totalShares) * price
+			position.UnrealizedPL = position.MarketValue - totalCost
+			portfolio.Positions[symbol] = position
+		} else {
+			// 创建新持仓
+			portfolio.Positions[symbol] = models.Position{
+				Symbol:       symbol,
+				Quantity:     quantity,
+				AvgPrice:     price,
+				MarketValue:  float64(quantity) * price,
+				UnrealizedPL: 0,
+				Timestamp:    marketData.Date,
+			}
+		}
+
+		return &models.Trade{
+			ID:         fmt.Sprintf("%s_%s_%d", backtest.ID, symbol, time.Now().UnixNano()),
+			BacktestID: backtest.ID,
+			StrategyID: strategyID,
+			Symbol:     symbol,
+			Side:       models.TradeSideBuy,
+			Quantity:   quantity,
+			Price:      price,
+			Commission: commission,
+			SignalType: string(signal.SignalType),
+			Timestamp:  marketData.Date,
+			CreatedAt:  time.Now(),
+		}
+
+	case models.SignalTypeSell:
+		// 卖出逻辑
+		position, exists := portfolio.Positions[symbol]
+		if !exists || position.Quantity <= 0 {
+			return nil
+		}
+
+		quantity := position.Quantity
+		revenue := float64(quantity) * price
+		commission := revenue * backtest.Commission
+		netRevenue := revenue - commission
+
+		// 计算盈亏
+		pnl := netRevenue - (position.AvgPrice * float64(quantity))
+
+		// 执行卖出
+		portfolio.Cash += netRevenue
+		delete(portfolio.Positions, symbol)
+
+		return &models.Trade{
+			ID:         fmt.Sprintf("%s_%s_%d", backtest.ID, symbol, time.Now().UnixNano()),
+			BacktestID: backtest.ID,
+			StrategyID: strategyID,
+			Symbol:     symbol,
+			Side:       models.TradeSideSell,
+			Quantity:   quantity,
+			Price:      price,
+			Commission: commission,
+			PnL:        pnl,
+			SignalType: string(signal.SignalType),
+			Timestamp:  marketData.Date,
+			CreatedAt:  time.Now(),
+		}
+	}
+
+	return nil
+}
+
+// calculateCombinedMetrics 计算多策略组合的整体指标
+func (s *BacktestService) calculateCombinedMetrics(results []models.BacktestResult) *models.BacktestResult {
+	if len(results) == 0 {
+		return nil
+	}
+
+	// 计算平均指标
+	combined := &models.BacktestResult{
+		ID:           "combined",
+		BacktestID:   results[0].BacktestID,
+		StrategyID:   "combined",
+		StrategyName: "组合策略",
+		CreatedAt:    time.Now(),
+	}
+
+	var totalReturn, annualReturn, maxDrawdown, sharpeRatio, sortinoRatio, winRate, profitFactor, avgTradeReturn, benchmarkReturn, alpha, beta float64
+	var totalTrades int
+
+	for _, result := range results {
+		totalReturn += result.TotalReturn
+		annualReturn += result.AnnualReturn
+		maxDrawdown += result.MaxDrawdown
+		sharpeRatio += result.SharpeRatio
+		sortinoRatio += result.SortinoRatio
+		winRate += result.WinRate
+		profitFactor += result.ProfitFactor
+		avgTradeReturn += result.AvgTradeReturn
+		benchmarkReturn += result.BenchmarkReturn
+		alpha += result.Alpha
+		beta += result.Beta
+		totalTrades += result.TotalTrades
+	}
+
+	count := float64(len(results))
+	combined.TotalReturn = totalReturn / count
+	combined.AnnualReturn = annualReturn / count
+	combined.MaxDrawdown = maxDrawdown / count
+	combined.SharpeRatio = sharpeRatio / count
+	combined.SortinoRatio = sortinoRatio / count
+	combined.WinRate = winRate / count
+	combined.ProfitFactor = profitFactor / count
+	combined.AvgTradeReturn = avgTradeReturn / count
+	combined.BenchmarkReturn = benchmarkReturn / count
+	combined.Alpha = alpha / count
+	combined.Beta = beta / count
+	combined.TotalTrades = totalTrades
+
+	return combined
 }

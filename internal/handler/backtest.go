@@ -131,16 +131,27 @@ func (h *BacktestHandler) createBacktest(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// 兼容性处理：如果使用了旧的单策略字段，转换为多策略格式
+	if len(req.StrategyIDs) == 0 && req.StrategyID != "" {
+		req.StrategyIDs = []string{req.StrategyID}
+	}
+
 	// 验证策略是否存在
-	strategy, err := h.strategyService.GetStrategy(r.Context(), req.StrategyID)
-	if err != nil {
-		if err == service.ErrStrategyNotFound {
-			h.writeErrorResponse(w, "指定的策略不存在", http.StatusBadRequest)
+	var strategies []*models.Strategy
+	for _, strategyID := range req.StrategyIDs {
+		strategy, err := h.strategyService.GetStrategy(r.Context(), strategyID)
+		if err != nil {
+			if err == service.ErrStrategyNotFound {
+				h.writeErrorResponse(w, fmt.Sprintf("策略不存在: %s", strategyID), http.StatusBadRequest)
+				return
+			}
+			h.logger.Error("验证策略失败",
+				logger.String("strategy_id", strategyID),
+				logger.ErrorField(err))
+			h.writeErrorResponse(w, "验证策略失败", http.StatusInternalServerError)
 			return
 		}
-		h.logger.Error("验证策略失败", logger.ErrorField(err))
-		h.writeErrorResponse(w, "验证策略失败", http.StatusInternalServerError)
-		return
+		strategies = append(strategies, strategy)
 	}
 
 	// 解析日期
@@ -160,7 +171,8 @@ func (h *BacktestHandler) createBacktest(w http.ResponseWriter, r *http.Request)
 	backtest := &models.Backtest{
 		ID:          uuid.New().String(),
 		Name:        req.Name,
-		StrategyID:  req.StrategyID,
+		StrategyID:  req.StrategyID,  // 保留用于兼容性
+		StrategyIDs: req.StrategyIDs, // 多策略ID列表
 		Symbols:     req.Symbols,
 		StartDate:   startDate,
 		EndDate:     endDate,
@@ -186,16 +198,20 @@ func (h *BacktestHandler) createBacktest(w http.ResponseWriter, r *http.Request)
 	h.logger.Info("回测创建成功", logger.String("backtest_id", backtest.ID))
 
 	// 立即启动回测 - 使用独立的上下文，不依赖HTTP请求上下文
-	if err := h.backtestService.StartBacktest(context.Background(), backtest, strategy); err != nil {
-		h.logger.Error("启动回测失败", logger.ErrorField(err))
+	if err := h.backtestService.StartBacktest(context.Background(), backtest, strategies); err != nil {
+		h.logger.Error("启动多策略回测失败", logger.ErrorField(err))
 		h.writeErrorResponse(w, "回测创建成功但启动失败", http.StatusInternalServerError)
 		return
 	}
 
-	h.logger.Info("回测创建并启动成功", logger.String("backtest_id", backtest.ID))
+	h.logger.Info("多策略回测创建并启动成功", logger.String("backtest_id", backtest.ID))
 
 	// 返回创建的回测信息（包含策略名称）
-	backtest.StrategyName = strategy.Name
+	var strategyNames []string
+	for _, strategy := range strategies {
+		strategyNames = append(strategyNames, strategy.Name)
+	}
+	backtest.StrategyNames = strategyNames
 
 	// 准备响应消息
 	message := "回测创建并启动成功"
@@ -331,17 +347,30 @@ func (h *BacktestHandler) startBacktest(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// 获取策略信息
-	strategy, err := h.strategyService.GetStrategy(r.Context(), backtest.StrategyID)
-	if err != nil {
-		h.logger.Error("获取策略信息失败", logger.ErrorField(err))
-		h.writeErrorResponse(w, "获取策略信息失败", http.StatusInternalServerError)
-		return
+	// 获取策略信息（支持多策略）
+	var strategies []*models.Strategy
+	strategyIDs := backtest.StrategyIDs
+
+	// 兼容性处理：如果没有多策略ID但有单策略ID，使用单策略ID
+	if len(strategyIDs) == 0 && backtest.StrategyID != "" {
+		strategyIDs = []string{backtest.StrategyID}
+	}
+
+	for _, strategyID := range strategyIDs {
+		strategy, err := h.strategyService.GetStrategy(r.Context(), strategyID)
+		if err != nil {
+			h.logger.Error("获取策略信息失败",
+				logger.String("strategy_id", strategyID),
+				logger.ErrorField(err))
+			h.writeErrorResponse(w, fmt.Sprintf("获取策略信息失败: %s", strategyID), http.StatusInternalServerError)
+			return
+		}
+		strategies = append(strategies, strategy)
 	}
 
 	// 启动回测 - 使用独立的上下文，不依赖HTTP请求上下文
-	if err := h.backtestService.StartBacktest(context.Background(), backtest, strategy); err != nil {
-		h.logger.Error("启动回测失败", logger.ErrorField(err))
+	if err := h.backtestService.StartBacktest(context.Background(), backtest, strategies); err != nil {
+		h.logger.Error("启动多策略回测失败", logger.ErrorField(err))
 		h.writeErrorResponse(w, "启动回测失败", http.StatusInternalServerError)
 		return
 	}
@@ -455,8 +484,37 @@ func (h *BacktestHandler) validateCreateBacktestRequest(req *models.CreateBackte
 		return fmt.Errorf("回测名称长度不能超过100个字符")
 	}
 
-	if strings.TrimSpace(req.StrategyID) == "" {
-		return fmt.Errorf("策略ID不能为空")
+	// 验证策略ID：支持多策略或单策略（兼容性）
+	if len(req.StrategyIDs) == 0 && strings.TrimSpace(req.StrategyID) == "" {
+		return fmt.Errorf("至少需要选择一个策略")
+	}
+
+	// 验证多策略数量限制
+	if len(req.StrategyIDs) > 5 {
+		return fmt.Errorf("最多只能选择5个策略")
+	}
+
+	// 检查策略ID重复和空值
+	strategyIDSet := make(map[string]bool)
+	for i, strategyID := range req.StrategyIDs {
+		// 清理空白字符
+		cleanID := strings.TrimSpace(strategyID)
+		if cleanID == "" {
+			return fmt.Errorf("策略ID不能为空（位置: %d）", i+1)
+		}
+
+		// 更新原数组中的值为清理后的值
+		req.StrategyIDs[i] = cleanID
+
+		if strategyIDSet[cleanID] {
+			return fmt.Errorf("策略ID重复: %s", cleanID)
+		}
+		strategyIDSet[cleanID] = true
+	}
+
+	// 同时检查兼容性字段
+	if req.StrategyID != "" && strings.TrimSpace(req.StrategyID) == "" {
+		return fmt.Errorf("单策略ID不能为空字符串")
 	}
 
 	if len(req.Symbols) == 0 {

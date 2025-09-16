@@ -18,30 +18,33 @@ const (
 
 // Backtest 回测模型
 type Backtest struct {
-	ID           string         `json:"id" db:"id"`
-	Name         string         `json:"name" db:"name"`
-	StrategyID   string         `json:"strategy_id" db:"strategy_id"`
-	StrategyName string         `json:"strategy_name,omitempty"` // 关联查询时填充
-	Symbols      []string       `json:"symbols" db:"symbols"`
-	StartDate    time.Time      `json:"start_date" db:"start_date"`
-	EndDate      time.Time      `json:"end_date" db:"end_date"`
-	InitialCash  float64        `json:"initial_cash" db:"initial_cash"`
-	Commission   float64        `json:"commission" db:"commission"` // 手续费率
-	Slippage     float64        `json:"slippage" db:"slippage"`     // 滑点
-	Benchmark    string         `json:"benchmark" db:"benchmark"`   // 基准指数
-	Status       BacktestStatus `json:"status" db:"status"`
-	Progress     int            `json:"progress" db:"progress"` // 进度百分比
-	ErrorMessage string         `json:"error_message,omitempty" db:"error_message"`
-	CreatedBy    string         `json:"created_by" db:"created_by"`
-	CreatedAt    time.Time      `json:"created_at" db:"created_at"`
-	StartedAt    *time.Time     `json:"started_at,omitempty" db:"started_at"`
-	CompletedAt  *time.Time     `json:"completed_at,omitempty" db:"completed_at"`
+	ID            string         `json:"id" db:"id"`
+	Name          string         `json:"name" db:"name"`
+	StrategyID    string         `json:"strategy_id,omitempty" db:"strategy_id"` // 兼容单策略，废弃字段
+	StrategyIDs   []string       `json:"strategy_ids" db:"strategy_ids"`         // 多策略ID列表
+	StrategyNames []string       `json:"strategy_names,omitempty"`               // 关联查询时填充的策略名称列表
+	Symbols       []string       `json:"symbols" db:"symbols"`
+	StartDate     time.Time      `json:"start_date" db:"start_date"`
+	EndDate       time.Time      `json:"end_date" db:"end_date"`
+	InitialCash   float64        `json:"initial_cash" db:"initial_cash"`
+	Commission    float64        `json:"commission" db:"commission"` // 手续费率
+	Slippage      float64        `json:"slippage" db:"slippage"`     // 滑点
+	Benchmark     string         `json:"benchmark" db:"benchmark"`   // 基准指数
+	Status        BacktestStatus `json:"status" db:"status"`
+	Progress      int            `json:"progress" db:"progress"` // 进度百分比
+	ErrorMessage  string         `json:"error_message,omitempty" db:"error_message"`
+	CreatedBy     string         `json:"created_by" db:"created_by"`
+	CreatedAt     time.Time      `json:"created_at" db:"created_at"`
+	StartedAt     *time.Time     `json:"started_at,omitempty" db:"started_at"`
+	CompletedAt   *time.Time     `json:"completed_at,omitempty" db:"completed_at"`
 }
 
 // BacktestResult 回测结果
 type BacktestResult struct {
 	ID              string    `json:"id" db:"id"`
 	BacktestID      string    `json:"backtest_id" db:"backtest_id"`
+	StrategyID      string    `json:"strategy_id" db:"strategy_id"`           // 对应的策略ID（多策略时区分）
+	StrategyName    string    `json:"strategy_name,omitempty"`                // 策略名称
 	TotalReturn     float64   `json:"total_return" db:"total_return"`         // 总收益率
 	AnnualReturn    float64   `json:"annual_return" db:"annual_return"`       // 年化收益率
 	MaxDrawdown     float64   `json:"max_drawdown" db:"max_drawdown"`         // 最大回撤
@@ -61,6 +64,7 @@ type BacktestResult struct {
 type Trade struct {
 	ID         string    `json:"id" db:"id"`
 	BacktestID string    `json:"backtest_id" db:"backtest_id"`
+	StrategyID string    `json:"strategy_id" db:"strategy_id"` // 执行该交易的策略ID
 	Symbol     string    `json:"symbol" db:"symbol"`
 	Side       TradeSide `json:"side" db:"side"`                         // 买入/卖出
 	Quantity   int       `json:"quantity" db:"quantity"`                 // 数量
@@ -107,13 +111,14 @@ type BacktestProgress struct {
 
 // BacktestResultsResponse 回测结果响应
 type BacktestResultsResponse struct {
-	BacktestID     string         `json:"backtest_id"`
-	Performance    BacktestResult `json:"performance"`
-	EquityCurve    []EquityPoint  `json:"equity_curve"`
-	Trades         []Trade        `json:"trades"`
-	Positions      []Position     `json:"positions,omitempty"`
-	Strategy       *Strategy      `json:"strategy"`        // 策略信息
-	BacktestConfig BacktestConfig `json:"backtest_config"` // 回测配置
+	BacktestID      string           `json:"backtest_id"`
+	Performance     []BacktestResult `json:"performance"` // 多策略性能结果数组
+	EquityCurve     []EquityPoint    `json:"equity_curve"`
+	Trades          []Trade          `json:"trades"`
+	Positions       []Position       `json:"positions,omitempty"`
+	Strategies      []*Strategy      `json:"strategies"`                 // 多策略信息
+	BacktestConfig  BacktestConfig   `json:"backtest_config"`            // 回测配置
+	CombinedMetrics *BacktestResult  `json:"combined_metrics,omitempty"` // 组合策略整体指标
 }
 
 // BacktestConfig 回测配置信息
@@ -130,7 +135,8 @@ type BacktestConfig struct {
 // CreateBacktestRequest 创建回测请求
 type CreateBacktestRequest struct {
 	Name        string   `json:"name" validate:"required,max=100"`
-	StrategyID  string   `json:"strategy_id" validate:"required"`
+	StrategyID  string   `json:"strategy_id,omitempty"`                        // 兼容单策略，废弃字段
+	StrategyIDs []string `json:"strategy_ids" validate:"required,min=1,max=5"` // 多策略ID列表，最多5个
 	Symbols     []string `json:"symbols" validate:"required,min=1"`
 	StartDate   string   `json:"start_date" validate:"required"`
 	EndDate     string   `json:"end_date" validate:"required"`
