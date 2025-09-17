@@ -3,3 +3,84 @@
 @tailwind utilities;
 
 /* 自定义样式可以在这里添加 */
+
+/* 多策略回测结果样式 */
+.multi-strategy-section {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6;
+}
+
+.multi-strategy-section .section-header {
+    @apply mb-4 pb-3 border-b border-gray-200;
+}
+
+.multi-strategy-section .section-header h4 {
+    @apply text-lg font-semibold text-gray-800 flex items-center gap-2;
+}
+
+.strategy-details-table {
+    @apply overflow-x-auto;
+}
+
+.strategy-details-table table {
+    @apply w-full min-w-full;
+}
+
+.strategy-details-table table thead {
+    @apply bg-gray-50;
+}
+
+.strategy-details-table table thead th {
+    @apply px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200;
+}
+
+.strategy-details-table table tbody tr {
+    @apply border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150;
+}
+
+.strategy-details-table table tbody tr:last-child {
+    @apply border-b-0;
+}
+
+.strategy-details-table table tbody td {
+    @apply px-4 py-3 whitespace-nowrap text-sm;
+}
+
+.strategy-details-table .strategy-name {
+    @apply font-medium text-gray-900;
+}
+
+.strategy-details-table .metric-value {
+    @apply font-semibold;
+}
+
+.strategy-details-table .metric-value.positive {
+    @apply text-green-600;
+}
+
+.strategy-details-table .metric-value.negative {
+    @apply text-red-600;
+}
+
+.strategy-details-table .metric-value.warning {
+    @apply text-yellow-600;
+}
+
+.strategy-details-table .metric-value.neutral {
+    @apply text-gray-600;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .strategy-details-table {
+        @apply -mx-6;
+    }
+    
+    .strategy-details-table table {
+        @apply text-xs;
+    }
+    
+    .strategy-details-table table thead th,
+    .strategy-details-table table tbody td {
+        @apply px-2 py-2;
+    }
+}

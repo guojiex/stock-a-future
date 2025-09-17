@@ -515,8 +515,6 @@ func (s *StrategyService) executeMACDStrategy(strategy *models.Strategy, marketD
 
 	// 简化的信号生成逻辑（实际需要技术指标计算）
 	// 这里使用随机数模拟
-
-	rand.Seed(time.Now().UnixNano())
 	signalValue := rand.Float64()
 
 	if signalValue > 0.7 {
@@ -556,7 +554,6 @@ func (s *StrategyService) executeMAStrategy(strategy *models.Strategy, marketDat
 	}
 
 	// 简化的信号生成逻辑
-
 	signalValue := rand.Float64()
 
 	if signalValue > 0.6 {
@@ -595,7 +592,6 @@ func (s *StrategyService) executeRSIStrategy(strategy *models.Strategy, marketDa
 	}
 
 	// 模拟RSI值
-
 	rsiValue := rand.Float64() * 100
 
 	overbought := 70.0
@@ -645,7 +641,6 @@ func (s *StrategyService) executeBollingerStrategy(strategy *models.Strategy, ma
 	}
 
 	// 模拟布林带计算
-
 	// 假设当前价格相对于布林带的位置
 	position := rand.Float64() // 0表示下轨，0.5表示中轨，1表示上轨
 

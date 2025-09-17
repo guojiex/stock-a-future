@@ -447,17 +447,124 @@ class BacktestModule {
         // 显示结果区域
         resultsDiv.style.display = 'block';
 
+        // 处理多策略和单策略的兼容性
+        let displayStrategy = results.strategy;
+        let displayPerformance = results.performance;
+
+        // 检查是否为多策略结果
+        if (Array.isArray(results.performance) && results.performance.length > 1) {
+            console.log('[Backtest] 检测到多策略结果，使用组合指标');
+            
+            // 多策略情况：优先使用组合指标，如果没有则使用第一个策略的指标
+            if (results.combined_metrics) {
+                displayPerformance = results.combined_metrics;
+                console.log('[Backtest] 使用组合指标显示性能数据');
+            } else {
+                displayPerformance = results.performance[0];
+                console.log('[Backtest] 组合指标不存在，使用第一个策略指标');
+            }
+
+            // 为多策略创建虚拟策略信息用于显示
+            if (results.strategies && results.strategies.length > 1) {
+                displayStrategy = {
+                    name: `组合策略 (${results.strategies.length}个策略)`,
+                    strategy_type: 'combined',
+                    description: `包含策略: ${results.strategies.map(s => s.name).join(', ')}`,
+                    parameters: {
+                        strategy_count: results.strategies.length,
+                        strategies: results.strategies.map(s => s.name)
+                    }
+                };
+            } else if (results.strategies && results.strategies.length === 1) {
+                displayStrategy = results.strategies[0];
+            }
+        } else if (Array.isArray(results.performance) && results.performance.length === 1) {
+            // 单策略但以数组形式返回
+            displayPerformance = results.performance[0];
+            if (results.strategies && results.strategies.length === 1) {
+                displayStrategy = results.strategies[0];
+            }
+        }
+
         // 显示策略配置信息
-        this.displayStrategyConfig(results.strategy, results.backtest_config);
+        this.displayStrategyConfig(displayStrategy, results.backtest_config);
 
         // 显示性能指标
-        this.displayPerformanceMetrics(results.performance);
+        this.displayPerformanceMetrics(displayPerformance);
+
+        // 显示多策略详细信息（如果是多策略）
+        if (Array.isArray(results.performance) && results.performance.length > 1) {
+            this.displayMultiStrategyDetails(results.performance, results.strategies);
+        }
 
         // 显示权益曲线
         this.displayEquityCurve(results.equity_curve);
 
         // 显示交易记录
         this.displayTradeHistory(results.trades);
+    }
+
+    /**
+     * 显示多策略详细信息
+     */
+    displayMultiStrategyDetails(performanceResults, strategies) {
+        // 检查是否存在多策略详情区域，如果不存在则创建
+        let multiStrategySection = document.getElementById('multiStrategyDetails');
+        if (!multiStrategySection) {
+            // 在性能指标区域后面插入多策略详情区域
+            const metricsSection = document.querySelector('.performance-section');
+            if (metricsSection) {
+                multiStrategySection = document.createElement('div');
+                multiStrategySection.id = 'multiStrategyDetails';
+                multiStrategySection.className = 'multi-strategy-section';
+                metricsSection.insertAdjacentElement('afterend', multiStrategySection);
+            }
+        }
+
+        if (!multiStrategySection) return;
+
+        // 创建多策略详情表格
+        const strategyRows = performanceResults.map((performance, index) => {
+            const strategy = strategies && strategies[index] ? strategies[index] : { name: `策略${index + 1}` };
+            
+            return `
+                <tr>
+                    <td class="strategy-name">${strategy.name}</td>
+                    <td class="metric-value ${this.getMetricClass(performance.total_return, '收益')}">${this.formatMetricValue(performance.total_return, 'percentage')}</td>
+                    <td class="metric-value ${this.getMetricClass(performance.annual_return, '收益')}">${this.formatMetricValue(performance.annual_return, 'percentage')}</td>
+                    <td class="metric-value ${this.getMetricClass(performance.max_drawdown, '回撤')}">${this.formatMetricValue(performance.max_drawdown, 'percentage')}</td>
+                    <td class="metric-value ${this.getMetricClass(performance.sharpe_ratio, '夏普')}">${this.formatMetricValue(performance.sharpe_ratio, 'decimal')}</td>
+                    <td class="metric-value ${this.getMetricClass(performance.win_rate, '胜率')}">${this.formatMetricValue(performance.win_rate, 'percentage')}</td>
+                    <td class="metric-value neutral">${this.formatMetricValue(performance.total_trades, 'number')}</td>
+                </tr>
+            `;
+        }).join('');
+
+        multiStrategySection.innerHTML = `
+            <div class="section-header">
+                <h4>📊 各策略详细表现</h4>
+            </div>
+            <div class="strategy-details-table">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>策略名称</th>
+                            <th>总收益率</th>
+                            <th>年化收益率</th>
+                            <th>最大回撤</th>
+                            <th>夏普比率</th>
+                            <th>胜率</th>
+                            <th>交易次数</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${strategyRows}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        console.log('[Backtest] 多策略详细信息显示完成');
     }
 
     /**
@@ -545,7 +652,8 @@ class BacktestModule {
             'technical': '技术指标',
             'fundamental': '基本面',
             'ml': '机器学习',
-            'composite': '复合策略'
+            'composite': '复合策略',
+            'combined': '组合策略'
         };
         return typeMap[type] || type;
     }
@@ -583,7 +691,9 @@ class BacktestModule {
             'period': '周期',
             'overbought': '超买线',
             'oversold': '超卖线',
-            'std_dev': '标准差倍数'
+            'std_dev': '标准差倍数',
+            'strategy_count': '策略数量',
+            'strategies': '包含策略'
         };
         return nameMap[key] || key;
     }
@@ -599,6 +709,11 @@ class BacktestModule {
                 'wma': '加权移动平均'
             };
             return typeMap[value] || value;
+        }
+        
+        // 处理组合策略的特殊参数
+        if (key === 'strategies' && Array.isArray(value)) {
+            return value.join(', ');
         }
         
         if (typeof value === 'number') {

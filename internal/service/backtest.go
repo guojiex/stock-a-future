@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -758,95 +757,6 @@ func (s *BacktestService) convertStockDailyToMarketData(stockDaily models.StockD
 	}, nil
 }
 
-// generateMockMarketData 生成模拟市场数据（保留作为备用）
-func (s *BacktestService) generateMockMarketData(symbol string, date time.Time) *models.MarketData {
-	// 使用日期作为随机种子，确保相同日期生成相同数据
-	rand.Seed(date.Unix() + int64(len(symbol)))
-
-	// 基础价格（根据股票代码生成）
-	basePrice := 10.0 + float64(len(symbol))*2.5
-
-	// 添加趋势和随机波动
-	days := int(date.Sub(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)).Hours() / 24)
-	trend := math.Sin(float64(days)/365.0*2*math.Pi) * 0.3 // 年度周期
-	randomWalk := (rand.Float64() - 0.5) * 0.1             // 随机游走
-
-	close := basePrice * (1 + trend + randomWalk)
-	volatility := 0.02 + rand.Float64()*0.03 // 2-5%的波动率
-
-	high := close * (1 + volatility*rand.Float64())
-	low := close * (1 - volatility*rand.Float64())
-	open := low + (high-low)*rand.Float64()
-
-	volume := int64(1000000 + rand.Intn(9000000)) // 100万-1000万
-
-	return &models.MarketData{
-		Symbol: symbol,
-		Date:   date,
-		Open:   open,
-		High:   high,
-		Low:    low,
-		Close:  close,
-		Volume: volume,
-		Amount: float64(volume) * (high + low) / 2,
-	}
-}
-
-// executeSignal 执行交易信号
-func (s *BacktestService) executeSignal(signal *models.Signal, marketData *models.MarketData, portfolio *models.Portfolio, backtest *models.Backtest) *models.Trade {
-	if signal.SignalType == models.SignalTypeHold {
-		return nil
-	}
-
-	// 计算交易数量
-	var quantity int
-	var price float64 = marketData.Close
-
-	if signal.Side == models.TradeSideBuy {
-		// 买入：使用可用现金的一定比例
-		maxInvestment := portfolio.Cash * 0.2 * signal.Strength // 最多使用20%的现金，根据信号强度调整
-		quantity = int(maxInvestment/price/100) * 100           // 以手为单位（100股）
-
-		if quantity < 100 || portfolio.Cash < float64(quantity)*price*(1+backtest.Commission) {
-			return nil // 资金不足或数量太少
-		}
-	} else {
-		// 卖出：卖出持有的股票
-		position, exists := portfolio.Positions[signal.Symbol]
-		if !exists || position.Quantity <= 0 {
-			return nil // 没有持仓
-		}
-
-		quantity = int(float64(position.Quantity) * signal.Strength) // 根据信号强度决定卖出比例
-		if quantity < 100 {
-			quantity = position.Quantity // 全部卖出
-		}
-		quantity = -quantity // 卖出为负数
-	}
-
-	// 计算手续费
-	commission := math.Abs(float64(quantity)) * price * backtest.Commission
-
-	// 创建交易记录
-	trade := &models.Trade{
-		ID:         fmt.Sprintf("trade_%s_%d", signal.Symbol, time.Now().UnixNano()),
-		BacktestID: backtest.ID,
-		Symbol:     signal.Symbol,
-		Side:       signal.Side,
-		Quantity:   int(math.Abs(float64(quantity))),
-		Price:      price,
-		Commission: commission,
-		SignalType: string(signal.SignalType),
-		Timestamp:  signal.Timestamp,
-		CreatedAt:  time.Now(),
-	}
-
-	// 更新组合
-	s.updatePortfolioWithTrade(portfolio, trade)
-
-	return trade
-}
-
 // updatePortfolioWithTrade 根据交易更新组合
 func (s *BacktestService) updatePortfolioWithTrade(portfolio *models.Portfolio, trade *models.Trade) {
 	if trade.Side == models.TradeSideBuy {
@@ -1048,7 +958,7 @@ func (s *BacktestService) GetBacktestResults(ctx context.Context, backtestID str
 		strategyID = backtest.StrategyID
 	}
 
-	if strategyID != "" {
+	if strategyID != "" && s.strategyService != nil {
 		var err error
 		strategy, err = s.strategyService.GetStrategy(ctx, strategyID)
 		if err != nil {
@@ -1103,12 +1013,20 @@ func (s *BacktestService) GetBacktestResults(ctx context.Context, backtestID str
 				continue
 			}
 
-			strategy, err := s.strategyService.GetStrategy(ctx, strategyID)
-			if err != nil {
-				s.logger.Warn("获取策略信息失败",
-					logger.String("strategy_id", strategyID),
-					logger.ErrorField(err),
-				)
+			var strategy *models.Strategy
+			if s.strategyService != nil {
+				var err error
+				strategy, err = s.strategyService.GetStrategy(ctx, strategyID)
+				if err != nil {
+					s.logger.Warn("获取策略信息失败",
+						logger.String("strategy_id", strategyID),
+						logger.ErrorField(err),
+					)
+					strategy = nil
+				}
+			}
+
+			if strategy == nil {
 				// 创建默认策略信息
 				strategy = &models.Strategy{
 					ID:   strategyID,
