@@ -69,6 +69,72 @@
     @apply text-gray-600;
 }
 
+/* 策略卡片网格样式 */
+.strategy-cards-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6;
+}
+
+.strategy-card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow duration-200;
+}
+
+.strategy-card.combined-card {
+    @apply border-blue-300 bg-blue-50;
+}
+
+.strategy-card-header {
+    @apply flex items-center justify-between mb-3 pb-2 border-b border-gray-100;
+}
+
+.strategy-card-header h5 {
+    @apply text-sm font-semibold text-gray-800 truncate;
+}
+
+.strategy-rank {
+    @apply bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-1 rounded-full;
+}
+
+.strategy-badge {
+    @apply bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded-full;
+}
+
+.strategy-card-metrics {
+    @apply space-y-2;
+}
+
+.metric-row {
+    @apply flex items-center justify-between text-sm;
+}
+
+.metric-label {
+    @apply text-gray-600 font-medium;
+}
+
+.section-description {
+    @apply text-sm text-gray-600 mt-1;
+}
+
+/* 交易记录分组样式 */
+.strategy-group-header {
+    @apply bg-gray-100;
+}
+
+.strategy-group-title {
+    @apply font-semibold text-gray-800 py-3 px-4;
+}
+
+.trade-count {
+    @apply text-sm font-normal text-gray-600 ml-2;
+}
+
+.strategy-trade-row {
+    @apply border-l-4 border-gray-200;
+}
+
+.strategy-trade-row:nth-child(even) {
+    @apply bg-gray-50;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     .strategy-details-table {
@@ -82,5 +148,17 @@
     .strategy-details-table table thead th,
     .strategy-details-table table tbody td {
         @apply px-2 py-2;
+    }
+
+    .strategy-cards-grid {
+        @apply grid-cols-1 gap-4;
+    }
+
+    .strategy-card {
+        @apply p-3;
+    }
+
+    .metric-row {
+        @apply text-xs;
     }
 }

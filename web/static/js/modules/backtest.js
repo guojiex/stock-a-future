@@ -450,15 +450,16 @@ class BacktestModule {
         // 处理多策略和单策略的兼容性
         let displayStrategy = results.strategy;
         let displayPerformance = results.performance;
+        const isMultiStrategy = Array.isArray(results.performance) && results.performance.length > 1;
 
         // 检查是否为多策略结果
-        if (Array.isArray(results.performance) && results.performance.length > 1) {
-            console.log('[Backtest] 检测到多策略结果，使用组合指标');
+        if (isMultiStrategy) {
+            console.log('[Backtest] 检测到多策略结果，显示详细对比');
             
-            // 多策略情况：优先使用组合指标，如果没有则使用第一个策略的指标
+            // 多策略情况：使用组合指标作为主要显示，但同时突出显示各策略
             if (results.combined_metrics) {
                 displayPerformance = results.combined_metrics;
-                console.log('[Backtest] 使用组合指标显示性能数据');
+                console.log('[Backtest] 使用组合指标显示主要性能数据');
             } else {
                 displayPerformance = results.performance[0];
                 console.log('[Backtest] 组合指标不存在，使用第一个策略指标');
@@ -467,7 +468,7 @@ class BacktestModule {
             // 为多策略创建虚拟策略信息用于显示
             if (results.strategies && results.strategies.length > 1) {
                 displayStrategy = {
-                    name: `组合策略 (${results.strategies.length}个策略)`,
+                    name: `多策略组合 (${results.strategies.length}个策略)`,
                     strategy_type: 'combined',
                     description: `包含策略: ${results.strategies.map(s => s.name).join(', ')}`,
                     parameters: {
@@ -489,19 +490,134 @@ class BacktestModule {
         // 显示策略配置信息
         this.displayStrategyConfig(displayStrategy, results.backtest_config);
 
-        // 显示性能指标
-        this.displayPerformanceMetrics(displayPerformance);
+        // 如果是多策略，优先显示策略对比概览
+        if (isMultiStrategy) {
+            this.displayMultiStrategyOverview(results.performance, results.strategies, results.combined_metrics);
+        }
+
+        // 显示主要性能指标（组合指标或单策略指标）
+        this.displayPerformanceMetrics(displayPerformance, isMultiStrategy ? '组合整体表现' : '策略表现');
 
         // 显示多策略详细信息（如果是多策略）
-        if (Array.isArray(results.performance) && results.performance.length > 1) {
+        if (isMultiStrategy) {
             this.displayMultiStrategyDetails(results.performance, results.strategies);
         }
 
         // 显示权益曲线
         this.displayEquityCurve(results.equity_curve);
 
-        // 显示交易记录
-        this.displayTradeHistory(results.trades);
+        // 显示交易记录（按策略分组显示）
+        this.displayTradeHistory(results.trades, isMultiStrategy);
+    }
+
+    /**
+     * 显示多策略概览
+     */
+    displayMultiStrategyOverview(performanceResults, strategies, combinedMetrics) {
+        // 检查是否存在多策略概览区域，如果不存在则创建
+        let overviewSection = document.getElementById('multiStrategyOverview');
+        if (!overviewSection) {
+            // 在策略配置区域后面插入概览区域
+            const configSection = document.getElementById('strategyConfigSection');
+            if (configSection) {
+                overviewSection = document.createElement('div');
+                overviewSection.id = 'multiStrategyOverview';
+                overviewSection.className = 'multi-strategy-section';
+                configSection.insertAdjacentElement('afterend', overviewSection);
+            }
+        }
+
+        if (!overviewSection) return;
+
+        // 创建策略对比卡片
+        const strategyCards = performanceResults.map((performance, index) => {
+            const strategy = strategies && strategies[index] ? strategies[index] : { name: `策略${index + 1}` };
+            
+            return `
+                <div class="strategy-card">
+                    <div class="strategy-card-header">
+                        <h5 class="strategy-name">${strategy.name}</h5>
+                        <div class="strategy-rank">#${this.getRankByReturn(performanceResults, index)}</div>
+                    </div>
+                    <div class="strategy-card-metrics">
+                        <div class="metric-row">
+                            <span class="metric-label">总收益率</span>
+                            <span class="metric-value ${this.getMetricClass(performance.total_return, '收益')}">${this.formatMetricValue(performance.total_return, 'percentage')}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">夏普比率</span>
+                            <span class="metric-value ${this.getMetricClass(performance.sharpe_ratio, '夏普')}">${this.formatMetricValue(performance.sharpe_ratio, 'decimal')}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">最大回撤</span>
+                            <span class="metric-value ${this.getMetricClass(performance.max_drawdown, '回撤')}">${this.formatMetricValue(performance.max_drawdown, 'percentage')}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">胜率</span>
+                            <span class="metric-value ${this.getMetricClass(performance.win_rate, '胜率')}">${this.formatMetricValue(performance.win_rate, 'percentage')}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">交易次数</span>
+                            <span class="metric-value neutral">${this.formatMetricValue(performance.total_trades, 'number')}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // 组合指标卡片
+        const combinedCard = combinedMetrics ? `
+            <div class="strategy-card combined-card">
+                <div class="strategy-card-header">
+                    <h5 class="strategy-name">组合整体</h5>
+                    <div class="strategy-badge">组合</div>
+                </div>
+                <div class="strategy-card-metrics">
+                    <div class="metric-row">
+                        <span class="metric-label">总收益率</span>
+                        <span class="metric-value ${this.getMetricClass(combinedMetrics.total_return, '收益')}">${this.formatMetricValue(combinedMetrics.total_return, 'percentage')}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">夏普比率</span>
+                        <span class="metric-value ${this.getMetricClass(combinedMetrics.sharpe_ratio, '夏普')}">${this.formatMetricValue(combinedMetrics.sharpe_ratio, 'decimal')}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">最大回撤</span>
+                        <span class="metric-value ${this.getMetricClass(combinedMetrics.max_drawdown, '回撤')}">${this.formatMetricValue(combinedMetrics.max_drawdown, 'percentage')}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">胜率</span>
+                        <span class="metric-value ${this.getMetricClass(combinedMetrics.win_rate, '胜率')}">${this.formatMetricValue(combinedMetrics.win_rate, 'percentage')}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">总交易次数</span>
+                        <span class="metric-value neutral">${this.formatMetricValue(combinedMetrics.total_trades, 'number')}</span>
+                    </div>
+                </div>
+            </div>
+        ` : '';
+
+        overviewSection.innerHTML = `
+            <div class="section-header">
+                <h4>🏆 策略表现对比</h4>
+                <p class="section-description">各策略独立运行结果对比，每个策略使用相等的初始资金</p>
+            </div>
+            <div class="strategy-cards-grid">
+                ${strategyCards}
+                ${combinedCard}
+            </div>
+        `;
+
+        console.log('[Backtest] 多策略概览显示完成');
+    }
+
+    /**
+     * 根据收益率获取策略排名
+     */
+    getRankByReturn(performanceResults, currentIndex) {
+        const currentReturn = performanceResults[currentIndex].total_return;
+        const betterCount = performanceResults.filter(p => p.total_return > currentReturn).length;
+        return betterCount + 1;
     }
 
     /**
@@ -729,9 +845,15 @@ class BacktestModule {
     /**
      * 显示性能指标
      */
-    displayPerformanceMetrics(performance) {
+    displayPerformanceMetrics(performance, title = '性能指标') {
         const metricsGrid = document.getElementById('metricsGrid');
         if (!metricsGrid) return;
+
+        // 更新性能指标区域的标题
+        const performanceSection = document.querySelector('.performance-metrics h5');
+        if (performanceSection) {
+            performanceSection.textContent = `📈 ${title}`;
+        }
 
         const metrics = [
             { label: '总收益率', value: performance.total_return, format: 'percentage' },
@@ -875,15 +997,27 @@ class BacktestModule {
     /**
      * 显示交易记录
      */
-    displayTradeHistory(trades) {
+    displayTradeHistory(trades, isMultiStrategy = false) {
         const tableBody = document.querySelector('#tradesTable tbody');
         if (!tableBody || !trades || trades.length === 0) {
             if (tableBody) {
-                tableBody.innerHTML = '<tr><td colspan="7">暂无交易记录</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="8">暂无交易记录</td></tr>';
             }
             return;
         }
 
+        // 如果是多策略，按策略分组显示
+        if (isMultiStrategy) {
+            this.displayMultiStrategyTradeHistory(trades, tableBody);
+        } else {
+            this.displaySingleStrategyTradeHistory(trades, tableBody);
+        }
+    }
+
+    /**
+     * 显示单策略交易记录
+     */
+    displaySingleStrategyTradeHistory(trades, tableBody) {
         tableBody.innerHTML = trades.map(trade => `
             <tr>
                 <td>${trade.timestamp}</td>
@@ -893,8 +1027,55 @@ class BacktestModule {
                 <td>¥${trade.price.toFixed(2)}</td>
                 <td>¥${trade.commission.toFixed(2)}</td>
                 <td class="${trade.pnl >= 0 ? 'profit' : 'loss'}">${trade.pnl ? '¥' + trade.pnl.toFixed(2) : '-'}</td>
+                <td>${trade.signal_type || '-'}</td>
             </tr>
         `).join('');
+    }
+
+    /**
+     * 显示多策略交易记录（按策略分组）
+     */
+    displayMultiStrategyTradeHistory(trades, tableBody) {
+        // 按策略分组
+        const tradesByStrategy = {};
+        trades.forEach(trade => {
+            const strategyId = trade.strategy_id || 'unknown';
+            if (!tradesByStrategy[strategyId]) {
+                tradesByStrategy[strategyId] = [];
+            }
+            tradesByStrategy[strategyId].push(trade);
+        });
+
+        let html = '';
+        Object.entries(tradesByStrategy).forEach(([strategyId, strategyTrades]) => {
+            // 策略分组标题行
+            html += `
+                <tr class="strategy-group-header">
+                    <td colspan="8" class="strategy-group-title">
+                        <strong>策略: ${strategyId}</strong> 
+                        <span class="trade-count">(${strategyTrades.length}笔交易)</span>
+                    </td>
+                </tr>
+            `;
+
+            // 该策略的交易记录
+            strategyTrades.forEach(trade => {
+                html += `
+                    <tr class="strategy-trade-row">
+                        <td>${trade.timestamp}</td>
+                        <td>${trade.symbol}</td>
+                        <td class="${trade.side === 'buy' ? 'buy' : 'sell'}">${trade.side === 'buy' ? '买入' : '卖出'}</td>
+                        <td>${trade.quantity}</td>
+                        <td>¥${trade.price.toFixed(2)}</td>
+                        <td>¥${trade.commission.toFixed(2)}</td>
+                        <td class="${trade.pnl >= 0 ? 'profit' : 'loss'}">${trade.pnl ? '¥' + trade.pnl.toFixed(2) : '-'}</td>
+                        <td>${trade.signal_type || '-'}</td>
+                    </tr>
+                `;
+            });
+        });
+
+        tableBody.innerHTML = html;
     }
 
     /**

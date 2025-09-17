@@ -2832,10 +2832,11 @@ body {
 
 .signal-stock-info {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: var(--spacing-xs);
     flex: 1;
     min-width: 0; /* 防止内容溢出 */
+    align-items: center; /* 垂直居中对齐 */
 }
 
 .signal-stock-name {
@@ -5227,5 +5228,249 @@ body {
     .strategy-tag {
         font-size: 11px;
         padding: 4px 8px;
+    }
+}
+
+/* 多策略回测结果样式 */
+.multi-strategy-section {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.multi-strategy-section .section-header {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.multi-strategy-section .section-header h4 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+}
+
+.section-description {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 4px 0 0 0;
+}
+
+/* 策略卡片网格样式 */
+.strategy-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.strategy-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+    padding: 16px;
+    transition: box-shadow 0.2s ease;
+}
+
+.strategy-card:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.strategy-card.combined-card {
+    border-color: #93c5fd;
+    background: #eff6ff;
+}
+
+.strategy-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.strategy-card-header h5 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+}
+
+.strategy-rank {
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 12px;
+    flex-shrink: 0;
+}
+
+.strategy-badge {
+    background: #dbeafe;
+    color: #1e40af;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 12px;
+    flex-shrink: 0;
+}
+
+.strategy-card-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.metric-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 14px;
+}
+
+.metric-label {
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.metric-value {
+    font-weight: 600;
+}
+
+.metric-value.positive {
+    color: #059669;
+}
+
+.metric-value.negative {
+    color: #dc2626;
+}
+
+.metric-value.warning {
+    color: #d97706;
+}
+
+.metric-value.neutral {
+    color: #6b7280;
+}
+
+/* 交易记录分组样式 */
+.strategy-group-header {
+    background: #f9fafb;
+}
+
+.strategy-group-title {
+    font-weight: 600;
+    color: #1f2937;
+    padding: 12px 16px;
+}
+
+.trade-count {
+    font-size: 14px;
+    font-weight: 400;
+    color: #6b7280;
+    margin-left: 8px;
+}
+
+.strategy-trade-row {
+    border-left: 4px solid #e5e7eb;
+}
+
+.strategy-trade-row:nth-child(even) {
+    background: #f9fafb;
+}
+
+.strategy-details-table {
+    overflow-x: auto;
+}
+
+.strategy-details-table table {
+    width: 100%;
+    min-width: 100%;
+}
+
+.strategy-details-table table thead {
+    background: #f9fafb;
+}
+
+.strategy-details-table table thead th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 500;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.strategy-details-table table tbody tr {
+    border-bottom: 1px solid #f3f4f6;
+    transition: background-color 0.15s ease;
+}
+
+.strategy-details-table table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.strategy-details-table table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.strategy-details-table table tbody td {
+    padding: 12px 16px;
+    white-space: nowrap;
+    font-size: 14px;
+}
+
+.strategy-details-table .strategy-name {
+    font-weight: 500;
+    color: #1f2937;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .strategy-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .strategy-card {
+        padding: 12px;
+    }
+
+    .metric-row {
+        font-size: 12px;
+    }
+
+    .strategy-card-header h5 {
+        font-size: 13px;
+        max-width: 150px;
+    }
+
+    .strategy-details-table {
+        margin: 0 -24px;
+    }
+    
+    .strategy-details-table table {
+        font-size: 12px;
+    }
+    
+    .strategy-details-table table thead th,
+    .strategy-details-table table tbody td {
+        padding: 8px 12px;
     }
 }
