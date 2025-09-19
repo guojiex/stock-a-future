@@ -506,6 +506,9 @@ class BacktestModule {
         // 显示权益曲线
         this.displayEquityCurve(results.equity_curve);
 
+        // 保存回测配置，供其他方法使用
+        this.currentBacktestConfig = results.backtest_config;
+        
         // 显示交易记录（按策略分组显示）
         this.displayTradeHistory(results.trades, isMultiStrategy, results.strategies);
         
@@ -977,6 +980,12 @@ class BacktestModule {
             return;
         }
 
+        // 调试：输出交易数据结构（仅在开发模式）
+        if (trades.length > 0 && window.location.hostname === 'localhost') {
+            console.log('[Backtest] 交易数据示例:', trades[0]);
+            console.log('[Backtest] 交易数据字段:', Object.keys(trades[0]));
+        }
+
         // 如果是多策略，使用tab式展示
         if (isMultiStrategy) {
             if (strategies && strategies.length > 1) {
@@ -1013,13 +1022,13 @@ class BacktestModule {
                 <td>${this.formatTradeTime(trade.timestamp)}</td>
                 <td class="operation-signal">
                     <span class="operation ${trade.side === 'buy' ? 'buy' : 'sell'}">${trade.side === 'buy' ? '买入' : '卖出'}</span>
-                    <span class="signal-type">${trade.signal_type || '-'}</span>
+                    ${this.renderSignalType(trade)}
                 </td>
                 <td>${trade.quantity.toLocaleString()}</td>
                 <td>¥${trade.price.toFixed(2)}</td>
                 <td>¥${trade.commission.toFixed(2)}</td>
                 <td class="${trade.pnl >= 0 ? 'profit' : 'loss'}">${trade.pnl ? '¥' + trade.pnl.toFixed(2) : '-'}</td>
-                <td class="total-assets">¥${this.formatAssets(trade.portfolio_value || 0)}</td>
+                <td class="total-assets">¥${this.formatAssets(this.getTradeAssetValue(trade))}</td>
             </tr>
         `).join('');
     }
@@ -1130,13 +1139,13 @@ class BacktestModule {
                     <td class="stock-symbol">${trade.symbol}</td>
                     <td class="operation-signal">
                         <span class="operation ${trade.side === 'buy' ? 'buy' : 'sell'}">${trade.side === 'buy' ? '买入' : '卖出'}</span>
-                        <span class="signal-type">${trade.signal_type || '-'}</span>
+                        ${this.renderSignalType(trade)}
                     </td>
                     <td>${trade.quantity.toLocaleString()}</td>
                     <td>¥${trade.price.toFixed(2)}</td>
                     <td>¥${trade.commission.toFixed(2)}</td>
                     <td class="${trade.pnl >= 0 ? 'profit' : 'loss'}">${trade.pnl ? '¥' + trade.pnl.toFixed(2) : '-'}</td>
-                    <td class="total-assets">¥${this.formatAssets(trade.portfolio_value || 0)}</td>
+                    <td class="total-assets">¥${this.formatAssets(this.getTradeAssetValue(trade))}</td>
                 </tr>
             `).join('');
 
@@ -1294,6 +1303,48 @@ class BacktestModule {
     }
 
     /**
+     * 获取交易的资产值
+     */
+    getTradeAssetValue(trade) {
+        // 尝试不同的可能字段名
+        const possibleFields = [
+            'portfolio_value',
+            'total_value', 
+            'account_value',
+            'total_assets',
+            'cash_balance',
+            'balance',
+            'value',
+            'total'
+        ];
+        
+        for (const field of possibleFields) {
+            if (trade[field] !== undefined && trade[field] !== null) {
+                return trade[field];
+            }
+        }
+        
+        // 如果都没有，尝试计算：初始资金 + 累计盈亏
+        if (trade.cumulative_pnl !== undefined) {
+            const initialCash = this.currentBacktestConfig?.initial_cash || 1000000;
+            return initialCash + trade.cumulative_pnl;
+        }
+        
+        // 尝试从价格和数量计算当前持仓价值（简化计算）
+        if (trade.price && trade.quantity && trade.side) {
+            const tradeValue = trade.price * trade.quantity;
+            // 这只是一个简化的估算，实际应该维护完整的账户状态
+            return tradeValue;
+        }
+        
+        // 仅在开发模式下输出警告
+        if (window.location.hostname === 'localhost') {
+            console.warn('[Backtest] 无法找到资产值字段，可用字段:', Object.keys(trade));
+        }
+        return 0;
+    }
+
+    /**
      * 格式化资产金额
      */
     formatAssets(amount) {
@@ -1306,6 +1357,51 @@ class BacktestModule {
         } else {
             return amount.toLocaleString();
         }
+    }
+
+    /**
+     * 格式化信号类型显示
+     */
+    formatSignalType(trade) {
+        const signalType = trade.signal_type || trade.signal || trade.reason || '';
+        
+        // 如果信号类型就是简单的buy/sell，则不显示
+        if (signalType.toLowerCase() === trade.side?.toLowerCase()) {
+            return '-';
+        }
+        
+        // 信号类型映射，显示更有意义的信息
+        const signalMap = {
+            'ma_crossover': '均线交叉',
+            'macd_golden_cross': 'MACD金叉',
+            'macd_death_cross': 'MACD死叉',
+            'rsi_oversold': 'RSI超卖',
+            'rsi_overbought': 'RSI超买',
+            'bollinger_lower': '布林下轨',
+            'bollinger_upper': '布林上轨',
+            'support_level': '支撑位',
+            'resistance_level': '阻力位',
+            'volume_breakout': '放量突破',
+            'trend_reversal': '趋势反转',
+            'stop_loss': '止损',
+            'take_profit': '止盈'
+        };
+        
+        return signalMap[signalType] || signalType || '-';
+    }
+
+    /**
+     * 渲染信号类型span（只有在有有效信号时才渲染）
+     */
+    renderSignalType(trade) {
+        const signalText = this.formatSignalType(trade);
+        
+        // 如果信号类型是'-'或空，则不渲染span元素
+        if (!signalText || signalText === '-') {
+            return '';
+        }
+        
+        return `<span class="signal-type">${signalText}</span>`;
     }
 
     /**
@@ -1400,13 +1496,13 @@ class BacktestModule {
                         <td>${this.formatTradeTime(trade.timestamp)}</td>
                         <td class="operation-signal">
                             <span class="operation ${trade.side === 'buy' ? 'buy' : 'sell'}">${trade.side === 'buy' ? '买入' : '卖出'}</span>
-                            <span class="signal-type">${trade.signal_type || '-'}</span>
+                            ${this.renderSignalType(trade)}
                         </td>
                         <td>${trade.quantity.toLocaleString()}</td>
                         <td>¥${trade.price.toFixed(2)}</td>
                         <td>¥${trade.commission.toFixed(2)}</td>
                         <td class="${trade.pnl >= 0 ? 'profit' : 'loss'}">${trade.pnl ? '¥' + trade.pnl.toFixed(2) : '-'}</td>
-                        <td class="total-assets">¥${this.formatAssets(trade.portfolio_value || 0)}</td>
+                        <td class="total-assets">¥${this.formatAssets(this.getTradeAssetValue(trade))}</td>
                     </tr>
                 `;
             });

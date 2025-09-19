@@ -4306,7 +4306,17 @@ body {
     z-index: 5;
 }
 
-/* 股票信息表头样式 */
+
+/* 列标题行 - 真正的固定表头 */
+.trades-table .column-headers {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg-tertiary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 股票信息表头样式 - 更新：不固定位置 */
 .trades-table .stock-info-header {
     background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
     color: white;
@@ -4314,6 +4324,7 @@ body {
     text-align: center;
     padding: var(--spacing-lg) var(--spacing-md);
     position: relative;
+    z-index: 3;
 }
 
 .trades-table .stock-info-header::after {
@@ -4399,6 +4410,8 @@ body {
     flex-direction: column;
     gap: 2px;
     align-items: flex-start;
+    min-height: 40px; /* 确保即使没有信号类型也有一致的高度 */
+    justify-content: center;
 }
 
 .trades-table .operation-signal .operation {
@@ -4730,8 +4743,9 @@ body {
 
 .table-wrapper {
     overflow-x: auto;
-    max-height: 400px;
+    max-height: 500px;
     overflow-y: auto;
+    position: relative; /* 确保sticky定位工作 */
 }
 
 /* 响应式设计 */
