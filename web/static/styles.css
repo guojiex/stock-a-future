@@ -4354,6 +4354,259 @@ body {
     background: var(--bg-primary);
 }
 
+/* 交易记录Tab样式 - 现代化设计 */
+.trade-tabs {
+    margin-bottom: var(--spacing-md);
+}
+
+.trade-tab-nav {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: var(--spacing-lg);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) var(--bg-tertiary);
+}
+
+.trade-tab-nav::-webkit-scrollbar {
+    height: 4px;
+}
+
+.trade-tab-nav::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+}
+
+.trade-tab-nav::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: var(--radius-sm);
+}
+
+.trade-tab-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    position: relative;
+    white-space: nowrap;
+    min-width: fit-content;
+    overflow: hidden;
+}
+
+/* 添加动画效果 */
+.trade-tab-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    transition: left 0.5s ease;
+}
+
+.trade-tab-btn:hover::before {
+    left: 100%;
+}
+
+.trade-tab-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.trade-tab-btn.active {
+    background: var(--bg-primary);
+    color: var(--primary-color);
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    font-weight: 600;
+}
+
+/* Tab切换指示器 */
+.trade-tab-btn::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: var(--primary-color);
+    transform: translateX(-50%);
+    transition: width 0.3s ease;
+}
+
+.trade-tab-btn.active::after {
+    width: 100%;
+}
+
+.trade-tab-btn .tab-name {
+    font-weight: inherit;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+/* 为策略名称添加图标 */
+.trade-tab-btn .tab-name::before {
+    content: attr(data-strategy-icon);
+    font-size: 1rem;
+    transition: transform 0.3s ease;
+    margin-right: 2px;
+}
+
+.trade-tab-btn:hover .tab-name::before {
+    transform: scale(1.1) rotate(5deg);
+}
+
+.trade-tab-btn.active .tab-name::before {
+    transform: scale(1.05);
+    filter: drop-shadow(0 0 4px rgba(37, 99, 235, 0.3));
+}
+
+.trade-tab-btn .tab-count {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+    min-width: 24px;
+    text-align: center;
+    transition: all 0.3s ease;
+    border: 1px solid var(--border-color);
+}
+
+.trade-tab-btn:hover .tab-count {
+    background: var(--primary-color);
+    color: var(--bg-primary);
+    border-color: var(--primary-color);
+    transform: scale(1.05);
+}
+
+.trade-tab-btn.active .tab-count {
+    background: var(--primary-color);
+    color: var(--bg-primary);
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.trade-tab-content {
+    animation: fadeIn 0.3s ease-in-out;
+    position: relative;
+}
+
+.trade-tab-panel {
+    animation: slideIn 0.2s ease-out;
+    background: var(--bg-primary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* 添加渐变边框效果 */
+.trade-tab-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary-color), var(--accent-color), var(--primary-color));
+    background-size: 200% 100%;
+    animation: shimmer 2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.trade-tab-panel .strategy-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-lg);
+    margin-bottom: 0;
+    background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+    border-bottom: 1px solid var(--border-color);
+    position: relative;
+}
+
+.trade-tab-panel .strategy-summary::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: var(--spacing-lg);
+    right: var(--spacing-lg);
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+    opacity: 0.3;
+}
+
+.trade-tab-panel .strategy-summary h6 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.trade-tab-panel .strategy-summary h6::before {
+    content: attr(data-strategy-icon);
+    font-size: 1.25rem;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+}
+
+.trade-tab-panel .trade-summary {
+    font-size: 0.875rem;
+    color: var(--primary-color);
+    background: var(--bg-primary);
+    padding: 8px 16px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--primary-color);
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.1);
+    transition: all 0.2s ease;
+}
+
+.trade-tab-panel .trade-summary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(37, 99, 235, 0.2);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { 
+        opacity: 0; 
+        transform: translateY(10px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
 .table-wrapper {
     overflow-x: auto;
     max-height: 400px;
@@ -4386,6 +4639,37 @@ body {
     
     .backtest-content-grid {
         gap: var(--spacing-md);
+    }
+    
+    /* Tab响应式样式 */
+    .trade-tab-nav {
+        flex-direction: row;
+        overflow-x: auto;
+    }
+    
+    .trade-tab-btn {
+        flex-direction: row;
+        justify-content: center;
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: 0.8125rem;
+        min-width: auto;
+        gap: var(--spacing-xs);
+    }
+    
+    .trade-tab-btn .tab-name::before {
+        font-size: 0.875rem;
+    }
+    
+    .trade-tab-btn .tab-count {
+        font-size: 0.6875rem;
+        padding: 2px 8px;
+        min-width: 20px;
+    }
+    
+    .trade-tab-panel .strategy-summary {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-xs);
     }
 }
 

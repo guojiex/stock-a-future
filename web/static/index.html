@@ -399,24 +399,40 @@
                                             <!-- 底部：交易记录（跨越两列） -->
                                             <div class="trade-history">
                                                 <h5>📋 交易记录</h5>
-                                                <div class="table-container">
-                                                    <div class="table-wrapper">
-                                                        <table id="tradesTable" class="trades-table">
-                                                            <thead>
-                                                                <tr>
-                                                                    <th>时间</th>
-                                                                    <th>股票</th>
-                                                                    <th>方向</th>
-                                                                    <th>数量</th>
-                                                                    <th>价格</th>
-                                                                    <th>手续费</th>
-                                                                    <th>盈亏</th>
-                                                                    <th>信号类型</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody></tbody>
-                                                        </table>
+                                                
+                                                <!-- 策略tab导航 -->
+                                                <div class="trade-tabs" id="tradeTabs" style="display: none;">
+                                                    <div class="trade-tab-nav" id="tradeTabNav">
+                                                        <!-- 动态生成的tab按钮 -->
                                                     </div>
+                                                </div>
+                                                
+                                                <!-- 单策略表格（兼容原有逻辑） -->
+                                                <div class="single-strategy-trades" id="singleStrategyTrades">
+                                                    <div class="table-container">
+                                                        <div class="table-wrapper">
+                                                            <table id="tradesTable" class="trades-table">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>时间</th>
+                                                                        <th>股票</th>
+                                                                        <th>方向</th>
+                                                                        <th>数量</th>
+                                                                        <th>价格</th>
+                                                                        <th>手续费</th>
+                                                                        <th>盈亏</th>
+                                                                        <th>信号类型</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody></tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- 多策略tab内容区域 -->
+                                                <div class="trade-tab-content" id="tradeTabContent" style="display: none;">
+                                                    <!-- 动态生成的tab内容面板 -->
                                                 </div>
                                             </div>
                                         </div>

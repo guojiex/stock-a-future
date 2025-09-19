@@ -507,7 +507,7 @@ class BacktestModule {
         this.displayEquityCurve(results.equity_curve);
 
         // 显示交易记录（按策略分组显示）
-        this.displayTradeHistory(results.trades, isMultiStrategy);
+        this.displayTradeHistory(results.trades, isMultiStrategy, results.strategies);
     }
 
     /**
@@ -968,27 +968,43 @@ class BacktestModule {
     /**
      * 显示交易记录
      */
-    displayTradeHistory(trades, isMultiStrategy = false) {
-        const tableBody = document.querySelector('#tradesTable tbody');
-        if (!tableBody || !trades || trades.length === 0) {
-            if (tableBody) {
-                tableBody.innerHTML = '<tr><td colspan="8">暂无交易记录</td></tr>';
-            }
+    displayTradeHistory(trades, isMultiStrategy = false, strategies = null) {
+        if (!trades || trades.length === 0) {
+            this.showEmptyTradeHistory();
             return;
         }
 
-        // 如果是多策略，按策略分组显示
+        // 如果是多策略，使用tab式展示
         if (isMultiStrategy) {
-            this.displayMultiStrategyTradeHistory(trades, tableBody);
+            if (strategies && strategies.length > 1) {
+                this.displayMultiStrategyTradeHistoryWithTabs(trades, strategies);
+            } else {
+                // 多策略但strategies数据异常，降级到分组显示
+                console.warn('[Backtest] 多策略模式但策略数据异常，使用兼容显示');
+                this.displaySingleStrategyTradeHistoryFallback(trades);
+            }
         } else {
-            this.displaySingleStrategyTradeHistory(trades, tableBody);
+            // 单策略模式，使用原有表格
+            this.displaySingleStrategyTradeHistory(trades);
         }
     }
 
     /**
      * 显示单策略交易记录
      */
-    displaySingleStrategyTradeHistory(trades, tableBody) {
+    displaySingleStrategyTradeHistory(trades) {
+        // 显示单策略表格，隐藏多策略tabs
+        const singleStrategyDiv = document.getElementById('singleStrategyTrades');
+        const tradeTabsDiv = document.getElementById('tradeTabs');
+        const tradeTabContentDiv = document.getElementById('tradeTabContent');
+        
+        if (singleStrategyDiv) singleStrategyDiv.style.display = 'block';
+        if (tradeTabsDiv) tradeTabsDiv.style.display = 'none';
+        if (tradeTabContentDiv) tradeTabContentDiv.style.display = 'none';
+
+        const tableBody = document.querySelector('#tradesTable tbody');
+        if (!tableBody) return;
+
         tableBody.innerHTML = trades.map(trade => `
             <tr>
                 <td>${trade.timestamp}</td>
@@ -1004,7 +1020,281 @@ class BacktestModule {
     }
 
     /**
-     * 显示多策略交易记录（按策略分组）
+     * 使用Tab方式显示多策略交易记录
+     */
+    displayMultiStrategyTradeHistoryWithTabs(trades, strategies) {
+        // 隐藏单策略表格，显示多策略tabs
+        const singleStrategyDiv = document.getElementById('singleStrategyTrades');
+        const tradeTabsDiv = document.getElementById('tradeTabs');
+        const tradeTabContentDiv = document.getElementById('tradeTabContent');
+        
+        if (singleStrategyDiv) singleStrategyDiv.style.display = 'none';
+        if (tradeTabsDiv) tradeTabsDiv.style.display = 'block';
+        if (tradeTabContentDiv) tradeTabContentDiv.style.display = 'block';
+
+        // 按策略分组交易记录
+        const tradesByStrategy = this.groupTradesByStrategy(trades, strategies);
+        
+        // 生成tab导航
+        this.generateTradeTabNavigation(tradesByStrategy, strategies);
+        
+        // 生成tab内容
+        this.generateTradeTabContent(tradesByStrategy, strategies);
+        
+        // 激活第一个tab
+        this.activateFirstTradeTab();
+    }
+
+    /**
+     * 按策略分组交易记录
+     */
+    groupTradesByStrategy(trades, strategies) {
+        const tradesByStrategy = {};
+        
+        // 初始化每个策略的交易记录数组
+        strategies.forEach(strategy => {
+            tradesByStrategy[strategy.id] = {
+                strategy: strategy,
+                trades: []
+            };
+        });
+        
+        // 分组交易记录
+        trades.forEach(trade => {
+            const strategyId = trade.strategy_id || 'unknown';
+            if (tradesByStrategy[strategyId]) {
+                tradesByStrategy[strategyId].trades.push(trade);
+            } else {
+                // 处理未知策略ID的情况
+                if (!tradesByStrategy['unknown']) {
+                    tradesByStrategy['unknown'] = {
+                        strategy: { id: 'unknown', name: '未知策略' },
+                        trades: []
+                    };
+                }
+                tradesByStrategy['unknown'].trades.push(trade);
+            }
+        });
+        
+        return tradesByStrategy;
+    }
+
+    /**
+     * 生成交易记录tab导航
+     */
+    generateTradeTabNavigation(tradesByStrategy, strategies) {
+        const tradeTabNav = document.getElementById('tradeTabNav');
+        if (!tradeTabNav) return;
+
+        const tabButtons = Object.entries(tradesByStrategy).map(([strategyId, data]) => {
+            const { strategy, trades } = data;
+            const strategyIcon = this.getStrategyIcon(strategy.name, strategy.strategy_type);
+            return `
+                <button class="trade-tab-btn" data-strategy-id="${strategyId}">
+                    <span class="tab-name" data-strategy-icon="${strategyIcon}">${strategy.name}</span>
+                    <span class="tab-count">${trades.length}</span>
+                </button>
+            `;
+        }).join('');
+
+        tradeTabNav.innerHTML = tabButtons;
+
+        // 绑定tab切换事件
+        tradeTabNav.addEventListener('click', (e) => {
+            const tabBtn = e.target.closest('.trade-tab-btn');
+            if (tabBtn) {
+                const strategyId = tabBtn.dataset.strategyId;
+                this.switchTradeTab(strategyId);
+            }
+        });
+    }
+
+    /**
+     * 生成交易记录tab内容
+     */
+    generateTradeTabContent(tradesByStrategy, strategies) {
+        const tradeTabContent = document.getElementById('tradeTabContent');
+        if (!tradeTabContent) return;
+
+        const tabPanels = Object.entries(tradesByStrategy).map(([strategyId, data]) => {
+            const { strategy, trades } = data;
+            
+            const tradesRows = trades.map(trade => `
+                <tr>
+                    <td>${trade.timestamp}</td>
+                    <td>${trade.symbol}</td>
+                    <td class="${trade.side === 'buy' ? 'buy' : 'sell'}">${trade.side === 'buy' ? '买入' : '卖出'}</td>
+                    <td>${trade.quantity}</td>
+                    <td>¥${trade.price.toFixed(2)}</td>
+                    <td>¥${trade.commission.toFixed(2)}</td>
+                    <td class="${trade.pnl >= 0 ? 'profit' : 'loss'}">${trade.pnl ? '¥' + trade.pnl.toFixed(2) : '-'}</td>
+                    <td>${trade.signal_type || '-'}</td>
+                </tr>
+            `).join('');
+
+            const strategyIcon = this.getStrategyIcon(strategy.name, strategy.strategy_type);
+            return `
+                <div class="trade-tab-panel" data-strategy-id="${strategyId}" style="display: none;">
+                    <div class="strategy-summary">
+                        <h6 data-strategy-icon="${strategyIcon}">${strategy.name}</h6>
+                        <span class="trade-summary">共 ${trades.length} 笔交易</span>
+                    </div>
+                    <div class="table-container">
+                        <div class="table-wrapper">
+                            <table class="trades-table">
+                                <thead>
+                                    <tr>
+                                        <th>时间</th>
+                                        <th>股票</th>
+                                        <th>方向</th>
+                                        <th>数量</th>
+                                        <th>价格</th>
+                                        <th>手续费</th>
+                                        <th>盈亏</th>
+                                        <th>信号类型</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${tradesRows || '<tr><td colspan="8">该策略暂无交易记录</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        tradeTabContent.innerHTML = tabPanels;
+    }
+
+    /**
+     * 切换交易记录tab
+     */
+    switchTradeTab(strategyId) {
+        // 更新tab按钮状态
+        const tabButtons = document.querySelectorAll('.trade-tab-btn');
+        tabButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.strategyId === strategyId);
+        });
+
+        // 更新tab面板显示
+        const tabPanels = document.querySelectorAll('.trade-tab-panel');
+        tabPanels.forEach(panel => {
+            panel.style.display = panel.dataset.strategyId === strategyId ? 'block' : 'none';
+        });
+    }
+
+    /**
+     * 激活第一个交易记录tab
+     */
+    activateFirstTradeTab() {
+        const firstTabBtn = document.querySelector('.trade-tab-btn');
+        if (firstTabBtn) {
+            const strategyId = firstTabBtn.dataset.strategyId;
+            this.switchTradeTab(strategyId);
+        }
+    }
+
+    /**
+     * 显示单策略交易记录（多策略降级模式）
+     */
+    displaySingleStrategyTradeHistoryFallback(trades) {
+        // 显示单策略表格，隐藏多策略tabs
+        const singleStrategyDiv = document.getElementById('singleStrategyTrades');
+        const tradeTabsDiv = document.getElementById('tradeTabs');
+        const tradeTabContentDiv = document.getElementById('tradeTabContent');
+        
+        if (singleStrategyDiv) singleStrategyDiv.style.display = 'block';
+        if (tradeTabsDiv) tradeTabsDiv.style.display = 'none';
+        if (tradeTabContentDiv) tradeTabContentDiv.style.display = 'none';
+
+        const tableBody = document.querySelector('#tradesTable tbody');
+        if (!tableBody) return;
+
+        // 使用原有的分组显示逻辑
+        this.displayMultiStrategyTradeHistory(trades, tableBody);
+    }
+
+    /**
+     * 显示空的交易记录
+     */
+    showEmptyTradeHistory() {
+        // 显示单策略表格，隐藏多策略tabs
+        const singleStrategyDiv = document.getElementById('singleStrategyTrades');
+        const tradeTabsDiv = document.getElementById('tradeTabs');
+        const tradeTabContentDiv = document.getElementById('tradeTabContent');
+        
+        if (singleStrategyDiv) singleStrategyDiv.style.display = 'block';
+        if (tradeTabsDiv) tradeTabsDiv.style.display = 'none';
+        if (tradeTabContentDiv) tradeTabContentDiv.style.display = 'none';
+
+        const tableBody = document.querySelector('#tradesTable tbody');
+        if (tableBody) {
+            tableBody.innerHTML = '<tr><td colspan="8">暂无交易记录</td></tr>';
+        }
+    }
+
+    /**
+     * 获取策略图标
+     */
+    getStrategyIcon(strategyName, strategyType) {
+        // 根据策略名称或类型返回对应图标
+        const nameIconMap = {
+            '双均线': '📈',
+            'MA': '📈',
+            '均线': '📈',
+            '布林带': '📊',
+            'BOLL': '📊',
+            'Bollinger': '📊',
+            'MACD': '📉',
+            'RSI': '🔄',
+            '相对强弱': '🔄',
+            'KDJ': '⚡',
+            '随机指标': '⚡',
+            '金叉': '✨',
+            '死叉': '💫',
+            '超买': '🔺',
+            '超卖': '🔻',
+            '突破': '🚀',
+            '回调': '📉',
+            '趋势': '📈',
+            '震荡': '🌊',
+            '动量': '⚡',
+            '均值回归': '🔄',
+            '网格': '🔲',
+            '套利': '⚖️'
+        };
+
+        const typeIconMap = {
+            'technical': '📊',
+            'fundamental': '💰',
+            'ml': '🤖',
+            'composite': '🔗',
+            'combined': '📋',
+            'momentum': '⚡',
+            'trend': '📈',
+            'mean_reversion': '🔄',
+            'breakout': '🚀'
+        };
+
+        // 首先尝试根据策略名称匹配
+        for (const [keyword, icon] of Object.entries(nameIconMap)) {
+            if (strategyName && strategyName.includes(keyword)) {
+                return icon;
+            }
+        }
+
+        // 其次根据策略类型匹配
+        if (strategyType && typeIconMap[strategyType]) {
+            return typeIconMap[strategyType];
+        }
+
+        // 默认图标
+        return '📊';
+    }
+
+    /**
+     * 显示多策略交易记录（按策略分组）- 保留原方法以备兼容
      */
     displayMultiStrategyTradeHistory(trades, tableBody) {
         // 按策略分组
@@ -1046,7 +1336,9 @@ class BacktestModule {
             });
         });
 
-        tableBody.innerHTML = html;
+        if (tableBody) {
+            tableBody.innerHTML = html;
+        }
     }
 
     /**
