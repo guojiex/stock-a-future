@@ -508,6 +508,9 @@ class BacktestModule {
 
         // 显示交易记录（按策略分组显示）
         this.displayTradeHistory(results.trades, isMultiStrategy, results.strategies);
+        
+        // 更新股票信息表头
+        this.updateStockInfoHeader(results.backtest_config);
     }
 
     /**
@@ -978,7 +981,7 @@ class BacktestModule {
         if (isMultiStrategy) {
             if (strategies && strategies.length > 1) {
                 this.displayMultiStrategyTradeHistoryWithTabs(trades, strategies);
-            } else {
+        } else {
                 // 多策略但strategies数据异常，降级到分组显示
                 console.warn('[Backtest] 多策略模式但策略数据异常，使用兼容显示');
                 this.displaySingleStrategyTradeHistoryFallback(trades);
@@ -1007,14 +1010,16 @@ class BacktestModule {
 
         tableBody.innerHTML = trades.map(trade => `
             <tr>
-                <td>${trade.timestamp}</td>
-                <td>${trade.symbol}</td>
-                <td class="${trade.side === 'buy' ? 'buy' : 'sell'}">${trade.side === 'buy' ? '买入' : '卖出'}</td>
-                <td>${trade.quantity}</td>
+                <td>${this.formatTradeTime(trade.timestamp)}</td>
+                <td class="operation-signal">
+                    <span class="operation ${trade.side === 'buy' ? 'buy' : 'sell'}">${trade.side === 'buy' ? '买入' : '卖出'}</span>
+                    <span class="signal-type">${trade.signal_type || '-'}</span>
+                </td>
+                <td>${trade.quantity.toLocaleString()}</td>
                 <td>¥${trade.price.toFixed(2)}</td>
                 <td>¥${trade.commission.toFixed(2)}</td>
                 <td class="${trade.pnl >= 0 ? 'profit' : 'loss'}">${trade.pnl ? '¥' + trade.pnl.toFixed(2) : '-'}</td>
-                <td>${trade.signal_type || '-'}</td>
+                <td class="total-assets">¥${this.formatAssets(trade.portfolio_value || 0)}</td>
             </tr>
         `).join('');
     }
@@ -1121,14 +1126,17 @@ class BacktestModule {
             
             const tradesRows = trades.map(trade => `
                 <tr>
-                    <td>${trade.timestamp}</td>
-                    <td>${trade.symbol}</td>
-                    <td class="${trade.side === 'buy' ? 'buy' : 'sell'}">${trade.side === 'buy' ? '买入' : '卖出'}</td>
-                    <td>${trade.quantity}</td>
+                    <td>${this.formatTradeTime(trade.timestamp)}</td>
+                    <td class="stock-symbol">${trade.symbol}</td>
+                    <td class="operation-signal">
+                        <span class="operation ${trade.side === 'buy' ? 'buy' : 'sell'}">${trade.side === 'buy' ? '买入' : '卖出'}</span>
+                        <span class="signal-type">${trade.signal_type || '-'}</span>
+                    </td>
+                    <td>${trade.quantity.toLocaleString()}</td>
                     <td>¥${trade.price.toFixed(2)}</td>
                     <td>¥${trade.commission.toFixed(2)}</td>
                     <td class="${trade.pnl >= 0 ? 'profit' : 'loss'}">${trade.pnl ? '¥' + trade.pnl.toFixed(2) : '-'}</td>
-                    <td>${trade.signal_type || '-'}</td>
+                    <td class="total-assets">¥${this.formatAssets(trade.portfolio_value || 0)}</td>
                 </tr>
             `).join('');
 
@@ -1144,14 +1152,20 @@ class BacktestModule {
                             <table class="trades-table">
                                 <thead>
                                     <tr>
+                                        <th colspan="8" class="stock-info-header">
+                                            <span class="stock-name">${strategy.name} - 股票信息</span>
+                                            <span class="stock-code">多股票组合</span>
+                                        </th>
+                                    </tr>
+                                    <tr class="column-headers">
                                         <th>时间</th>
                                         <th>股票</th>
-                                        <th>方向</th>
+                                        <th>操作/信号</th>
                                         <th>数量</th>
                                         <th>价格</th>
                                         <th>手续费</th>
                                         <th>盈亏</th>
-                                        <th>信号类型</th>
+                                        <th>总资产</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1230,7 +1244,67 @@ class BacktestModule {
 
         const tableBody = document.querySelector('#tradesTable tbody');
         if (tableBody) {
-            tableBody.innerHTML = '<tr><td colspan="8">暂无交易记录</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="7">暂无交易记录</td></tr>';
+        }
+    }
+
+    /**
+     * 更新股票信息表头
+     */
+    updateStockInfoHeader(backtestConfig) {
+        const stockInfoHeader = document.getElementById('stockInfoHeader');
+        if (!stockInfoHeader || !backtestConfig || !backtestConfig.symbols) return;
+
+        const stockName = stockInfoHeader.querySelector('.stock-name');
+        const stockCode = stockInfoHeader.querySelector('.stock-code');
+        
+        if (backtestConfig.symbols.length === 1) {
+            // 单只股票
+            const symbol = backtestConfig.symbols[0];
+            if (stockName) stockName.textContent = '股票信息';
+            if (stockCode) stockCode.textContent = symbol;
+        } else {
+            // 多只股票
+            if (stockName) stockName.textContent = '股票组合';
+            if (stockCode) stockCode.textContent = `${backtestConfig.symbols.length}只股票`;
+        }
+    }
+
+    /**
+     * 格式化交易时间
+     */
+    formatTradeTime(timestamp) {
+        if (!timestamp) return '-';
+        
+        try {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 0) {
+                return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            } else if (diffDays < 7) {
+                return `${diffDays}天前`;
+            } else {
+                return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
+            }
+        } catch (error) {
+            return timestamp.split(' ')[0] || timestamp; // 降级处理
+        }
+    }
+
+    /**
+     * 格式化资产金额
+     */
+    formatAssets(amount) {
+        if (!amount || amount === 0) return '0';
+        
+        if (amount >= 100000000) {
+            return (amount / 100000000).toFixed(2) + '亿';
+        } else if (amount >= 10000) {
+            return (amount / 10000).toFixed(1) + '万';
+        } else {
+            return amount.toLocaleString();
         }
     }
 
@@ -1312,7 +1386,7 @@ class BacktestModule {
             // 策略分组标题行
             html += `
                 <tr class="strategy-group-header">
-                    <td colspan="8" class="strategy-group-title">
+                    <td colspan="7" class="strategy-group-title">
                         <strong>策略: ${strategyId}</strong> 
                         <span class="trade-count">(${strategyTrades.length}笔交易)</span>
                     </td>
@@ -1323,21 +1397,23 @@ class BacktestModule {
             strategyTrades.forEach(trade => {
                 html += `
                     <tr class="strategy-trade-row">
-                        <td>${trade.timestamp}</td>
-                        <td>${trade.symbol}</td>
-                        <td class="${trade.side === 'buy' ? 'buy' : 'sell'}">${trade.side === 'buy' ? '买入' : '卖出'}</td>
-                        <td>${trade.quantity}</td>
+                        <td>${this.formatTradeTime(trade.timestamp)}</td>
+                        <td class="operation-signal">
+                            <span class="operation ${trade.side === 'buy' ? 'buy' : 'sell'}">${trade.side === 'buy' ? '买入' : '卖出'}</span>
+                            <span class="signal-type">${trade.signal_type || '-'}</span>
+                        </td>
+                        <td>${trade.quantity.toLocaleString()}</td>
                         <td>¥${trade.price.toFixed(2)}</td>
                         <td>¥${trade.commission.toFixed(2)}</td>
                         <td class="${trade.pnl >= 0 ? 'profit' : 'loss'}">${trade.pnl ? '¥' + trade.pnl.toFixed(2) : '-'}</td>
-                        <td>${trade.signal_type || '-'}</td>
+                        <td class="total-assets">¥${this.formatAssets(trade.portfolio_value || 0)}</td>
                     </tr>
                 `;
             });
         });
 
         if (tableBody) {
-            tableBody.innerHTML = html;
+        tableBody.innerHTML = html;
         }
     }
 
