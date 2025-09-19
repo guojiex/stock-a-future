@@ -565,37 +565,8 @@ class BacktestModule {
             `;
         }).join('');
 
-        // 组合指标卡片
-        const combinedCard = combinedMetrics ? `
-            <div class="strategy-card combined-card">
-                <div class="strategy-card-header">
-                    <h5 class="strategy-name">组合整体</h5>
-                    <div class="strategy-badge">组合</div>
-                </div>
-                <div class="strategy-card-metrics">
-                    <div class="metric-row">
-                        <span class="metric-label">总收益率</span>
-                        <span class="metric-value ${this.getMetricClass(combinedMetrics.total_return, '收益')}">${this.formatMetricValue(combinedMetrics.total_return, 'percentage')}</span>
-                    </div>
-                    <div class="metric-row">
-                        <span class="metric-label">夏普比率</span>
-                        <span class="metric-value ${this.getMetricClass(combinedMetrics.sharpe_ratio, '夏普')}">${this.formatMetricValue(combinedMetrics.sharpe_ratio, 'decimal')}</span>
-                    </div>
-                    <div class="metric-row">
-                        <span class="metric-label">最大回撤</span>
-                        <span class="metric-value ${this.getMetricClass(combinedMetrics.max_drawdown, '回撤')}">${this.formatMetricValue(combinedMetrics.max_drawdown, 'percentage')}</span>
-                    </div>
-                    <div class="metric-row">
-                        <span class="metric-label">胜率</span>
-                        <span class="metric-value ${this.getMetricClass(combinedMetrics.win_rate, '胜率')}">${this.formatMetricValue(combinedMetrics.win_rate, 'percentage')}</span>
-                    </div>
-                    <div class="metric-row">
-                        <span class="metric-label">总交易次数</span>
-                        <span class="metric-value neutral">${this.formatMetricValue(combinedMetrics.total_trades, 'number')}</span>
-                    </div>
-                </div>
-            </div>
-        ` : '';
+        // 移除组合指标卡片，避免与下方的整体表现重复
+        const combinedCard = '';
 
         overviewSection.innerHTML = `
             <div class="section-header">
