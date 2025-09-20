@@ -1276,6 +1276,12 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 		}
 		s.updateBacktestProgress(backtest.ID, progress, fmt.Sprintf("多策略回测进行中... %s", currentDate.Format("2006-01-02")))
 
+		// 先更新每个策略的组合价值（基于当日市价）
+		for _, strategy := range strategies {
+			portfolio := strategyPortfolios[strategy.ID]
+			s.updatePortfolioValue(ctx, portfolio, backtest.Symbols, currentDate)
+		}
+
 		// 对每个股票执行所有策略
 		for _, symbol := range backtest.Symbols {
 			// 获取真实市场数据
@@ -1309,6 +1315,9 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 
 				// 根据信号执行交易
 				if trade := s.executeSignalForStrategy(signal, marketData, portfolio, backtest, strategy.ID); trade != nil {
+					// 执行交易后，只更新当前策略的组合价值，然后计算总资产
+					s.updatePortfolioValue(ctx, portfolio, backtest.Symbols, currentDate)
+
 					// 计算所有策略的总资产
 					totalAssets := 0.0
 					for _, p := range strategyPortfolios {
@@ -1320,7 +1329,7 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 			}
 		}
 
-		// 更新每个策略的组合价值
+		// 最终更新每个策略的组合价值（确保权益曲线记录正确）
 		for _, strategy := range strategies {
 			portfolio := strategyPortfolios[strategy.ID]
 			s.updatePortfolioValue(ctx, portfolio, backtest.Symbols, currentDate)
