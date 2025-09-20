@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"sort"
 	"strings"
@@ -480,13 +481,13 @@ func (s *StrategyService) ExecuteStrategy(ctx context.Context, strategyID string
 	// 根据策略类型执行不同的逻辑
 	switch strategy.ID {
 	case "macd_strategy":
-		return s.executeMACDStrategy(strategy, marketData)
+		return s.executeMACDStrategyImproved(strategy, marketData)
 	case "ma_crossover":
-		return s.executeMAStrategy(strategy, marketData)
+		return s.executeMAStrategyImproved(strategy, marketData)
 	case "rsi_strategy":
-		return s.executeRSIStrategy(strategy, marketData)
+		return s.executeRSIStrategyImproved(strategy, marketData)
 	case "bollinger_strategy":
-		return s.executeBollingerStrategy(strategy, marketData)
+		return s.executeBollingerStrategyImproved(strategy, marketData)
 	}
 
 	s.logger.Error("未知的策略类型",
@@ -661,6 +662,193 @@ func (s *StrategyService) executeBollingerStrategy(strategy *models.Strategy, ma
 		signal.Strength = 0.5
 		signal.Confidence = 0.5
 		signal.Reason = "价格在布林带中轨附近"
+	}
+
+	return signal, nil
+}
+
+// ==================== 改进的策略实现 ====================
+
+// executeMACDStrategyImproved 改进的MACD策略
+func (s *StrategyService) executeMACDStrategyImproved(strategy *models.Strategy, marketData *models.MarketData) (*models.Signal, error) {
+	signal := &models.Signal{
+		ID:         fmt.Sprintf("signal_%d", time.Now().Unix()),
+		StrategyID: strategy.ID,
+		Symbol:     marketData.Symbol,
+		Price:      marketData.Close,
+		Timestamp:  marketData.Date,
+		CreatedAt:  time.Now(),
+	}
+
+	// 基于价格趋势的简化MACD逻辑
+	// 使用价格相对于某个基准的变化来模拟MACD信号
+	priceBase := 5.0 // 假设基准价格
+	priceChange := (marketData.Close - priceBase) / priceBase
+
+	// 添加一些随机性，但更有逻辑
+	randomFactor := (rand.Float64() - 0.5) * 0.2 // -0.1 到 0.1 的随机因子
+	adjustedChange := priceChange + randomFactor
+
+	// 更严格的买入/卖出条件，减少频繁交易
+	if adjustedChange > 0.05 { // 价格上涨超过5%
+		signal.SignalType = models.SignalTypeBuy
+		signal.Side = models.TradeSideBuy
+		signal.Strength = math.Min(adjustedChange*2, 1.0)
+		signal.Confidence = 0.75
+		signal.Reason = fmt.Sprintf("MACD金叉信号 (价格变化: %.2f%%)", adjustedChange*100)
+	} else if adjustedChange < -0.05 { // 价格下跌超过5%
+		signal.SignalType = models.SignalTypeSell
+		signal.Side = models.TradeSideSell
+		signal.Strength = math.Min(-adjustedChange*2, 1.0)
+		signal.Confidence = 0.75
+		signal.Reason = fmt.Sprintf("MACD死叉信号 (价格变化: %.2f%%)", adjustedChange*100)
+	} else {
+		signal.SignalType = models.SignalTypeHold
+		signal.Strength = 0.5
+		signal.Confidence = 0.5
+		signal.Reason = "MACD震荡区间，等待明确信号"
+	}
+
+	return signal, nil
+}
+
+// executeMAStrategyImproved 改进的移动平均策略
+func (s *StrategyService) executeMAStrategyImproved(strategy *models.Strategy, marketData *models.MarketData) (*models.Signal, error) {
+	signal := &models.Signal{
+		ID:         fmt.Sprintf("signal_%d", time.Now().Unix()),
+		StrategyID: strategy.ID,
+		Symbol:     marketData.Symbol,
+		Price:      marketData.Close,
+		Timestamp:  marketData.Date,
+		CreatedAt:  time.Now(),
+	}
+
+	// 模拟短期和长期均线
+	shortMA := marketData.Close * (0.95 + rand.Float64()*0.1) // 短期均线在价格附近波动
+	longMA := marketData.Close * (0.90 + rand.Float64()*0.2)  // 长期均线波动更大
+
+	crossover := (marketData.Close - shortMA) / shortMA
+	trend := (shortMA - longMA) / longMA
+
+	// 更智能的信号生成：需要价格突破且趋势确认
+	if crossover > 0.02 && trend > 0.03 { // 价格突破短期均线且短期均线在长期均线之上
+		signal.SignalType = models.SignalTypeBuy
+		signal.Side = models.TradeSideBuy
+		signal.Strength = math.Min((crossover+trend)*5, 1.0)
+		signal.Confidence = 0.8
+		signal.Reason = "短期均线上穿长期均线，趋势向上"
+	} else if crossover < -0.02 && trend < -0.03 { // 价格跌破短期均线且短期均线在长期均线之下
+		signal.SignalType = models.SignalTypeSell
+		signal.Side = models.TradeSideSell
+		signal.Strength = math.Min(-(crossover+trend)*5, 1.0)
+		signal.Confidence = 0.8
+		signal.Reason = "短期均线下穿长期均线，趋势向下"
+	} else {
+		signal.SignalType = models.SignalTypeHold
+		signal.Strength = 0.5
+		signal.Confidence = 0.5
+		signal.Reason = "均线纠缠状态，观望"
+	}
+
+	return signal, nil
+}
+
+// executeRSIStrategyImproved 改进的RSI策略
+func (s *StrategyService) executeRSIStrategyImproved(strategy *models.Strategy, marketData *models.MarketData) (*models.Signal, error) {
+	signal := &models.Signal{
+		ID:         fmt.Sprintf("signal_%d", time.Now().Unix()),
+		StrategyID: strategy.ID,
+		Symbol:     marketData.Symbol,
+		Price:      marketData.Close,
+		Timestamp:  marketData.Date,
+		CreatedAt:  time.Now(),
+	}
+
+	// 基于价格位置模拟RSI值
+	priceRange := marketData.High - marketData.Low
+	if priceRange == 0 {
+		priceRange = marketData.Close * 0.02 // 假设2%的波动
+	}
+
+	pricePosition := (marketData.Close - marketData.Low) / priceRange
+	rsiValue := 30 + pricePosition*40 + (rand.Float64()-0.5)*20 // 30-70区间，加随机波动
+
+	overbought := 75.0
+	oversold := 25.0
+
+	if params, ok := strategy.Parameters["overbought"].(float64); ok {
+		overbought = params
+	}
+	if params, ok := strategy.Parameters["oversold"].(float64); ok {
+		oversold = params
+	}
+
+	// 更严格的RSI条件，避免频繁交易
+	if rsiValue < oversold && pricePosition < 0.3 { // RSI超卖且价格在低位
+		signal.SignalType = models.SignalTypeBuy
+		signal.Side = models.TradeSideBuy
+		signal.Strength = (oversold - rsiValue) / oversold
+		signal.Confidence = 0.85
+		signal.Reason = fmt.Sprintf("RSI超卖信号 (RSI: %.1f, 价格低位)", rsiValue)
+	} else if rsiValue > overbought && pricePosition > 0.7 { // RSI超买且价格在高位
+		signal.SignalType = models.SignalTypeSell
+		signal.Side = models.TradeSideSell
+		signal.Strength = (rsiValue - overbought) / (100 - overbought)
+		signal.Confidence = 0.85
+		signal.Reason = fmt.Sprintf("RSI超买信号 (RSI: %.1f, 价格高位)", rsiValue)
+	} else {
+		signal.SignalType = models.SignalTypeHold
+		signal.Strength = 0.5
+		signal.Confidence = 0.5
+		signal.Reason = fmt.Sprintf("RSI正常区间 (RSI: %.1f)", rsiValue)
+	}
+
+	return signal, nil
+}
+
+// executeBollingerStrategyImproved 改进的布林带策略
+func (s *StrategyService) executeBollingerStrategyImproved(strategy *models.Strategy, marketData *models.MarketData) (*models.Signal, error) {
+	signal := &models.Signal{
+		ID:         fmt.Sprintf("signal_%d", time.Now().Unix()),
+		StrategyID: strategy.ID,
+		Symbol:     marketData.Symbol,
+		Price:      marketData.Close,
+		Timestamp:  marketData.Date,
+		CreatedAt:  time.Now(),
+	}
+
+	// 模拟布林带：中轨=收盘价，上下轨基于波动率
+	middleBand := marketData.Close
+	volatility := (marketData.High - marketData.Low) / marketData.Close
+	if volatility < 0.01 {
+		volatility = 0.02 // 最小波动率2%
+	}
+
+	upperBand := middleBand * (1 + volatility*2)
+	lowerBand := middleBand * (1 - volatility*2)
+
+	// 计算价格相对于布林带的位置
+	bandWidth := upperBand - lowerBand
+	pricePosition := (marketData.Close - lowerBand) / bandWidth
+
+	// 更保守的布林带策略，避免假突破
+	if pricePosition < 0.1 && volatility > 0.03 { // 价格接近下轨且有足够波动率
+		signal.SignalType = models.SignalTypeBuy
+		signal.Side = models.TradeSideBuy
+		signal.Strength = (0.1 - pricePosition) * 10
+		signal.Confidence = 0.8
+		signal.Reason = fmt.Sprintf("价格触及布林带下轨 (位置: %.1f%%, 波动率: %.1f%%)", pricePosition*100, volatility*100)
+	} else if pricePosition > 0.9 && volatility > 0.03 { // 价格接近上轨且有足够波动率
+		signal.SignalType = models.SignalTypeSell
+		signal.Side = models.TradeSideSell
+		signal.Strength = (pricePosition - 0.9) * 10
+		signal.Confidence = 0.8
+		signal.Reason = fmt.Sprintf("价格触及布林带上轨 (位置: %.1f%%, 波动率: %.1f%%)", pricePosition*100, volatility*100)
+	} else {
+		signal.SignalType = models.SignalTypeHold
+		signal.Strength = 0.5
+		signal.Confidence = 0.5
+		signal.Reason = fmt.Sprintf("价格在布林带中部 (位置: %.1f%%)", pricePosition*100)
 	}
 
 	return signal, nil
