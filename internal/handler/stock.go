@@ -92,12 +92,9 @@ func (h *StockHandler) GetDailyData(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if h.dailyCacheService != nil {
-		log.Printf("[GetDailyData] 尝试从缓存获取数据 - 股票代码: %s", stockCode)
 		if cachedData, found := h.dailyCacheService.Get(stockCode, startDate, endDate); found {
-			log.Printf("[GetDailyData] 缓存命中 - 股票代码: %s, 数据条数: %d", stockCode, len(cachedData))
 			data = cachedData
 		} else {
-			log.Printf("[GetDailyData] 缓存未命中 - 股票代码: %s, 从API获取数据", stockCode)
 			// 缓存未命中，从API获取数据
 			data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate, adjust)
 			if err != nil {
@@ -114,13 +111,10 @@ func (h *StockHandler) GetDailyData(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			log.Printf("[GetDailyData] 从API获取数据成功 - 股票代码: %s, 数据条数: %d", stockCode, len(data))
 			// 将数据存入缓存
 			h.dailyCacheService.Set(stockCode, startDate, endDate, data)
-			log.Printf("[GetDailyData] 数据已存入缓存 - 股票代码: %s", stockCode)
 		}
 	} else {
-		log.Printf("[GetDailyData] 缓存服务未启用 - 股票代码: %s, 直接从API获取", stockCode)
 		// 如果缓存服务未启用，直接从API获取
 		data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate, adjust)
 		if err != nil {
@@ -191,12 +185,9 @@ func (h *StockHandler) GetIndicators(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if h.dailyCacheService != nil {
-		log.Printf("[GetIndicators] 尝试从缓存获取数据 - 股票代码: %s", stockCode)
 		if cachedData, found := h.dailyCacheService.Get(stockCode, startDate, endDate); found {
-			log.Printf("[GetIndicators] 缓存命中 - 股票代码: %s, 数据条数: %d", stockCode, len(cachedData))
 			data = cachedData
 		} else {
-			log.Printf("[GetIndicators] 缓存未命中 - 股票代码: %s, 从API获取数据", stockCode)
 			// 缓存未命中，从API获取数据
 			data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate, "")
 			if err != nil {
@@ -213,13 +204,10 @@ func (h *StockHandler) GetIndicators(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			log.Printf("[GetIndicators] 从API获取数据成功 - 股票代码: %s, 数据条数: %d", stockCode, len(data))
 			// 将数据存入缓存
 			h.dailyCacheService.Set(stockCode, startDate, endDate, data)
-			log.Printf("[GetIndicators] 数据已存入缓存 - 股票代码: %s", stockCode)
 		}
 	} else {
-		log.Printf("[GetIndicators] 缓存服务未启用 - 股票代码: %s, 直接从API获取", stockCode)
 		// 如果缓存服务未启用，直接从API获取
 		data, err = h.dataSourceClient.GetDailyData(stockCode, startDate, endDate, "")
 		if err != nil {

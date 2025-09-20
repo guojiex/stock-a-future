@@ -115,9 +115,6 @@ func (s *DailyCacheService) Get(stockCode, startDate, endDate string) ([]models.
 	}
 
 	s.recordHit()
-	log.Printf("缓存命中: %s (创建时间: %v, 过期时间: %v)",
-		cacheKey, entry.CreatedAt.Format("15:04:05"), entry.ExpiresAt.Format("15:04:05"))
-
 	return entry.Data, true
 }
 
@@ -144,9 +141,6 @@ func (s *DailyCacheService) SetWithTTL(stockCode, startDate, endDate string, dat
 
 	s.cache.Store(cacheKey, entry)
 	s.recordEntry()
-
-	log.Printf("缓存已设置: %s (TTL: %v, 过期时间: %v, 数据条数: %d)",
-		cacheKey, ttl, entry.ExpiresAt.Format("15:04:05"), len(data))
 }
 
 // Delete 删除缓存

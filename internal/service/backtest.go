@@ -355,17 +355,10 @@ func (s *BacktestService) StartBacktest(ctx context.Context, backtest *models.Ba
 	timeoutMinutes := maxInt(10, minInt(240, totalDays/3*len(strategies)))
 	timeout := time.Duration(timeoutMinutes) * time.Minute
 
-	s.logger.Info("设置多策略回测超时时间",
-		logger.String("backtest_id", backtest.ID),
-		logger.Int("strategies_count", len(strategies)),
-		logger.Int("total_days", totalDays),
-		logger.Int("timeout_minutes", timeoutMinutes),
-	)
-
 	backtestCtx, cancel := context.WithTimeout(ctx, timeout)
 	s.runningBacktests[backtest.ID] = cancel
 
-	s.logger.Info("准备启动多策略回测goroutine",
+	s.logger.Info("启动多策略回测",
 		logger.String("backtest_id", backtest.ID),
 		logger.Any("strategy_ids", backtest.StrategyIDs),
 		logger.Int("total_days", int(backtest.EndDate.Sub(backtest.StartDate).Hours()/24)),
@@ -1157,10 +1150,9 @@ func (s *BacktestService) updateBacktestProgress(backtestID string, progress int
 
 // runMultiStrategyBacktestTask 运行多策略回测任务
 func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, backtest *models.Backtest, strategies []*models.Strategy) {
-	// 立即输出日志，确保goroutine已启动
-	s.logger.Info("🚀 多策略回测goroutine已启动",
+	// 记录回测开始
+	s.logger.Info("多策略回测开始执行",
 		logger.String("backtest_id", backtest.ID),
-		logger.String("goroutine_status", "started"),
 		logger.Int("strategies_count", len(strategies)),
 	)
 
@@ -1180,11 +1172,6 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 	}()
 
 	// 预加载回测数据
-	s.logger.Info("开始预加载多策略回测数据",
-		logger.String("backtest_id", backtest.ID),
-		logger.Int("symbols_count", len(backtest.Symbols)),
-		logger.Int("strategies_count", len(strategies)),
-	)
 
 	if err := s.preloadBacktestData(ctx, backtest.Symbols, backtest.StartDate, backtest.EndDate); err != nil {
 		s.logger.Error("预加载回测数据失败",
@@ -1200,12 +1187,6 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 	if totalDays <= 0 {
 		totalDays = 1
 	}
-
-	s.logger.Info("多策略回测参数计算完成",
-		logger.String("backtest_id", backtest.ID),
-		logger.Int("total_days", totalDays),
-		logger.Int("strategies_count", len(strategies)),
-	)
 
 	// 为每个策略创建独立的投资组合
 	strategyPortfolios := make(map[string]*models.Portfolio)
@@ -1227,28 +1208,14 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 		strategyDailyReturns[strategy.ID] = []float64{}
 	}
 
-	// 模拟每日回测
-	s.logger.Info("开始多策略回测循环",
-		logger.String("backtest_id", backtest.ID),
-		logger.Int("total_days", totalDays),
-		logger.String("start_date", backtest.StartDate.Format("2006-01-02")),
-		logger.String("end_date", backtest.EndDate.Format("2006-01-02")),
-		logger.Int("strategies_count", len(strategies)),
-	)
+	// 开始模拟每日回测
 
 	// 用于控制日志输出频率
 	var lastLoggedProgress int = -1
-	const progressLogInterval = 10 // 每10%打印一次进度
 
 	// 获取回测期间的所有交易日
 	tradingDays := s.tradingCalendar.GetTradingDaysInRange(backtest.StartDate, backtest.EndDate)
 	totalTradingDays := len(tradingDays)
-
-	s.logger.Info("多策略回测交易日统计",
-		logger.String("backtest_id", backtest.ID),
-		logger.Int("total_calendar_days", totalDays+1),
-		logger.Int("total_trading_days", totalTradingDays),
-	)
 
 	for dayIndex, currentDate := range tradingDays {
 		select {
@@ -1274,14 +1241,12 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 		// 更新进度（基于交易日数量）
 		progress := int(float64(dayIndex+1) / float64(totalTradingDays) * 100)
 
-		// 只在进度达到特定节点时打印日志
-		if progress >= lastLoggedProgress+progressLogInterval || dayIndex == 0 || dayIndex == totalTradingDays-1 {
-			s.logger.Info("多策略回测进度更新",
+		// 只在重要进度节点打印日志（减少日志量）
+		if progress >= lastLoggedProgress+20 || dayIndex == 0 || dayIndex == totalTradingDays-1 {
+			s.logger.Info("多策略回测进度",
 				logger.String("backtest_id", backtest.ID),
 				logger.Int("progress", progress),
-				logger.String("current_date", currentDate.Format("2006-01-02")),
-				logger.Int("trading_day_index", dayIndex+1),
-				logger.Int("total_trading_days", totalTradingDays),
+				logger.String("date", currentDate.Format("2006-01-02")),
 			)
 			lastLoggedProgress = progress
 		}
@@ -1326,21 +1291,23 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 
 				// 根据信号执行交易
 				if trade := s.executeSignalForStrategy(signal, marketData, portfolio, backtest, strategy.ID); trade != nil {
-					// 执行交易后，只更新当前策略的组合价值，然后计算总资产
-					s.updatePortfolioValue(ctx, portfolio, backtest.Symbols, currentDate)
+					// 注意：不要在这里重新计算持仓资产，因为executeSignalForStrategy已经计算了正确的值
+					// 重新计算会导致使用不同的市场数据，造成计算错误
 
-					// 计算所有策略的总资产
-					totalAssets := 0.0
+					// 只更新现金余额（如果需要的话）
+					trade.CashBalance = portfolio.Cash
+
+					// 计算所有策略的总资产（现金总和 + 持仓市值总和）
+					totalCash := 0.0
+					totalHoldings := 0.0
 					for _, p := range strategyPortfolios {
-						totalAssets += p.TotalValue
+						totalCash += p.Cash
+						for _, pos := range p.Positions {
+							totalHoldings += pos.MarketValue
+						}
 					}
+					totalAssets := totalCash + totalHoldings
 					trade.TotalAssets = totalAssets
-
-					// 如果HoldingAssets和CashBalance还没有设置，使用当前组合的值
-					if trade.HoldingAssets == 0 && trade.CashBalance == 0 {
-						trade.HoldingAssets = portfolio.TotalValue - portfolio.Cash
-						trade.CashBalance = portfolio.Cash
-					}
 
 					strategyTrades[strategy.ID] = append(strategyTrades[strategy.ID], *trade)
 				}
@@ -1374,8 +1341,8 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 		time.Sleep(1 * time.Millisecond)
 	}
 
-	// 回测完成，计算和保存结果
-	s.logger.Info("多策略回测循环完成，开始计算结果",
+	// 回测完成，计算结果
+	s.logger.Info("多策略回测完成",
 		logger.String("backtest_id", backtest.ID),
 		logger.Int("strategies_count", len(strategies)),
 	)
@@ -1562,6 +1529,13 @@ func (s *BacktestService) executeSignalForStrategy(signal *models.Signal, market
 			return nil
 		}
 
+		// 记录卖出前的持仓资产用于异常检测
+		holdingAssetsBeforeSell := 0.0
+		for _, pos := range portfolio.Positions {
+			holdingAssetsBeforeSell += pos.MarketValue
+		}
+		soldStockValue := position.MarketValue // 被卖出股票的市值
+
 		quantity := position.Quantity
 		revenue := float64(quantity) * price
 		commission := revenue * backtest.Commission
@@ -1574,19 +1548,40 @@ func (s *BacktestService) executeSignalForStrategy(signal *models.Signal, market
 		portfolio.Cash += netRevenue
 		delete(portfolio.Positions, symbol)
 
-		// 计算交易后的持仓资产（需要先更新剩余持仓的市值）
-		holdingAssets := 0.0
-		for symbolKey, pos := range portfolio.Positions {
-			// 获取当前市价更新持仓市值
-			if currentMarketData, err := s.getRealMarketData(context.Background(), symbolKey, marketData.Date); err == nil {
-				currentMarketValue := float64(pos.Quantity) * currentMarketData.Close
-				pos.MarketValue = currentMarketValue
-				pos.UnrealizedPL = currentMarketValue - float64(pos.Quantity)*pos.AvgPrice
-				portfolio.Positions[symbolKey] = pos
-				holdingAssets += currentMarketValue
-			} else {
-				// 如果获取不到最新数据，使用原有市值
-				holdingAssets += pos.MarketValue
+		// 计算交易后的持仓资产
+		holdingAssetsAfterSell := 0.0
+		for _, pos := range portfolio.Positions {
+			holdingAssetsAfterSell += pos.MarketValue
+		}
+
+		// 🚨 异常检测：卖出后持仓资产不应该增加
+		if holdingAssetsAfterSell > holdingAssetsBeforeSell {
+			s.logger.Error("🚨 卖出交易异常：卖出后持仓资产增加",
+				logger.String("backtest_id", backtest.ID),
+				logger.String("strategy_id", strategyID),
+				logger.String("symbol", symbol),
+				logger.Float64("sold_quantity", float64(quantity)),
+				logger.Float64("sold_price", price),
+				logger.Float64("sold_stock_value", soldStockValue),
+				logger.Float64("holding_before_sell", holdingAssetsBeforeSell),
+				logger.Float64("holding_after_sell", holdingAssetsAfterSell),
+				logger.Float64("abnormal_increase", holdingAssetsAfterSell-holdingAssetsBeforeSell),
+				logger.String("timestamp", marketData.Date.Format("2006-01-02")),
+			)
+
+			// 打印剩余持仓详情
+			s.logger.Error("剩余持仓详情",
+				logger.String("backtest_id", backtest.ID),
+				logger.String("strategy_id", strategyID),
+			)
+			for sym, pos := range portfolio.Positions {
+				s.logger.Error("持仓明细",
+					logger.String("symbol", sym),
+					logger.Int("quantity", pos.Quantity),
+					logger.Float64("avg_price", pos.AvgPrice),
+					logger.Float64("market_value", pos.MarketValue),
+					logger.Float64("unrealized_pl", pos.UnrealizedPL),
+				)
 			}
 		}
 
@@ -1601,7 +1596,7 @@ func (s *BacktestService) executeSignalForStrategy(signal *models.Signal, market
 			Commission:    commission,
 			PnL:           pnl,
 			SignalType:    string(signal.SignalType),
-			HoldingAssets: holdingAssets,
+			HoldingAssets: holdingAssetsAfterSell,
 			CashBalance:   portfolio.Cash,
 			Timestamp:     marketData.Date,
 			CreatedAt:     time.Now(),
