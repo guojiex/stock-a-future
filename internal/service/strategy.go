@@ -647,38 +647,65 @@ func (s *StrategyService) executeBollingerStrategyImproved(strategy *models.Stra
 		CreatedAt:  time.Now(),
 	}
 
-	// 模拟布林带：中轨=收盘价，上下轨基于波动率
-	middleBand := marketData.Close
-	volatility := (marketData.High - marketData.Low) / marketData.Close
-	if volatility < 0.01 {
-		volatility = 0.02 // 最小波动率2%
+	// 获取策略参数
+	stdDevMultiplier := 2.0
+	if params, ok := strategy.Parameters["std_dev"].(float64); ok {
+		stdDevMultiplier = params
 	}
+	// period 参数暂时未使用，因为我们使用简化的布林带计算
 
-	upperBand := middleBand * (1 + volatility*2)
-	lowerBand := middleBand * (1 - volatility*2)
+	// 简化的布林带计算：使用当前价格的移动平均估算
+	// 在实际应用中，这里应该获取历史数据来计算真正的移动平均线
+	// 为了演示，我们使用一个简化的方法：基于当日的开高低收来估算趋势
+
+	// 估算移动平均线（中轨）：使用当日均价作为近似
+	middleBand := (marketData.High + marketData.Low + marketData.Close*2) / 4
+
+	// 计算当日波动率作为标准差的估算
+	dailyRange := marketData.High - marketData.Low
+	estimatedStdDev := dailyRange / 4 // 简化估算：日内波动的1/4作为标准差
+
+	// 计算布林带上下轨
+	upperBand := middleBand + (estimatedStdDev * stdDevMultiplier)
+	lowerBand := middleBand - (estimatedStdDev * stdDevMultiplier)
 
 	// 计算价格相对于布林带的位置
 	bandWidth := upperBand - lowerBand
+	if bandWidth <= 0 {
+		// 避免除零错误，使用默认持有信号
+		signal.SignalType = models.SignalTypeHold
+		signal.Strength = 0.5
+		signal.Confidence = 0.5
+		signal.Reason = "布林带宽度过小，无法判断"
+		return signal, nil
+	}
+
 	pricePosition := (marketData.Close - lowerBand) / bandWidth
 
-	// 更保守的布林带策略，避免假突破
-	if pricePosition < 0.1 && volatility > 0.03 { // 价格接近下轨且有足够波动率
+	// 计算相对波动率
+	relativeVolatility := dailyRange / marketData.Close
+
+	// 布林带策略逻辑：更宽松的条件以便产生交易信号
+	if pricePosition < 0.3 && relativeVolatility > 0.01 { // 价格在下30%且有波动
 		signal.SignalType = models.SignalTypeBuy
 		signal.Side = models.TradeSideBuy
-		signal.Strength = (0.1 - pricePosition) * 10
-		signal.Confidence = 0.8
-		signal.Reason = fmt.Sprintf("价格触及布林带下轨 (位置: %.1f%%, 波动率: %.1f%%)", pricePosition*100, volatility*100)
-	} else if pricePosition > 0.9 && volatility > 0.03 { // 价格接近上轨且有足够波动率
+		signal.Strength = math.Min((0.3-pricePosition)*3, 1.0)
+		signal.Confidence = 0.75
+		signal.Reason = fmt.Sprintf("价格接近布林带下轨 (位置: %.1f%%, 中轨: %.2f, 下轨: %.2f)",
+			pricePosition*100, middleBand, lowerBand)
+	} else if pricePosition > 0.7 && relativeVolatility > 0.01 { // 价格在上30%且有波动
 		signal.SignalType = models.SignalTypeSell
 		signal.Side = models.TradeSideSell
-		signal.Strength = (pricePosition - 0.9) * 10
-		signal.Confidence = 0.8
-		signal.Reason = fmt.Sprintf("价格触及布林带上轨 (位置: %.1f%%, 波动率: %.1f%%)", pricePosition*100, volatility*100)
+		signal.Strength = math.Min((pricePosition-0.7)*3, 1.0)
+		signal.Confidence = 0.75
+		signal.Reason = fmt.Sprintf("价格接近布林带上轨 (位置: %.1f%%, 中轨: %.2f, 上轨: %.2f)",
+			pricePosition*100, middleBand, upperBand)
 	} else {
 		signal.SignalType = models.SignalTypeHold
 		signal.Strength = 0.5
 		signal.Confidence = 0.5
-		signal.Reason = fmt.Sprintf("价格在布林带中部 (位置: %.1f%%)", pricePosition*100)
+		signal.Reason = fmt.Sprintf("价格在布林带中部 (位置: %.1f%%, 中轨: %.2f)",
+			pricePosition*100, middleBand)
 	}
 
 	return signal, nil
