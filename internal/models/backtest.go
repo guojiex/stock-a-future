@@ -62,18 +62,19 @@ type BacktestResult struct {
 
 // Trade 交易记录
 type Trade struct {
-	ID         string    `json:"id" db:"id"`
-	BacktestID string    `json:"backtest_id" db:"backtest_id"`
-	StrategyID string    `json:"strategy_id" db:"strategy_id"` // 执行该交易的策略ID
-	Symbol     string    `json:"symbol" db:"symbol"`
-	Side       TradeSide `json:"side" db:"side"`                         // 买入/卖出
-	Quantity   int       `json:"quantity" db:"quantity"`                 // 数量
-	Price      float64   `json:"price" db:"price"`                       // 价格
-	Commission float64   `json:"commission" db:"commission"`             // 手续费
-	PnL        float64   `json:"pnl,omitempty" db:"pnl"`                 // 盈亏（卖出时计算）
-	SignalType string    `json:"signal_type,omitempty" db:"signal_type"` // 触发信号类型
-	Timestamp  time.Time `json:"timestamp" db:"timestamp"`
-	CreatedAt  time.Time `json:"created_at" db:"created_at"`
+	ID          string    `json:"id" db:"id"`
+	BacktestID  string    `json:"backtest_id" db:"backtest_id"`
+	StrategyID  string    `json:"strategy_id" db:"strategy_id"` // 执行该交易的策略ID
+	Symbol      string    `json:"symbol" db:"symbol"`
+	Side        TradeSide `json:"side" db:"side"`                           // 买入/卖出
+	Quantity    int       `json:"quantity" db:"quantity"`                   // 数量
+	Price       float64   `json:"price" db:"price"`                         // 价格
+	Commission  float64   `json:"commission" db:"commission"`               // 手续费
+	PnL         float64   `json:"pnl,omitempty" db:"pnl"`                   // 盈亏（卖出时计算）
+	SignalType  string    `json:"signal_type,omitempty" db:"signal_type"`   // 触发信号类型
+	TotalAssets float64   `json:"total_assets,omitempty" db:"total_assets"` // 交易后的总资产（用于显示账户价值）
+	Timestamp   time.Time `json:"timestamp" db:"timestamp"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 }
 
 // Position 持仓记录

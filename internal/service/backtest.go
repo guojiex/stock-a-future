@@ -1309,6 +1309,12 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 
 				// 根据信号执行交易
 				if trade := s.executeSignalForStrategy(signal, marketData, portfolio, backtest, strategy.ID); trade != nil {
+					// 计算所有策略的总资产
+					totalAssets := 0.0
+					for _, p := range strategyPortfolios {
+						totalAssets += p.TotalValue
+					}
+					trade.TotalAssets = totalAssets
 					strategyTrades[strategy.ID] = append(strategyTrades[strategy.ID], *trade)
 				}
 			}
@@ -1408,9 +1414,9 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 			if count > 0 {
 				combinedEquityCurve = append(combinedEquityCurve, models.EquityPoint{
 					Date:           date,
-					PortfolioValue: totalValue / float64(count), // 平均值
-					Cash:           totalCash / float64(count),
-					Holdings:       totalHoldings / float64(count),
+					PortfolioValue: totalValue, // 总和，不是平均值
+					Cash:           totalCash,
+					Holdings:       totalHoldings,
 				})
 			}
 		}

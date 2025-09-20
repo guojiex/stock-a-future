@@ -1306,12 +1306,16 @@ class BacktestModule {
      * 获取交易的资产值
      */
     getTradeAssetValue(trade) {
-        // 尝试不同的可能字段名
+        // 优先使用新的总资产字段
+        if (trade.total_assets !== undefined && trade.total_assets !== null) {
+            return trade.total_assets;
+        }
+        
+        // 尝试其他可能的字段名
         const possibleFields = [
             'portfolio_value',
             'total_value', 
             'account_value',
-            'total_assets',
             'cash_balance',
             'balance',
             'value',
