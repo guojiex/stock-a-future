@@ -1162,6 +1162,38 @@ class ApiService {
     }
 
     /**
+     * 取消回测
+     */
+    async cancelBacktest(backtestId) {
+        const endpoint = `/api/v1/backtests/${backtestId}/cancel`;
+        
+        console.log(`[API] 取消回测请求:`, {
+            backtestId,
+            endpoint,
+            timestamp: new Date().toISOString()
+        });
+        
+        try {
+            const response = await this.client.makeRequest(endpoint, {
+                method: 'POST'
+            });
+            
+            console.log(`[API] 取消回测响应:`, {
+                success: response.success,
+                message: response.message || null,
+                error: response.error || null,
+                timestamp: new Date().toISOString()
+            });
+            
+            return response;
+            
+        } catch (error) {
+            console.error(`[API] 取消回测失败:`, error);
+            throw error;
+        }
+    }
+
+    /**
      * 获取回测列表
      */
     async getBacktestsList(page = 1, size = 20) {

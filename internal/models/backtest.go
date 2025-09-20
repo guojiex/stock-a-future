@@ -62,19 +62,21 @@ type BacktestResult struct {
 
 // Trade 交易记录
 type Trade struct {
-	ID          string    `json:"id" db:"id"`
-	BacktestID  string    `json:"backtest_id" db:"backtest_id"`
-	StrategyID  string    `json:"strategy_id" db:"strategy_id"` // 执行该交易的策略ID
-	Symbol      string    `json:"symbol" db:"symbol"`
-	Side        TradeSide `json:"side" db:"side"`                           // 买入/卖出
-	Quantity    int       `json:"quantity" db:"quantity"`                   // 数量
-	Price       float64   `json:"price" db:"price"`                         // 价格
-	Commission  float64   `json:"commission" db:"commission"`               // 手续费
-	PnL         float64   `json:"pnl,omitempty" db:"pnl"`                   // 盈亏（卖出时计算）
-	SignalType  string    `json:"signal_type,omitempty" db:"signal_type"`   // 触发信号类型
-	TotalAssets float64   `json:"total_assets,omitempty" db:"total_assets"` // 交易后的总资产（用于显示账户价值）
-	Timestamp   time.Time `json:"timestamp" db:"timestamp"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	ID            string    `json:"id" db:"id"`
+	BacktestID    string    `json:"backtest_id" db:"backtest_id"`
+	StrategyID    string    `json:"strategy_id" db:"strategy_id"` // 执行该交易的策略ID
+	Symbol        string    `json:"symbol" db:"symbol"`
+	Side          TradeSide `json:"side" db:"side"`                               // 买入/卖出
+	Quantity      int       `json:"quantity" db:"quantity"`                       // 数量
+	Price         float64   `json:"price" db:"price"`                             // 价格
+	Commission    float64   `json:"commission" db:"commission"`                   // 手续费
+	PnL           float64   `json:"pnl,omitempty" db:"pnl"`                       // 盈亏（卖出时计算）
+	SignalType    string    `json:"signal_type,omitempty" db:"signal_type"`       // 触发信号类型
+	TotalAssets   float64   `json:"total_assets,omitempty" db:"total_assets"`     // 交易后的总资产（现金+持仓）
+	HoldingAssets float64   `json:"holding_assets,omitempty" db:"holding_assets"` // 交易后的持仓资产（股票市值）
+	CashBalance   float64   `json:"cash_balance,omitempty" db:"cash_balance"`     // 交易后的现金余额
+	Timestamp     time.Time `json:"timestamp" db:"timestamp"`
+	CreatedAt     time.Time `json:"created_at" db:"created_at"`
 }
 
 // Position 持仓记录
@@ -234,6 +236,7 @@ type PerformanceMetrics struct {
 	Returns          []float64 // 日收益率序列
 	BenchmarkReturns []float64 // 基准收益率序列
 	RiskFreeRate     float64   // 无风险利率
+	Trades           []Trade   // 实际交易记录，用于计算交易次数和胜率
 }
 
 // CalculateMetrics 计算性能指标
@@ -248,8 +251,8 @@ func (pm *PerformanceMetrics) CalculateMetrics() *BacktestResult {
 		MaxDrawdown:    pm.calculateMaxDrawdown(),
 		SharpeRatio:    pm.calculateSharpeRatio(),
 		SortinoRatio:   pm.calculateSortinoRatio(),
-		WinRate:        pm.calculateWinRate(),
-		TotalTrades:    len(pm.Returns),
+		WinRate:        pm.calculateWinRateFromTrades(),
+		TotalTrades:    len(pm.Trades),
 		AvgTradeReturn: pm.calculateAvgReturn(),
 	}
 
@@ -359,6 +362,34 @@ func (pm *PerformanceMetrics) calculateWinRate() float64 {
 	}
 
 	return float64(wins) / float64(len(pm.Returns))
+}
+
+// calculateWinRateFromTrades 基于实际交易记录计算胜率
+func (pm *PerformanceMetrics) calculateWinRateFromTrades() float64 {
+	if len(pm.Trades) == 0 {
+		// 如果没有交易记录，回退到基于日收益率的计算
+		return pm.calculateWinRate()
+	}
+
+	// 统计盈利的交易次数（只统计卖出交易，因为只有卖出才能确定盈亏）
+	profitableTrades := 0
+	totalCompletedTrades := 0
+
+	for _, trade := range pm.Trades {
+		// 只统计卖出交易，因为买入交易没有PnL
+		if trade.Side == TradeSideSell && trade.PnL != 0 {
+			totalCompletedTrades++
+			if trade.PnL > 0 {
+				profitableTrades++
+			}
+		}
+	}
+
+	if totalCompletedTrades == 0 {
+		return 0
+	}
+
+	return float64(profitableTrades) / float64(totalCompletedTrades)
 }
 
 // calculateAvgReturn 计算平均收益率

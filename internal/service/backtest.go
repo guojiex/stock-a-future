@@ -48,6 +48,7 @@ type BacktestService struct {
 	runningBacktests     map[string]context.CancelFunc // 用于取消运行中的回测
 
 	strategyService   *StrategyService
+	tradingCalendar   *TradingCalendar
 	dataSourceService *DataSourceService
 	dailyCacheService *DailyCacheService // 使用现有的日线数据缓存服务
 	logger            logger.Logger
@@ -65,6 +66,7 @@ func NewBacktestService(strategyService *StrategyService, dataSourceService *Dat
 		backtestProgress:     make(map[string]*models.BacktestProgress),
 		runningBacktests:     make(map[string]context.CancelFunc),
 		strategyService:      strategyService,
+		tradingCalendar:      NewTradingCalendar(),
 		dataSourceService:    dataSourceService,
 		dailyCacheService:    dailyCacheService,
 		logger:               log,
@@ -831,9 +833,16 @@ func (s *BacktestService) updatePortfolioValue(ctx context.Context, portfolio *m
 
 // calculateBacktestResult 计算回测结果
 func (s *BacktestService) calculateBacktestResult(backtest *models.Backtest, dailyReturns []float64, portfolio *models.Portfolio) *models.BacktestResult {
+	// 获取该回测的交易记录
+	trades, exists := s.backtestTrades[backtest.ID]
+	if !exists {
+		trades = []models.Trade{}
+	}
+
 	metrics := &models.PerformanceMetrics{
 		Returns:      dailyReturns,
 		RiskFreeRate: 0.03 / 252, // 年化3%无风险利率转为日利率
+		Trades:       trades,
 	}
 
 	result := metrics.CalculateMetrics()
@@ -1161,6 +1170,8 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 				logger.String("backtest_id", backtest.ID),
 				logger.Any("panic", r),
 			)
+			// 设置回测失败状态
+			s.updateBacktestStatus(backtest.ID, models.BacktestStatusFailed, fmt.Sprintf("回测执行异常: %v", r))
 		}
 		s.mutex.Lock()
 		delete(s.runningBacktests, backtest.ID)
@@ -1229,7 +1240,17 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 	var lastLoggedProgress int = -1
 	const progressLogInterval = 10 // 每10%打印一次进度
 
-	for day := 0; day <= totalDays; day++ {
+	// 获取回测期间的所有交易日
+	tradingDays := s.tradingCalendar.GetTradingDaysInRange(backtest.StartDate, backtest.EndDate)
+	totalTradingDays := len(tradingDays)
+
+	s.logger.Info("多策略回测交易日统计",
+		logger.String("backtest_id", backtest.ID),
+		logger.Int("total_calendar_days", totalDays+1),
+		logger.Int("total_trading_days", totalTradingDays),
+	)
+
+	for dayIndex, currentDate := range tradingDays {
 		select {
 		case <-ctx.Done():
 			// 回测被取消或超时
@@ -1250,31 +1271,21 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 		default:
 		}
 
-		currentDate := backtest.StartDate.AddDate(0, 0, day)
-
-		if currentDate.After(backtest.EndDate) {
-			s.logger.Info("多策略回测日期超出范围，结束循环",
-				logger.String("backtest_id", backtest.ID),
-				logger.String("current_date", currentDate.Format("2006-01-02")),
-			)
-			break
-		}
-
-		// 更新进度
-		progress := int(float64(day) / float64(totalDays) * 100)
+		// 更新进度（基于交易日数量）
+		progress := int(float64(dayIndex+1) / float64(totalTradingDays) * 100)
 
 		// 只在进度达到特定节点时打印日志
-		if progress >= lastLoggedProgress+progressLogInterval || day == 0 || day == totalDays {
+		if progress >= lastLoggedProgress+progressLogInterval || dayIndex == 0 || dayIndex == totalTradingDays-1 {
 			s.logger.Info("多策略回测进度更新",
 				logger.String("backtest_id", backtest.ID),
 				logger.Int("progress", progress),
 				logger.String("current_date", currentDate.Format("2006-01-02")),
-				logger.Int("day", day),
-				logger.Int("total_days", totalDays),
+				logger.Int("trading_day_index", dayIndex+1),
+				logger.Int("total_trading_days", totalTradingDays),
 			)
 			lastLoggedProgress = progress
 		}
-		s.updateBacktestProgress(backtest.ID, progress, fmt.Sprintf("多策略回测进行中... %s", currentDate.Format("2006-01-02")))
+		s.updateBacktestProgress(backtest.ID, progress, fmt.Sprintf("多策略回测进行中... %s (交易日 %d/%d)", currentDate.Format("2006-01-02"), dayIndex+1, totalTradingDays))
 
 		// 先更新每个策略的组合价值（基于当日市价）
 		for _, strategy := range strategies {
@@ -1324,6 +1335,13 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 						totalAssets += p.TotalValue
 					}
 					trade.TotalAssets = totalAssets
+
+					// 如果HoldingAssets和CashBalance还没有设置，使用当前组合的值
+					if trade.HoldingAssets == 0 && trade.CashBalance == 0 {
+						trade.HoldingAssets = portfolio.TotalValue - portfolio.Cash
+						trade.CashBalance = portfolio.Cash
+					}
+
 					strategyTrades[strategy.ID] = append(strategyTrades[strategy.ID], *trade)
 				}
 			}
@@ -1372,6 +1390,7 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 		performanceMetrics := &models.PerformanceMetrics{
 			Returns:      strategyDailyReturns[strategy.ID],
 			RiskFreeRate: 0.03 / 252, // 假设年化无风险利率3%
+			Trades:       strategyTrades[strategy.ID],
 		}
 
 		result := performanceMetrics.CalculateMetrics()
@@ -1449,6 +1468,8 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 	now := time.Now()
 	backtest.CompletedAt = &now
 
+	// 确保进度设置为100%
+	s.updateBacktestProgress(backtest.ID, 100, "多策略回测完成")
 	s.updateBacktestStatus(backtest.ID, models.BacktestStatusCompleted, "多策略回测完成")
 
 	s.logger.Info("🎉 多策略回测任务完成",
@@ -1512,18 +1533,26 @@ func (s *BacktestService) executeSignalForStrategy(signal *models.Signal, market
 			}
 		}
 
+		// 计算交易后的持仓资产（使用当前市价重新计算）
+		holdingAssets := 0.0
+		for _, pos := range portfolio.Positions {
+			holdingAssets += pos.MarketValue // 买入时MarketValue已经更新为最新价格
+		}
+
 		return &models.Trade{
-			ID:         fmt.Sprintf("%s_%s_%d", backtest.ID, symbol, time.Now().UnixNano()),
-			BacktestID: backtest.ID,
-			StrategyID: strategyID,
-			Symbol:     symbol,
-			Side:       models.TradeSideBuy,
-			Quantity:   quantity,
-			Price:      price,
-			Commission: commission,
-			SignalType: string(signal.SignalType),
-			Timestamp:  marketData.Date,
-			CreatedAt:  time.Now(),
+			ID:            fmt.Sprintf("%s_%s_%d", backtest.ID, symbol, time.Now().UnixNano()),
+			BacktestID:    backtest.ID,
+			StrategyID:    strategyID,
+			Symbol:        symbol,
+			Side:          models.TradeSideBuy,
+			Quantity:      quantity,
+			Price:         price,
+			Commission:    commission,
+			SignalType:    string(signal.SignalType),
+			HoldingAssets: holdingAssets,
+			CashBalance:   portfolio.Cash,
+			Timestamp:     marketData.Date,
+			CreatedAt:     time.Now(),
 		}
 
 	case models.SignalTypeSell:
@@ -1545,19 +1574,37 @@ func (s *BacktestService) executeSignalForStrategy(signal *models.Signal, market
 		portfolio.Cash += netRevenue
 		delete(portfolio.Positions, symbol)
 
+		// 计算交易后的持仓资产（需要先更新剩余持仓的市值）
+		holdingAssets := 0.0
+		for symbolKey, pos := range portfolio.Positions {
+			// 获取当前市价更新持仓市值
+			if currentMarketData, err := s.getRealMarketData(context.Background(), symbolKey, marketData.Date); err == nil {
+				currentMarketValue := float64(pos.Quantity) * currentMarketData.Close
+				pos.MarketValue = currentMarketValue
+				pos.UnrealizedPL = currentMarketValue - float64(pos.Quantity)*pos.AvgPrice
+				portfolio.Positions[symbolKey] = pos
+				holdingAssets += currentMarketValue
+			} else {
+				// 如果获取不到最新数据，使用原有市值
+				holdingAssets += pos.MarketValue
+			}
+		}
+
 		return &models.Trade{
-			ID:         fmt.Sprintf("%s_%s_%d", backtest.ID, symbol, time.Now().UnixNano()),
-			BacktestID: backtest.ID,
-			StrategyID: strategyID,
-			Symbol:     symbol,
-			Side:       models.TradeSideSell,
-			Quantity:   quantity,
-			Price:      price,
-			Commission: commission,
-			PnL:        pnl,
-			SignalType: string(signal.SignalType),
-			Timestamp:  marketData.Date,
-			CreatedAt:  time.Now(),
+			ID:            fmt.Sprintf("%s_%s_%d", backtest.ID, symbol, time.Now().UnixNano()),
+			BacktestID:    backtest.ID,
+			StrategyID:    strategyID,
+			Symbol:        symbol,
+			Side:          models.TradeSideSell,
+			Quantity:      quantity,
+			Price:         price,
+			Commission:    commission,
+			PnL:           pnl,
+			SignalType:    string(signal.SignalType),
+			HoldingAssets: holdingAssets,
+			CashBalance:   portfolio.Cash,
+			Timestamp:     marketData.Date,
+			CreatedAt:     time.Now(),
 		}
 	}
 

@@ -37,6 +37,12 @@ class BacktestModule {
             startBacktestBtn.addEventListener('click', () => this.startBacktest());
         }
 
+        // 停止回测按钮
+        const stopBacktestBtn = document.getElementById('stopBacktestBtn');
+        if (stopBacktestBtn) {
+            stopBacktestBtn.addEventListener('click', () => this.stopBacktest());
+        }
+
         // 保存配置按钮
         const saveConfigBtn = document.getElementById('saveBacktestConfigBtn');
         if (saveConfigBtn) {
@@ -241,6 +247,7 @@ class BacktestModule {
 
             this.showProgress();
             this.isRunning = true;
+            this.toggleBacktestButtons(true); // 显示停止按钮，隐藏开始按钮
 
             // 调用后端API开始回测
             const response = await this.apiService.startBacktest(config);
@@ -258,6 +265,63 @@ class BacktestModule {
             this.showMessage(`启动回测失败: ${error.message}`, 'error');
             this.hideProgress();
             this.isRunning = false;
+            this.toggleBacktestButtons(false); // 恢复开始按钮
+        }
+    }
+
+    /**
+     * 停止回测
+     */
+    async stopBacktest() {
+        if (!this.currentBacktest || !this.currentBacktest.id) {
+            console.warn('[Backtest] 没有正在运行的回测');
+            return;
+        }
+
+        try {
+            console.log('[Backtest] 停止回测，ID:', this.currentBacktest.id);
+            
+            // 显示确认对话框
+            if (!confirm('确定要停止当前回测吗？')) {
+                return;
+            }
+
+            // 调用后端API停止回测
+            const response = await this.apiService.cancelBacktest(this.currentBacktest.id);
+            
+            if (response.success) {
+                console.log('[Backtest] 回测停止成功');
+                this.stopProgressMonitoring();
+                this.hideProgress();
+                this.isRunning = false;
+                this.currentBacktest = null;
+                this.toggleBacktestButtons(false); // 恢复开始按钮
+                
+                this.showMessage('回测已停止', 'info');
+            } else {
+                throw new Error(response.message || '停止回测失败');
+            }
+        } catch (error) {
+            console.error('[Backtest] 停止回测失败:', error);
+            this.showMessage(`停止回测失败: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * 切换回测按钮状态
+     */
+    toggleBacktestButtons(isRunning) {
+        const startBtn = document.getElementById('startBacktestBtn');
+        const stopBtn = document.getElementById('stopBacktestBtn');
+        
+        if (startBtn && stopBtn) {
+            if (isRunning) {
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'inline-block';
+            } else {
+                startBtn.style.display = 'inline-block';
+                stopBtn.style.display = 'none';
+            }
         }
     }
 
@@ -395,12 +459,22 @@ class BacktestModule {
                     if (progress.status === 'completed') {
                         this.stopProgressMonitoring();
                         this.hideProgress();
+                        this.isRunning = false;
+                        this.toggleBacktestButtons(false); // 恢复开始按钮
                         this.loadBacktestResults(this.currentBacktest.id);
                         this.showMessage('回测完成！', 'success');
                     } else if (progress.status === 'failed') {
                         this.stopProgressMonitoring();
                         this.hideProgress();
+                        this.isRunning = false;
+                        this.toggleBacktestButtons(false); // 恢复开始按钮
                         this.showMessage(progress.error || '回测失败', 'error');
+                    } else if (progress.status === 'cancelled') {
+                        this.stopProgressMonitoring();
+                        this.hideProgress();
+                        this.isRunning = false;
+                        this.toggleBacktestButtons(false); // 恢复开始按钮
+                        this.showMessage('回测已取消', 'info');
                     }
                 }
             } catch (error) {
@@ -1145,6 +1219,7 @@ class BacktestModule {
                     <td>¥${trade.price.toFixed(2)}</td>
                     <td>¥${trade.commission.toFixed(2)}</td>
                     <td class="${trade.pnl >= 0 ? 'profit' : 'loss'}">${trade.pnl ? '¥' + trade.pnl.toFixed(2) : '-'}</td>
+                    <td class="holding-assets">¥${this.formatAssets(this.getTradeHoldingAssets(trade))}</td>
                     <td class="total-assets">¥${this.formatAssets(this.getTradeAssetValue(trade))}</td>
                 </tr>
             `).join('');
@@ -1160,12 +1235,6 @@ class BacktestModule {
                         <div class="table-wrapper">
                             <table class="trades-table">
                                 <thead>
-                                    <tr>
-                                        <th colspan="8" class="stock-info-header">
-                                            <span class="stock-name">${strategy.name} - 股票信息</span>
-                                            <span class="stock-code">多股票组合</span>
-                                        </th>
-                                    </tr>
                                     <tr class="column-headers">
                                         <th>时间</th>
                                         <th>股票</th>
@@ -1174,11 +1243,12 @@ class BacktestModule {
                                         <th>价格</th>
                                         <th>手续费</th>
                                         <th>盈亏</th>
+                                        <th>持仓资产</th>
                                         <th>总资产</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${tradesRows || '<tr><td colspan="8">该策略暂无交易记录</td></tr>'}
+                                    ${tradesRows || '<tr><td colspan="9">该策略暂无交易记录</td></tr>'}
                                 </tbody>
                             </table>
                         </div>
@@ -1287,19 +1357,54 @@ class BacktestModule {
         
         try {
             const date = new Date(timestamp);
-            const now = new Date();
-            const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-            
-            if (diffDays === 0) {
-                return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-            } else if (diffDays < 7) {
-                return `${diffDays}天前`;
-            } else {
-                return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
-            }
+            // 始终显示完整的年月日格式
+            return date.toLocaleDateString('zh-CN', { 
+                year: 'numeric',
+                month: '2-digit', 
+                day: '2-digit' 
+            });
         } catch (error) {
-            return timestamp.split(' ')[0] || timestamp; // 降级处理
+            // 降级处理：尝试从字符串中提取日期部分
+            const dateStr = timestamp.split(' ')[0] || timestamp;
+            if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                // 如果是 YYYY-MM-DD 格式，直接转换
+                const [year, month, day] = dateStr.split('-');
+                return `${year}/${month}/${day}`;
+            }
+            return dateStr;
         }
+    }
+
+    /**
+     * 获取交易的持仓资产值
+     */
+    getTradeHoldingAssets(trade) {
+        // 优先使用新的持仓资产字段
+        if (trade.holding_assets !== undefined && trade.holding_assets !== null) {
+            return trade.holding_assets;
+        }
+        
+        // 如果没有持仓资产字段，尝试从总资产和现金余额计算
+        if (trade.total_assets !== undefined && trade.cash_balance !== undefined) {
+            return trade.total_assets - trade.cash_balance;
+        }
+        
+        // 尝试其他可能的字段名
+        const possibleFields = [
+            'holdings',
+            'stock_value',
+            'position_value',
+            'market_value'
+        ];
+        
+        for (const field of possibleFields) {
+            if (trade[field] !== undefined && trade[field] !== null) {
+                return trade[field];
+            }
+        }
+        
+        // 如果都没有，返回0（表示没有持仓或无法计算）
+        return 0;
     }
 
     /**
