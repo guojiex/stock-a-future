@@ -1197,8 +1197,16 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 	strategyEquityCurves := make(map[string][]models.EquityPoint)
 	strategyDailyReturns := make(map[string][]float64)
 
-	// 计算每个策略的初始资金（平均分配）
-	initialCashPerStrategy := backtest.InitialCash / float64(len(strategies))
+	// 🔧 重要修复：每个策略都应该有完整的初始资金，而不是平均分配
+	// 这样可以让每个策略独立运作，就像单独运行一样
+	initialCashPerStrategy := backtest.InitialCash
+
+	s.logger.Info("初始化多策略投资组合",
+		logger.String("backtest_id", backtest.ID),
+		logger.Int("strategies_count", len(strategies)),
+		logger.Float64("initial_cash_per_strategy", initialCashPerStrategy),
+		logger.Float64("total_virtual_capital", initialCashPerStrategy*float64(len(strategies))),
+	)
 
 	for _, strategy := range strategies {
 		strategyPortfolios[strategy.ID] = &models.Portfolio{
@@ -1209,6 +1217,11 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 		strategyTrades[strategy.ID] = []models.Trade{}
 		strategyEquityCurves[strategy.ID] = []models.EquityPoint{}
 		strategyDailyReturns[strategy.ID] = []float64{}
+
+		s.logger.Debug("创建策略投资组合",
+			logger.String("strategy_id", strategy.ID),
+			logger.Float64("initial_cash", initialCashPerStrategy),
+		)
 	}
 
 	// 开始模拟每日回测
@@ -1296,8 +1309,13 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 					// 只更新现金余额（如果需要的话）
 					trade.CashBalance = portfolio.Cash
 
-					// 计算所有策略的总资产（现金总和 + 持仓市值总和）
-					// 注意：这里计算的是所有策略的总资产，用于整体组合分析
+					// 🔧 重要修复：分别计算单策略资产和多策略总资产
+					// 计算当前策略的总资产（现金 + 持仓）
+					currentStrategyAssets := portfolio.Cash + trade.HoldingAssets
+
+					// 计算所有策略的虚拟总资产（现金总和 + 持仓市值总和）
+					// 注意：由于每个策略都有完整的初始资金，这里计算的是虚拟总资产
+					// 实际投资时不会同时使用所有策略的资金，这只是用于分析对比
 					totalCash := 0.0
 					totalHoldings := 0.0
 					for _, p := range strategyPortfolios {
@@ -1306,13 +1324,29 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 							totalHoldings += pos.MarketValue
 						}
 					}
-					totalAssets := totalCash + totalHoldings
-					trade.TotalAssets = totalAssets
+					allStrategiesVirtualAssets := totalCash + totalHoldings
+
+					// 🚨 关键修复：TotalAssets应该记录当前策略的总资产，而不是所有策略的总资产
+					// 这样前端显示时就不会出现资产数值混乱的问题
+					trade.TotalAssets = currentStrategyAssets
+
+					// 如果需要记录所有策略的虚拟总资产，可以添加新字段
+					// trade.AllStrategiesVirtualAssets = allStrategiesVirtualAssets
+
+					// 添加调试日志
+					s.logger.Debug("交易资产计算",
+						logger.String("strategy_id", strategy.ID),
+						logger.String("symbol", symbol),
+						logger.Float64("holding_assets", trade.HoldingAssets),
+						logger.Float64("cash_balance", portfolio.Cash),
+						logger.Float64("current_strategy_assets", currentStrategyAssets),
+						logger.Float64("all_strategies_virtual_assets", allStrategiesVirtualAssets),
+					)
 
 					// 重要说明：
 					// - trade.HoldingAssets 记录的是当前策略的持仓资产（在executeSignalForStrategy中计算）
-					// - trade.TotalAssets 记录的是所有策略的总资产
-					// 前端显示时应该使用 HoldingAssets 而不是从 TotalAssets 推算持仓
+					// - trade.TotalAssets 现在记录的是当前策略的总资产（持仓+现金）
+					// - 前端显示时可以直接使用 TotalAssets 或者 HoldingAssets + CashBalance
 
 					strategyTrades[strategy.ID] = append(strategyTrades[strategy.ID], *trade)
 				}
@@ -1325,9 +1359,15 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 			s.updatePortfolioValue(ctx, portfolio, backtest.Symbols, currentDate)
 
 			// 记录权益曲线
+			// 🔧 添加基准收益计算（简化使用固定年化收益率8%）
+			daysSinceStart := int(currentDate.Sub(backtest.StartDate).Hours() / 24)
+			benchmarkDailyReturn := 0.08 / 252 // 年化8%转为日收益率
+			benchmarkValue := backtest.InitialCash * math.Pow(1+benchmarkDailyReturn, float64(daysSinceStart))
+
 			strategyEquityCurves[strategy.ID] = append(strategyEquityCurves[strategy.ID], models.EquityPoint{
 				Date:           currentDate.Format("2006-01-02"),
 				PortfolioValue: portfolio.TotalValue,
+				BenchmarkValue: benchmarkValue, // 添加基准值
 				Cash:           portfolio.Cash,
 				Holdings:       portfolio.TotalValue - portfolio.Cash,
 			})
@@ -1385,7 +1425,7 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 		}
 
 		for i := 0; i < maxLen; i++ {
-			var totalValue, totalCash, totalHoldings float64
+			var totalValue, totalCash, totalHoldings, totalBenchmark float64
 			var date string
 			count := 0
 
@@ -1394,17 +1434,26 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 					totalValue += curve[i].PortfolioValue
 					totalCash += curve[i].Cash
 					totalHoldings += curve[i].Holdings
+					totalBenchmark += curve[i].BenchmarkValue // 累加基准值
 					date = curve[i].Date
 					count++
 				}
 			}
 
 			if count > 0 {
+				// 🔧 重要修复：组合权益曲线应该显示平均值或者加权平均，而不是简单相加
+				// 因为每个策略都有完整的初始资金，直接相加会导致虚拟总资产过大
+				avgValue := totalValue / float64(count)
+				avgCash := totalCash / float64(count)
+				avgHoldings := totalHoldings / float64(count)
+				avgBenchmark := totalBenchmark / float64(count) // 基准值也使用平均值
+
 				combinedEquityCurve = append(combinedEquityCurve, models.EquityPoint{
 					Date:           date,
-					PortfolioValue: totalValue, // 总和，不是平均值
-					Cash:           totalCash,
-					Holdings:       totalHoldings,
+					PortfolioValue: avgValue,     // 使用平均值而不是总和
+					BenchmarkValue: avgBenchmark, // 添加基准值
+					Cash:           avgCash,
+					Holdings:       avgHoldings,
 				})
 			}
 		}

@@ -5947,3 +5947,407 @@ body {
         padding: 8px 12px;
     }
 }
+
+/* 可点击策略卡片样式 */
+.clickable-card {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.clickable-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: #1890ff;
+}
+
+.clickable-card:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.clickable-card::after {
+    content: '👆';
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.clickable-card:hover::after {
+    opacity: 0.6;
+}
+
+/* 交易记录tab高亮效果 */
+.trade-tab-btn.highlight-flash {
+    animation: highlightFlash 2s ease-in-out;
+    position: relative;
+}
+
+@keyframes highlightFlash {
+    0% {
+        background-color: #1890ff;
+        color: white;
+        box-shadow: 0 0 10px rgba(24, 144, 255, 0.5);
+    }
+    50% {
+        background-color: #40a9ff;
+        color: white;
+        box-shadow: 0 0 15px rgba(24, 144, 255, 0.7);
+    }
+    100% {
+        background-color: inherit;
+        color: inherit;
+        box-shadow: none;
+    }
+}
+
+/* 改进策略卡片的视觉反馈 */
+.strategy-card.clickable-card {
+    border: 2px solid transparent;
+}
+
+.strategy-card.clickable-card:hover {
+    border-color: #1890ff;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+}
+
+/* 为策略卡片添加点击提示 */
+.strategy-card.clickable-card .strategy-card-header {
+    position: relative;
+}
+
+.strategy-card.clickable-card .strategy-card-header::after {
+    content: '查看交易记录';
+    position: absolute;
+    top: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1890ff;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.2s ease;
+    z-index: 1000;
+}
+
+.strategy-card.clickable-card .strategy-card-header::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 4px solid #1890ff;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.2s ease;
+    z-index: 1000;
+}
+
+.strategy-card.clickable-card:hover .strategy-card-header::after,
+.strategy-card.clickable-card:hover .strategy-card-header::before {
+    opacity: 1;
+}
+
+/* 策略表现详情头部样式 */
+.strategy-performance-header {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.strategy-performance-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #1890ff, #40a9ff, #69c0ff);
+}
+
+.strategy-info {
+    margin-bottom: 16px;
+}
+
+.strategy-info h6 {
+    margin: 0 0 8px 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1f2937;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.strategy-info h6::before {
+    content: attr(data-strategy-icon);
+    font-size: 1.1rem;
+}
+
+.strategy-description {
+    margin: 0;
+    color: #6b7280;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+/* 紧凑型表现指标网格 */
+.performance-metrics-compact {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+}
+
+.metric-item-compact {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 12px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.metric-item-compact:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: #1890ff;
+}
+
+.metric-item-compact .metric-label {
+    display: block;
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.metric-item-compact .metric-value {
+    display: block;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.metric-item-compact .metric-value.positive {
+    color: #dc2626; /* 红色代表正收益 */
+}
+
+.metric-item-compact .metric-value.negative {
+    color: #16a34a; /* 绿色代表负收益/回撤 */
+}
+
+.metric-item-compact .metric-value.warning {
+    color: #d97706; /* 橙色代表警告 */
+}
+
+.metric-item-compact .metric-value.neutral {
+    color: #4b5563; /* 灰色代表中性 */
+}
+
+/* 简化的交易摘要样式 */
+.trade-summary-compact {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.trade-count {
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .performance-metrics-compact {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .metric-item-compact {
+        padding: 8px;
+    }
+    
+    .metric-item-compact .metric-label {
+        font-size: 0.7rem;
+    }
+    
+    .metric-item-compact .metric-value {
+        font-size: 0.9rem;
+    }
+    
+    .strategy-performance-header {
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+}
+
+/* Tooltip 样式 */
+.tooltip-icon {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    background: #6b7280;
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    font-size: 10px;
+    line-height: 14px;
+    font-style: normal;
+    font-weight: bold;
+    margin-left: 4px;
+    cursor: help;
+    transition: all 0.2s ease;
+}
+
+.tooltip-icon:hover {
+    background: #1890ff;
+    transform: scale(1.1);
+}
+
+/* Tooltip 容器 */
+[data-tooltip] {
+    position: relative;
+    cursor: help;
+}
+
+/* Tooltip 内容 */
+[data-tooltip]:before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f2937;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.4;
+    white-space: normal;
+    max-width: 280px;
+    width: max-content;
+    text-align: left;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    margin-bottom: 8px;
+}
+
+/* Tooltip 箭头 */
+[data-tooltip]:after {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid #1f2937;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 1000;
+    margin-bottom: 2px;
+}
+
+/* Tooltip 显示 */
+[data-tooltip]:hover:before,
+[data-tooltip]:hover:after {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* 特殊情况：避免tooltip超出屏幕边界 */
+[data-tooltip]:hover:before {
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* 如果在右边缘，tooltip向左对齐 */
+.strategy-card:last-child [data-tooltip]:hover:before,
+.metric-item-compact:nth-child(n+4) [data-tooltip]:hover:before {
+    left: auto;
+    right: 0;
+    transform: none;
+}
+
+.strategy-card:last-child [data-tooltip]:hover:after,
+.metric-item-compact:nth-child(n+4) [data-tooltip]:hover:after {
+    left: auto;
+    right: 12px;
+    transform: none;
+}
+
+/* 如果在左边缘，tooltip向右对齐 */
+.strategy-card:first-child [data-tooltip]:hover:before,
+.metric-item-compact:first-child [data-tooltip]:hover:before {
+    left: 0;
+    transform: none;
+}
+
+.strategy-card:first-child [data-tooltip]:hover:after,
+.metric-item-compact:first-child [data-tooltip]:hover:after {
+    left: 12px;
+    transform: none;
+}
+
+/* 策略卡片中的tooltip样式调整 */
+.strategy-card .metric-row {
+    position: relative;
+}
+
+.strategy-card .tooltip-icon {
+    font-size: 8px;
+    width: 12px;
+    height: 12px;
+    line-height: 12px;
+}
+
+/* 响应式tooltip */
+@media (max-width: 768px) {
+    [data-tooltip]:before {
+        font-size: 12px;
+        padding: 10px 12px;
+        max-width: 240px;
+        left: 0;
+        right: 0;
+        transform: none;
+        margin: 0 10px;
+    }
+    
+    [data-tooltip]:after {
+        left: 20px;
+        transform: none;
+    }
+    
+    .tooltip-icon {
+        width: 12px;
+        height: 12px;
+        font-size: 9px;
+        line-height: 12px;
+    }
+}

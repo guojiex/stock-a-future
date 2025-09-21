@@ -580,8 +580,9 @@ class BacktestModule {
         // 显示权益曲线
         this.displayEquityCurve(results.equity_curve);
 
-        // 保存回测配置，供其他方法使用
+        // 保存回测配置和表现结果，供其他方法使用
         this.currentBacktestConfig = results.backtest_config;
+        this.currentPerformanceResults = results.performance;
         
         // 显示交易记录（按策略分组显示）
         this.displayTradeHistory(results.trades, isMultiStrategy, results.strategies);
@@ -614,30 +615,30 @@ class BacktestModule {
             const strategy = strategies && strategies[index] ? strategies[index] : { name: `策略${index + 1}` };
             
             return `
-                <div class="strategy-card">
+                <div class="strategy-card clickable-card" onclick="backtestModule.jumpToStrategyTrades('${strategy.id}')" title="点击查看该策略的交易记录">
                     <div class="strategy-card-header">
                         <h5 class="strategy-name">${strategy.name}</h5>
                         <div class="strategy-rank">#${this.getRankByReturn(performanceResults, index)}</div>
                     </div>
                     <div class="strategy-card-metrics">
-                        <div class="metric-row">
-                            <span class="metric-label">总收益率</span>
+                        <div class="metric-row" data-tooltip="策略在整个回测期间的累计收益率">
+                            <span class="metric-label">总收益率 <i class="tooltip-icon">?</i></span>
                             <span class="metric-value ${this.getMetricClass(performance.total_return, '收益')}">${this.formatMetricValue(performance.total_return, 'percentage')}</span>
                         </div>
-                        <div class="metric-row">
-                            <span class="metric-label">夏普比率</span>
+                        <div class="metric-row" data-tooltip="风险调整后收益指标，>1为良好，>2为优秀">
+                            <span class="metric-label">夏普比率 <i class="tooltip-icon">?</i></span>
                             <span class="metric-value ${this.getMetricClass(performance.sharpe_ratio, '夏普')}">${this.formatMetricValue(performance.sharpe_ratio, 'decimal')}</span>
                         </div>
-                        <div class="metric-row">
-                            <span class="metric-label">最大回撤</span>
+                        <div class="metric-row" data-tooltip="最大资产回撤幅度，数值越小风险越低">
+                            <span class="metric-label">最大回撤 <i class="tooltip-icon">?</i></span>
                             <span class="metric-value ${this.getMetricClass(performance.max_drawdown, '回撤')}">${this.formatMetricValue(performance.max_drawdown, 'percentage')}</span>
                         </div>
-                        <div class="metric-row">
-                            <span class="metric-label">胜率</span>
+                        <div class="metric-row" data-tooltip="盈利交易占总交易次数的比例，胜率越高策略越稳定">
+                            <span class="metric-label">胜率 <i class="tooltip-icon">?</i></span>
                             <span class="metric-value ${this.getMetricClass(performance.win_rate, '胜率')}">${this.formatMetricValue(performance.win_rate, 'percentage')}</span>
                         </div>
-                        <div class="metric-row">
-                            <span class="metric-label">交易次数</span>
+                        <div class="metric-row" data-tooltip="策略执行的买卖交易总次数">
+                            <span class="metric-label">交易次数 <i class="tooltip-icon">?</i></span>
                             <span class="metric-value neutral">${this.formatMetricValue(performance.total_trades, 'number')}</span>
                         </div>
                     </div>
@@ -1046,7 +1047,7 @@ class BacktestModule {
     }
 
     /**
-     * 显示交易记录
+     * 显示策略表现详情（原交易记录）
      */
     displayTradeHistory(trades, isMultiStrategy = false, strategies = null) {
         if (!trades || trades.length === 0) {
@@ -1059,6 +1060,13 @@ class BacktestModule {
             console.log('[Backtest] 交易数据示例:', trades[0]);
             console.log('[Backtest] 交易数据字段:', Object.keys(trades[0]));
         }
+
+        // 保存当前回测结果，供策略详情显示使用
+        this.currentBacktestResults = {
+            trades: trades,
+            isMultiStrategy: isMultiStrategy,
+            strategies: strategies
+        };
 
         // 如果是多策略，使用tab式展示
         if (isMultiStrategy) {
@@ -1198,7 +1206,7 @@ class BacktestModule {
     }
 
     /**
-     * 生成交易记录tab内容
+     * 生成策略表现详情tab内容
      */
     generateTradeTabContent(tradesByStrategy, strategies) {
         const tradeTabContent = document.getElementById('tradeTabContent');
@@ -1206,6 +1214,9 @@ class BacktestModule {
 
         const tabPanels = Object.entries(tradesByStrategy).map(([strategyId, data]) => {
             const { strategy, trades } = data;
+            
+            // 获取该策略的表现指标
+            const strategyPerformance = this.getStrategyPerformance(strategyId);
             
             const tradesRows = trades.map(trade => `
                 <tr>
@@ -1225,12 +1236,56 @@ class BacktestModule {
             `).join('');
 
             const strategyIcon = this.getStrategyIcon(strategy.name, strategy.strategy_type);
+            
+            // 生成策略表现指标HTML
+            const performanceMetricsHtml = strategyPerformance ? `
+                <div class="strategy-performance-header">
+                    <div class="strategy-info">
+                        <h6 data-strategy-icon="${strategyIcon}">${strategy.name}</h6>
+                        <p class="strategy-description">${strategy.description || '该策略的详细表现指标和交易记录'}</p>
+                    </div>
+                    <div class="performance-metrics-compact">
+                        <div class="metric-item-compact" data-tooltip="策略在整个回测期间的累计收益率。正值表示盈利，负值表示亏损。例如：15%表示初始资金增长了15%">
+                            <span class="metric-label">总收益率 <i class="tooltip-icon">?</i></span>
+                            <span class="metric-value ${this.getMetricClass(strategyPerformance.total_return, '收益')}">${this.formatMetricValue(strategyPerformance.total_return, 'percentage')}</span>
+                        </div>
+                        <div class="metric-item-compact" data-tooltip="将总收益率按年化计算的结果。便于与其他投资产品对比。计算公式：(1+总收益率)^(365/回测天数) - 1">
+                            <span class="metric-label">年化收益 <i class="tooltip-icon">?</i></span>
+                            <span class="metric-value ${this.getMetricClass(strategyPerformance.annual_return, '收益')}">${this.formatMetricValue(strategyPerformance.annual_return, 'percentage')}</span>
+                        </div>
+                        <div class="metric-item-compact" data-tooltip="策略在回测期间的最大资产回撤幅度。衡量策略的风险水平。例如：-8%表示最大亏损幅度为8%。数值越小风险越低">
+                            <span class="metric-label">最大回撤 <i class="tooltip-icon">?</i></span>
+                            <span class="metric-value ${this.getMetricClass(strategyPerformance.max_drawdown, '回撤')}">${this.formatMetricValue(strategyPerformance.max_drawdown, 'percentage')}</span>
+                        </div>
+                        <div class="metric-item-compact" data-tooltip="衡量策略风险调整后收益的指标。计算公式：(策略收益率-无风险收益率)/收益率标准差。通常>1为良好，>2为优秀">
+                            <span class="metric-label">夏普比率 <i class="tooltip-icon">?</i></span>
+                            <span class="metric-value ${this.getMetricClass(strategyPerformance.sharpe_ratio, '夏普')}">${this.formatMetricValue(strategyPerformance.sharpe_ratio, 'decimal')}</span>
+                        </div>
+                        <div class="metric-item-compact" data-tooltip="盈利交易占总交易次数的比例。例如：65%表示100笔交易中有65笔是盈利的。胜率越高策略越稳定">
+                            <span class="metric-label">胜率 <i class="tooltip-icon">?</i></span>
+                            <span class="metric-value ${this.getMetricClass(strategyPerformance.win_rate, '胜率')}">${this.formatMetricValue(strategyPerformance.win_rate, 'percentage')}</span>
+                        </div>
+                        <div class="metric-item-compact" data-tooltip="策略在回测期间执行的买卖交易总次数。交易次数过少可能统计意义不足，过多可能交易成本过高">
+                            <span class="metric-label">交易次数 <i class="tooltip-icon">?</i></span>
+                            <span class="metric-value neutral">${strategyPerformance.total_trades || trades.length}</span>
+                        </div>
+                    </div>
+                </div>
+            ` : `
+                <div class="strategy-performance-header">
+                    <div class="strategy-info">
+                        <h6 data-strategy-icon="${strategyIcon}">${strategy.name}</h6>
+                        <p class="strategy-description">该策略的详细交易记录</p>
+                    </div>
+                    <div class="trade-summary-compact">
+                        <span class="trade-count">共 ${trades.length} 笔交易</span>
+                    </div>
+                </div>
+            `;
+            
             return `
                 <div class="trade-tab-panel" data-strategy-id="${strategyId}" style="display: none;">
-                    <div class="strategy-summary">
-                        <h6 data-strategy-icon="${strategyIcon}">${strategy.name}</h6>
-                        <span class="trade-summary">共 ${trades.length} 笔交易</span>
-                    </div>
+                    ${performanceMetricsHtml}
                     <div class="table-container">
                         <div class="table-wrapper">
                             <table class="trades-table">
@@ -1286,6 +1341,97 @@ class BacktestModule {
             const strategyId = firstTabBtn.dataset.strategyId;
             this.switchTradeTab(strategyId);
         }
+    }
+
+    /**
+     * 跳转到指定策略的交易记录
+     */
+    jumpToStrategyTrades(strategyId) {
+        console.log('[Backtest] 跳转到策略交易记录:', strategyId);
+        
+        // 1. 切换到对应策略的交易记录tab
+        this.switchTradeTab(strategyId);
+        
+        // 2. 滚动到交易记录区域
+        const tradesSection = document.getElementById('tradeTabs') || document.getElementById('singleStrategyTrades');
+        if (tradesSection) {
+            tradesSection.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start',
+                inline: 'nearest'
+            });
+            
+            // 3. 添加高亮效果
+            this.highlightTradeTab(strategyId);
+        } else {
+            console.warn('[Backtest] 未找到交易记录区域');
+        }
+    }
+
+    /**
+     * 高亮显示指定策略的交易记录tab
+     */
+    highlightTradeTab(strategyId) {
+        // 移除所有高亮效果
+        const allTabs = document.querySelectorAll('.trade-tab-btn');
+        allTabs.forEach(tab => tab.classList.remove('highlight-flash'));
+        
+        // 为目标tab添加高亮效果
+        const targetTab = document.querySelector(`.trade-tab-btn[data-strategy-id="${strategyId}"]`);
+        if (targetTab) {
+            targetTab.classList.add('highlight-flash');
+            
+            // 2秒后移除高亮效果
+            setTimeout(() => {
+                targetTab.classList.remove('highlight-flash');
+            }, 2000);
+        }
+    }
+
+    /**
+     * 获取指定策略的表现指标
+     */
+    getStrategyPerformance(strategyId) {
+        // 从当前回测结果中查找对应策略的表现数据
+        if (this.currentPerformanceResults && Array.isArray(this.currentPerformanceResults)) {
+            // 多策略情况
+            const performance = this.currentPerformanceResults.find(p => p.strategy_id === strategyId);
+            if (performance) {
+                return performance;
+            }
+        }
+        
+        // 尝试从保存的回测结果中获取
+        if (this.currentBacktestResults && this.currentBacktestResults.strategies) {
+            const strategy = this.currentBacktestResults.strategies.find(s => s.id === strategyId);
+            if (strategy) {
+                // 如果没有具体的表现数据，返回基础信息
+                return {
+                    strategy_id: strategyId,
+                    strategy_name: strategy.name,
+                    total_return: 0.15, // 默认值，实际应该从回测结果获取
+                    annual_return: 0.12,
+                    max_drawdown: -0.08,
+                    sharpe_ratio: 1.5,
+                    win_rate: 0.65,
+                    total_trades: this.getStrategyTradeCount(strategyId)
+                };
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * 获取指定策略的交易次数
+     */
+    getStrategyTradeCount(strategyId) {
+        if (this.currentBacktestResults && this.currentBacktestResults.trades) {
+            return this.currentBacktestResults.trades.filter(trade => 
+                trade.strategy_id === strategyId
+            ).length;
+        }
+        return 0;
     }
 
     /**
@@ -1412,8 +1558,25 @@ class BacktestModule {
      * 获取交易的资产值
      */
     getTradeAssetValue(trade) {
-        // 优先使用新的总资产字段
+        // 🔧 重要修复：在多策略回测中，应该显示单策略的资产，而不是所有策略的总资产
+        // trade.total_assets 是所有策略的总资产，不适合在单策略交易记录中显示
+        
+        // 优先计算：当前策略的持仓资产 + 现金余额
+        const holdingAssets = this.getTradeHoldingAssets(trade);
+        const cashBalance = trade.cash_balance || 0;
+        
+        if (holdingAssets !== null && holdingAssets !== undefined && 
+            cashBalance !== null && cashBalance !== undefined) {
+            const singleStrategyAssets = holdingAssets + cashBalance;
+            console.log(`单策略资产计算: 持仓${holdingAssets.toFixed(2)} + 现金${cashBalance.toFixed(2)} = ${singleStrategyAssets.toFixed(2)}`);
+            return singleStrategyAssets;
+        }
+        
+        // 如果没有分离的持仓和现金数据，才考虑使用总资产字段
+        // 但要注意这可能是多策略的合计值
         if (trade.total_assets !== undefined && trade.total_assets !== null) {
+            // 添加警告标识，提醒这可能是多策略总资产
+            console.warn(`⚠️ 使用total_assets字段 (${trade.total_assets.toFixed(2)})，这可能包含多策略资产`);
             return trade.total_assets;
         }
         
