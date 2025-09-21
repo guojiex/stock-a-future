@@ -431,15 +431,9 @@ func (s *BacktestService) preloadBacktestData(ctx context.Context, symbols []str
 			// 2. 按月份分别存储，提高月度查找命中率
 			s.storeDataByMonths(symbol, data, startDate, endDate)
 
-			s.logger.Info("预加载数据已缓存",
-				logger.String("symbol", symbol),
-				logger.String("range", fmt.Sprintf("%s至%s", startDateStr, endDateStr)),
-				logger.Int("data_count", len(data)),
-			)
 		}
 	}
 
-	s.logger.Info("回测数据预加载完成")
 	return nil
 }
 
@@ -947,6 +941,15 @@ func (s *BacktestService) GetBacktestResults(ctx context.Context, backtestID str
 	// 获取交易记录
 	trades := s.backtestTrades[backtestID]
 
+	// 🚨 数据完整性检查：验证交易记录的持仓资产逻辑
+	if err := s.validateTradesData(trades, backtestID); err != nil {
+		s.logger.Error("交易记录数据完整性检查失败",
+			logger.String("backtest_id", backtestID),
+			logger.ErrorField(err),
+		)
+		// 注意：这里不返回错误，只记录日志，避免影响正常的结果返回
+	}
+
 	// 获取策略信息 - 修复兼容性处理逻辑
 	var strategy *models.Strategy
 
@@ -1241,18 +1244,14 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 		// 更新进度（基于交易日数量）
 		progress := int(float64(dayIndex+1) / float64(totalTradingDays) * 100)
 
-		// 只在重要进度节点打印日志（减少日志量）
+		// 只在重要进度节点更新进度（减少更新频率）
 		if progress >= lastLoggedProgress+20 || dayIndex == 0 || dayIndex == totalTradingDays-1 {
-			s.logger.Info("多策略回测进度",
-				logger.String("backtest_id", backtest.ID),
-				logger.Int("progress", progress),
-				logger.String("date", currentDate.Format("2006-01-02")),
-			)
 			lastLoggedProgress = progress
 		}
 		s.updateBacktestProgress(backtest.ID, progress, fmt.Sprintf("多策略回测进行中... %s (交易日 %d/%d)", currentDate.Format("2006-01-02"), dayIndex+1, totalTradingDays))
 
 		// 先更新每个策略的组合价值（基于当日市价）
+		// 注意：这里更新的市值将在后续交易计算中使用，确保数据一致性
 		for _, strategy := range strategies {
 			portfolio := strategyPortfolios[strategy.ID]
 			s.updatePortfolioValue(ctx, portfolio, backtest.Symbols, currentDate)
@@ -1298,6 +1297,7 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 					trade.CashBalance = portfolio.Cash
 
 					// 计算所有策略的总资产（现金总和 + 持仓市值总和）
+					// 注意：这里计算的是所有策略的总资产，用于整体组合分析
 					totalCash := 0.0
 					totalHoldings := 0.0
 					for _, p := range strategyPortfolios {
@@ -1308,6 +1308,11 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 					}
 					totalAssets := totalCash + totalHoldings
 					trade.TotalAssets = totalAssets
+
+					// 重要说明：
+					// - trade.HoldingAssets 记录的是当前策略的持仓资产（在executeSignalForStrategy中计算）
+					// - trade.TotalAssets 记录的是所有策略的总资产
+					// 前端显示时应该使用 HoldingAssets 而不是从 TotalAssets 推算持仓
 
 					strategyTrades[strategy.ID] = append(strategyTrades[strategy.ID], *trade)
 				}
@@ -1342,10 +1347,6 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 	}
 
 	// 回测完成，计算结果
-	s.logger.Info("多策略回测完成",
-		logger.String("backtest_id", backtest.ID),
-		logger.Int("strategies_count", len(strategies)),
-	)
 
 	// 为每个策略计算性能指标
 	var allResults []models.BacktestResult
@@ -1372,14 +1373,6 @@ func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, back
 		// 合并交易记录
 		allTrades = append(allTrades, strategyTrades[strategy.ID]...)
 
-		s.logger.Info("策略性能计算完成",
-			logger.String("backtest_id", backtest.ID),
-			logger.String("strategy_id", strategy.ID),
-			logger.String("strategy_name", strategy.Name),
-			logger.Float64("total_return", result.TotalReturn),
-			logger.Float64("sharpe_ratio", result.SharpeRatio),
-			logger.Int("total_trades", result.TotalTrades),
-		)
 	}
 
 	// 计算组合整体权益曲线（所有策略的平均或加权组合）
@@ -1482,11 +1475,11 @@ func (s *BacktestService) executeSignalForStrategy(signal *models.Signal, market
 		if position, exists := portfolio.Positions[symbol]; exists {
 			// 更新现有持仓
 			totalShares := position.Quantity + quantity
-			totalCost := position.AvgPrice*float64(position.Quantity) + cost
-			position.AvgPrice = totalCost / float64(totalShares)
+			totalCostBasis := position.AvgPrice*float64(position.Quantity) + cost
+			position.AvgPrice = totalCostBasis / float64(totalShares)
 			position.Quantity = totalShares
-			position.MarketValue = float64(totalShares) * price
-			position.UnrealizedPL = position.MarketValue - totalCost
+			position.MarketValue = float64(totalShares) * price // 使用当前交易价格作为市值
+			position.UnrealizedPL = position.MarketValue - totalCostBasis
 			portfolio.Positions[symbol] = position
 		} else {
 			// 创建新持仓
@@ -1494,16 +1487,16 @@ func (s *BacktestService) executeSignalForStrategy(signal *models.Signal, market
 				Symbol:       symbol,
 				Quantity:     quantity,
 				AvgPrice:     price,
-				MarketValue:  float64(quantity) * price,
+				MarketValue:  float64(quantity) * price, // 使用当前交易价格作为市值
 				UnrealizedPL: 0,
 				Timestamp:    marketData.Date,
 			}
 		}
 
-		// 计算交易后的持仓资产（使用当前市价重新计算）
+		// 计算交易后的持仓资产（使用已更新的市值，确保数据一致性）
 		holdingAssets := 0.0
 		for _, pos := range portfolio.Positions {
-			holdingAssets += pos.MarketValue // 买入时MarketValue已经更新为最新价格
+			holdingAssets += pos.MarketValue // 使用updatePortfolioValue已更新的市值
 		}
 
 		return &models.Trade{
@@ -1548,7 +1541,7 @@ func (s *BacktestService) executeSignalForStrategy(signal *models.Signal, market
 		portfolio.Cash += netRevenue
 		delete(portfolio.Positions, symbol)
 
-		// 计算交易后的持仓资产
+		// 计算交易后的持仓资产（使用一致的市场数据）
 		holdingAssetsAfterSell := 0.0
 		for _, pos := range portfolio.Positions {
 			holdingAssetsAfterSell += pos.MarketValue
@@ -1654,4 +1647,137 @@ func (s *BacktestService) calculateCombinedMetrics(results []models.BacktestResu
 	combined.TotalTrades = totalTrades
 
 	return combined
+}
+
+// validateTradesData 验证交易记录数据的完整性
+// 检查卖出记录的持仓资产是否合理（卖出操作不应该导致总持仓资产异常增加）
+func (s *BacktestService) validateTradesData(trades []models.Trade, backtestID string) error {
+	if len(trades) == 0 {
+		return nil
+	}
+
+	// 按时间排序交易记录，确保按执行顺序检查
+	sortedTrades := make([]models.Trade, len(trades))
+	copy(sortedTrades, trades)
+
+	// 简单的时间排序（可以考虑使用更高效的排序算法）
+	for i := 0; i < len(sortedTrades)-1; i++ {
+		for j := i + 1; j < len(sortedTrades); j++ {
+			if sortedTrades[i].Timestamp.After(sortedTrades[j].Timestamp) {
+				sortedTrades[i], sortedTrades[j] = sortedTrades[j], sortedTrades[i]
+			}
+		}
+	}
+
+	// 验证整体交易序列的持仓资产变化逻辑
+	return s.validateTradesSequence(sortedTrades, backtestID)
+}
+
+// validateTradesSequence 验证交易序列的持仓资产变化逻辑
+func (s *BacktestService) validateTradesSequence(trades []models.Trade, backtestID string) error {
+	var validationErrors []string
+
+	// 按股票分组，检查每只股票的买入卖出逻辑
+	stockTrades := make(map[string][]models.Trade)
+	for _, trade := range trades {
+		stockTrades[trade.Symbol] = append(stockTrades[trade.Symbol], trade)
+	}
+
+	// 判断是否为多股票组合（有多于1只股票参与交易）
+	isMultiStock := len(stockTrades) > 1
+
+	// 对每只股票单独检查买入卖出的持仓资产变化
+	for symbol, symbolTrades := range stockTrades {
+		if err := s.validateSingleStockTrades(symbol, symbolTrades, backtestID, isMultiStock); err != nil {
+			validationErrors = append(validationErrors, err.Error())
+		}
+	}
+
+	// 检查整体交易序列中的异常持仓资产增长
+	if err := s.validateOverallHoldingAssets(trades, backtestID); err != nil {
+		validationErrors = append(validationErrors, err.Error())
+	}
+
+	if len(validationErrors) > 0 {
+		return fmt.Errorf("发现 %d 个数据完整性问题: %s", len(validationErrors), strings.Join(validationErrors, "; "))
+	}
+
+	return nil
+}
+
+// validateSingleStockTrades 验证单只股票的交易记录
+func (s *BacktestService) validateSingleStockTrades(symbol string, trades []models.Trade, backtestID string, isMultiStock bool) error {
+	var lastBuyHoldingAssets float64
+	var lastBuyTradeID string
+	var lastBuyTime time.Time
+	var hasBuy bool
+
+	for i, trade := range trades {
+		switch trade.Side {
+		case models.TradeSideBuy:
+			// 记录买入时的持仓资产
+			lastBuyHoldingAssets = trade.HoldingAssets
+			lastBuyTradeID = trade.ID
+			lastBuyTime = trade.Timestamp
+			hasBuy = true
+
+		case models.TradeSideSell:
+			// 只有在单股票回测且是简单买入卖出序列的情况下才检查
+			// 对于多股票组合，卖出一只股票后总持仓可能因为其他股票价格上涨而增加
+			if !isMultiStock && hasBuy && len(trades) == 2 && trade.HoldingAssets > lastBuyHoldingAssets {
+				// 🚨 发现异常：在单股票简单买入卖出序列中，卖出后持仓资产比买入后还高
+				if s.logger != nil {
+					s.logger.Error("❌ 发现异常交易记录：单股票买卖序列中卖出后持仓资产异常增加",
+						logger.String("backtest_id", backtestID),
+						logger.String("symbol", symbol),
+						logger.String("sell_trade_id", trade.ID),
+						logger.String("last_buy_trade_id", lastBuyTradeID),
+						logger.Time("sell_time", trade.Timestamp),
+						logger.Time("last_buy_time", lastBuyTime),
+						logger.Float64("sell_holding_assets", trade.HoldingAssets),
+						logger.Float64("last_buy_holding_assets", lastBuyHoldingAssets),
+						logger.Float64("abnormal_increase", trade.HoldingAssets-lastBuyHoldingAssets),
+						logger.Int("trade_index", i),
+					)
+				}
+
+				return fmt.Errorf("股票 %s 单股票买卖序列异常：卖出后持仓资产(%.2f)比买入后(%.2f)增加了%.2f，这在逻辑上不应该发生",
+					symbol, trade.HoldingAssets, lastBuyHoldingAssets, trade.HoldingAssets-lastBuyHoldingAssets)
+			}
+		}
+	}
+
+	return nil
+}
+
+// validateOverallHoldingAssets 验证整体持仓资产的异常增长
+func (s *BacktestService) validateOverallHoldingAssets(trades []models.Trade, backtestID string) error {
+	// 检查是否存在明显不合理的持仓资产跳跃
+	for i := 1; i < len(trades); i++ {
+		prevTrade := trades[i-1]
+		currentTrade := trades[i]
+
+		// 如果当前是卖出操作，且持仓资产异常大幅增加（超过50%），记录警告
+		if currentTrade.Side == models.TradeSideSell &&
+			prevTrade.HoldingAssets > 0 &&
+			currentTrade.HoldingAssets > prevTrade.HoldingAssets*1.5 {
+
+			if s.logger != nil {
+				s.logger.Warn("⚠️ 检测到可能的异常持仓资产增长",
+					logger.String("backtest_id", backtestID),
+					logger.String("prev_trade_id", prevTrade.ID),
+					logger.String("current_trade_id", currentTrade.ID),
+					logger.String("current_symbol", currentTrade.Symbol),
+					logger.String("current_side", string(currentTrade.Side)),
+					logger.Float64("prev_holding_assets", prevTrade.HoldingAssets),
+					logger.Float64("current_holding_assets", currentTrade.HoldingAssets),
+					logger.Float64("increase_ratio", currentTrade.HoldingAssets/prevTrade.HoldingAssets),
+				)
+			}
+
+			// 注意：这里只记录警告，不返回错误，因为在多股票组合中这种情况可能是正常的
+		}
+	}
+
+	return nil
 }

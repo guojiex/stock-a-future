@@ -1379,15 +1379,14 @@ class BacktestModule {
      * 获取交易的持仓资产值
      */
     getTradeHoldingAssets(trade) {
-        // 优先使用新的持仓资产字段
+        // 优先使用新的持仓资产字段（这是当前策略的持仓资产）
         if (trade.holding_assets !== undefined && trade.holding_assets !== null) {
             return trade.holding_assets;
         }
         
-        // 如果没有持仓资产字段，尝试从总资产和现金余额计算
-        if (trade.total_assets !== undefined && trade.cash_balance !== undefined) {
-            return trade.total_assets - trade.cash_balance;
-        }
+        // ❌ 重要修复：不能用 total_assets - cash_balance 计算持仓资产
+        // 因为在多策略回测中，total_assets 是所有策略的总资产，而 cash_balance 是当前策略的现金
+        // 这样计算会导致错误的持仓资产显示
         
         // 尝试其他可能的字段名
         const possibleFields = [
@@ -1404,6 +1403,8 @@ class BacktestModule {
         }
         
         // 如果都没有，返回0（表示没有持仓或无法计算）
+        // 注意：这里返回0是正确的，因为如果没有holding_assets字段，
+        // 说明可能是卖出后没有持仓，或者数据结构有问题
         return 0;
     }
 
