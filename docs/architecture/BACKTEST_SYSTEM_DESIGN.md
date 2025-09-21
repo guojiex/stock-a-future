@@ -25,11 +25,12 @@
 - ✅ **并发处理**: 支持多策略并行回测
 
 ### 技术栈
-- **后端**: Go 1.22+ (net/http + ServeMux)
-- **数据库**: PostgreSQL (主库) + Redis (缓存)
-- **时序数据**: InfluxDB (高频数据存储)
-- **消息队列**: NATS (策略执行调度)
-- **前端**: React + TypeScript + ECharts
+- **后端**: Go 1.24+ (net/http + ServeMux)
+- **数据库**: SQLite (主库) + 内存缓存 (DailyCacheService)
+- **数据源**: AKTools (AKShare) + Tushare Pro API
+- **前端**: 原生JavaScript + ECharts + TailwindCSS
+- **日志系统**: Zap结构化日志
+- **文件处理**: Excelize (Excel文件处理)
 
 ---
 
@@ -41,101 +42,99 @@
 graph TB
     subgraph "客户端层"
         WEB[Web界面]
-        API_CLIENT[API客户端]
-        MOBILE[移动端]
+        BROWSER[浏览器客户端]
     end
     
-    subgraph "API网关层"
-        GATEWAY[API Gateway]
-        AUTH[认证服务]
-        RATE_LIMIT[限流服务]
+    subgraph "API服务层"
+        SERVER[Go HTTP服务器]
+        CORS[CORS中间件]
+        LOGGING[日志中间件]
     end
     
     subgraph "业务服务层"
         STRATEGY[策略管理服务]
         BACKTEST[回测引擎服务]
-        PORTFOLIO[组合管理服务]
-        RISK[风险管理服务]
         SIGNAL[信号生成服务]
+        PATTERN[图形识别服务]
+        FUNDAMENTAL[基本面分析服务]
+        FAVORITES[收藏管理服务]
+        CLEANUP[数据清理服务]
     end
     
     subgraph "数据服务层"
-        MARKET_DATA[市场数据服务]
-        HIST_DATA[历史数据服务]
-        CACHE[缓存服务]
+        DATA_SOURCE[数据源服务]
+        DAILY_CACHE[日线数据缓存]
+        TRADING_CALENDAR[交易日历]
     end
     
     subgraph "存储层"
-        POSTGRES[(PostgreSQL)]
-        INFLUX[(InfluxDB)]
-        REDIS[(Redis)]
-        FILE_STORE[文件存储]
-    end
-    
-    subgraph "消息队列"
-        NATS[NATS消息队列]
+        SQLITE[(SQLite数据库)]
+        FILE_CACHE[本地文件缓存]
+        EXCEL_FILES[Excel数据文件]
     end
     
     subgraph "外部数据源"
-        TUSHARE[Tushare API]
-        AKTOOLS[AKTools]
-        YAHOO[Yahoo Finance]
+        TUSHARE[Tushare Pro API]
+        AKTOOLS[AKTools服务]
     end
     
-    WEB --> GATEWAY
-    API_CLIENT --> GATEWAY
-    MOBILE --> GATEWAY
+    WEB --> CORS
+    BROWSER --> CORS
     
-    GATEWAY --> AUTH
-    GATEWAY --> RATE_LIMIT
-    GATEWAY --> STRATEGY
-    GATEWAY --> BACKTEST
-    GATEWAY --> PORTFOLIO
+    CORS --> LOGGING
+    LOGGING --> SERVER
     
-    STRATEGY --> NATS
-    BACKTEST --> NATS
-    BACKTEST --> MARKET_DATA
-    BACKTEST --> HIST_DATA
+    SERVER --> STRATEGY
+    SERVER --> BACKTEST
+    SERVER --> SIGNAL
+    SERVER --> PATTERN
+    SERVER --> FUNDAMENTAL
+    SERVER --> FAVORITES
+    SERVER --> CLEANUP
     
-    PORTFOLIO --> RISK
-    RISK --> SIGNAL
+    BACKTEST --> DATA_SOURCE
+    SIGNAL --> PATTERN
+    PATTERN --> DATA_SOURCE
+    FUNDAMENTAL --> DATA_SOURCE
     
-    MARKET_DATA --> CACHE
-    HIST_DATA --> CACHE
-    CACHE --> REDIS
+    DATA_SOURCE --> DAILY_CACHE
+    DATA_SOURCE --> TRADING_CALENDAR
     
-    STRATEGY --> POSTGRES
-    BACKTEST --> POSTGRES
-    PORTFOLIO --> POSTGRES
+    STRATEGY --> SQLITE
+    BACKTEST --> SQLITE
+    FAVORITES --> SQLITE
+    SIGNAL --> SQLITE
     
-    HIST_DATA --> INFLUX
-    MARKET_DATA --> INFLUX
+    DAILY_CACHE --> FILE_CACHE
     
-    MARKET_DATA --> TUSHARE
-    MARKET_DATA --> AKTOOLS
-    MARKET_DATA --> YAHOO
+    DATA_SOURCE --> TUSHARE
+    DATA_SOURCE --> AKTOOLS
+    
+    FAVORITES --> EXCEL_FILES
 ```
 
 ### 分层架构
 
 #### 1. 表现层 (Presentation Layer)
-- **Web前端**: React + TypeScript构建的SPA应用
-- **移动端**: React Native或PWA
-- **API文档**: Swagger/OpenAPI自动生成
+- **Web前端**: 原生JavaScript + ECharts图表库
+- **样式系统**: TailwindCSS + 自定义CSS
+- **模块化架构**: ES6模块系统，按功能拆分
 
-#### 2. 应用层 (Application Layer)
-- **API网关**: 统一入口，负责路由、认证、限流
-- **业务服务**: 微服务架构，各服务独立部署
+#### 2. 应用层 (Application Layer)  
+- **HTTP服务器**: Go标准库net/http + ServeMux路由
+- **中间件**: CORS处理、请求日志、错误处理
+- **API处理器**: RESTful API端点处理
 
-#### 3. 领域层 (Domain Layer)
-- **策略引擎**: 策略逻辑执行核心
-- **回测引擎**: 历史数据回放和计算
-- **风险引擎**: 实时风险监控和控制
+#### 3. 业务层 (Business Layer)
+- **策略服务**: 内存存储的策略管理
+- **回测引擎**: 多策略并行回测执行
+- **信号服务**: 异步信号计算和存储
+- **模式识别**: 技术指标和K线形态识别
 
-#### 4. 基础设施层 (Infrastructure Layer)
-- **数据访问**: Repository模式封装数据操作
-- **消息队列**: 异步任务处理
-- **缓存系统**: 高频数据缓存
+#### 4. 数据层 (Data Layer)
+- **SQLite数据库**: 轻量级本地数据存储
+- **内存缓存**: DailyCacheService日线数据缓存
+- **文件系统**: Excel文件和本地缓存文件
 
 ---
 
@@ -285,145 +284,119 @@ type MarketBar struct {
 
 ## 📊 数据模型
 
-### 1. 策略相关表
+### 1. 收藏和分组相关表
 
-#### strategies (策略表)
+#### favorite_groups (收藏分组表)
 ```sql
-CREATE TABLE strategies (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(100) NOT NULL,
-    description TEXT,
-    strategy_type VARCHAR(50) NOT NULL, -- 'technical', 'ml', 'composite'
-    code TEXT NOT NULL, -- 策略代码
-    parameters JSONB, -- 策略参数
-    status VARCHAR(20) DEFAULT 'inactive', -- 'active', 'inactive', 'testing'
-    created_by UUID REFERENCES users(id),
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS favorite_groups (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    color TEXT NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
 );
 ```
 
-#### strategy_versions (策略版本表)
+#### favorite_stocks (收藏股票表)
 ```sql
-CREATE TABLE strategy_versions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    strategy_id UUID REFERENCES strategies(id),
-    version VARCHAR(20) NOT NULL,
-    code TEXT NOT NULL,
-    parameters JSONB,
-    changelog TEXT,
-    created_at TIMESTAMP DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS favorite_stocks (
+    id TEXT PRIMARY KEY,
+    ts_code TEXT NOT NULL,
+    name TEXT NOT NULL,
+    start_date TEXT,
+    end_date TEXT,
+    group_id TEXT NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    FOREIGN KEY (group_id) REFERENCES favorite_groups(id)
 );
 ```
 
-### 2. 回测相关表
+### 2. 信号存储表
 
-#### backtests (回测任务表)
+#### stock_signals (股票信号表)
 ```sql
-CREATE TABLE backtests (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(100) NOT NULL,
-    strategy_id UUID REFERENCES strategies(id),
-    strategy_version VARCHAR(20),
-    symbols TEXT[], -- 回测股票列表
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
-    initial_cash DECIMAL(15,2) NOT NULL,
-    commission DECIMAL(6,4) DEFAULT 0.0003,
-    slippage DECIMAL(6,4) DEFAULT 0.0001,
-    benchmark VARCHAR(20) DEFAULT 'HS300',
-    status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'running', 'completed', 'failed'
-    progress INTEGER DEFAULT 0, -- 进度百分比
-    created_at TIMESTAMP DEFAULT NOW(),
-    started_at TIMESTAMP,
-    completed_at TIMESTAMP
+CREATE TABLE IF NOT EXISTS stock_signals (
+    id TEXT PRIMARY KEY,
+    ts_code TEXT NOT NULL,
+    name TEXT NOT NULL,
+    trade_date TEXT NOT NULL,           -- 信号基于的交易日期
+    signal_date TEXT NOT NULL,          -- 信号计算日期
+    signal_type TEXT NOT NULL,          -- 信号类型: BUY, SELL, HOLD
+    signal_strength TEXT NOT NULL,      -- 信号强度: STRONG, MEDIUM, WEAK
+    confidence REAL NOT NULL,           -- 置信度 0-1
+    patterns TEXT,                      -- 识别到的图形模式(JSON格式)
+    technical_indicators TEXT,          -- 技术指标数据(JSON格式)
+    predictions TEXT,                   -- 预测数据(JSON格式)
+    description TEXT,                   -- 信号描述
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    UNIQUE(ts_code, trade_date)         -- 每个股票每天只有一个信号记录
 );
 ```
 
-#### backtest_results (回测结果表)
-```sql
-CREATE TABLE backtest_results (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    backtest_id UUID REFERENCES backtests(id),
-    total_return DECIMAL(10,4),
-    annual_return DECIMAL(10,4),
-    max_drawdown DECIMAL(10,4),
-    sharpe_ratio DECIMAL(10,4),
-    sortino_ratio DECIMAL(10,4),
-    win_rate DECIMAL(6,4),
-    profit_factor DECIMAL(10,4),
-    total_trades INTEGER,
-    avg_trade_return DECIMAL(10,4),
-    benchmark_return DECIMAL(10,4),
-    alpha DECIMAL(10,4),
-    beta DECIMAL(10,4),
-    created_at TIMESTAMP DEFAULT NOW()
-);
+### 3. 内存数据模型
+
+#### 策略模型 (Strategy)
+```go
+type Strategy struct {
+    ID          string                 `json:"id"`
+    Name        string                 `json:"name"`
+    Description string                 `json:"description"`
+    Type        StrategyType           `json:"strategy_type"`
+    Status      StrategyStatus         `json:"status"`
+    Parameters  map[string]interface{} `json:"parameters"`
+    Code        string                 `json:"code,omitempty"`
+    CreatedBy   string                 `json:"created_by"`
+    CreatedAt   time.Time              `json:"created_at"`
+    UpdatedAt   time.Time              `json:"updated_at"`
+}
 ```
 
-### 3. 交易相关表
-
-#### trades (交易记录表)
-```sql
-CREATE TABLE trades (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    backtest_id UUID REFERENCES backtests(id),
-    symbol VARCHAR(20) NOT NULL,
-    side VARCHAR(10) NOT NULL, -- 'buy', 'sell'
-    quantity INTEGER NOT NULL,
-    price DECIMAL(10,4) NOT NULL,
-    commission DECIMAL(10,4) NOT NULL,
-    timestamp TIMESTAMP NOT NULL,
-    signal_type VARCHAR(50), -- 触发信号类型
-    created_at TIMESTAMP DEFAULT NOW()
-);
+#### 回测模型 (Backtest)
+```go
+type Backtest struct {
+    ID            string         `json:"id"`
+    Name          string         `json:"name"`
+    StrategyID    string         `json:"strategy_id,omitempty"`    // 兼容单策略
+    StrategyIDs   []string       `json:"strategy_ids"`             // 多策略ID列表
+    StrategyNames []string       `json:"strategy_names,omitempty"` // 策略名称列表
+    Symbols       []string       `json:"symbols"`
+    StartDate     time.Time      `json:"start_date"`
+    EndDate       time.Time      `json:"end_date"`
+    InitialCash   float64        `json:"initial_cash"`
+    Commission    float64        `json:"commission"`
+    Slippage      float64        `json:"slippage"`
+    Benchmark     string         `json:"benchmark"`
+    Status        BacktestStatus `json:"status"`
+    Progress      int            `json:"progress"`
+    ErrorMessage  string         `json:"error_message,omitempty"`
+    CreatedBy     string         `json:"created_by"`
+    CreatedAt     time.Time      `json:"created_at"`
+    StartedAt     *time.Time     `json:"started_at,omitempty"`
+    CompletedAt   *time.Time     `json:"completed_at,omitempty"`
+}
 ```
 
-#### positions (持仓记录表)
-```sql
-CREATE TABLE positions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    backtest_id UUID REFERENCES backtests(id),
-    symbol VARCHAR(20) NOT NULL,
-    quantity INTEGER NOT NULL,
-    avg_price DECIMAL(10,4) NOT NULL,
-    market_value DECIMAL(15,2) NOT NULL,
-    unrealized_pl DECIMAL(15,2) NOT NULL,
-    timestamp TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-```
+### 4. 缓存数据模型
 
-### 4. 时序数据模型 (InfluxDB)
+#### 日线数据缓存 (DailyCacheService)
+```go
+type CacheEntry struct {
+    Data      []models.StockDaily `json:"data"`       // 缓存的日线数据
+    ExpiresAt time.Time           `json:"expires_at"` // 过期时间
+    CreatedAt time.Time           `json:"created_at"` // 创建时间
+}
 
-#### 市场数据
-```
-measurement: market_data
-tags:
-  - symbol: 股票代码
-  - exchange: 交易所
-fields:
-  - open: 开盘价
-  - high: 最高价
-  - low: 最低价
-  - close: 收盘价
-  - volume: 成交量
-  - amount: 成交额
-time: 时间戳
-```
-
-#### 策略信号
-```
-measurement: strategy_signals
-tags:
-  - strategy_id: 策略ID
-  - symbol: 股票代码
-  - signal_type: 信号类型
-fields:
-  - strength: 信号强度
-  - confidence: 置信度
-  - price: 触发价格
-time: 时间戳
+type CacheStats struct {
+    Hits        int64     `json:"hits"`         // 命中次数
+    Misses      int64     `json:"misses"`       // 未命中次数
+    Entries     int64     `json:"entries"`      // 缓存条目数
+    Evictions   int64     `json:"evictions"`    // 清理次数
+    LastCleanup time.Time `json:"last_cleanup"` // 上次清理时间
+}
 ```
 
 ---
@@ -432,78 +405,125 @@ time: 时间戳
 
 ### 1. 策略管理API
 
-#### 创建策略
-```http
-POST /api/v1/strategies
-Content-Type: application/json
-
-{
-  "name": "MACD金叉策略",
-  "description": "基于MACD指标的金叉死叉策略",
-  "strategy_type": "technical",
-  "code": "// 策略代码",
-  "parameters": {
-    "fast_period": 12,
-    "slow_period": 26,
-    "signal_period": 9
-  }
-}
-```
-
-**响应**:
-```json
-{
-  "code": 200,
-  "message": "策略创建成功",
-  "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "name": "MACD金叉策略",
-    "status": "inactive",
-    "created_at": "2024-01-15T10:30:00Z"
-  }
-}
-```
-
 #### 获取策略列表
 ```http
-GET /api/v1/strategies?page=1&size=20&status=active
+GET /api/v1/strategies?page=1&size=20&status=active&type=technical&keyword=MACD
 ```
 
 **响应**:
 ```json
 {
-  "code": 200,
-  "message": "获取成功",
+  "success": true,
+  "message": "获取策略列表成功",
   "data": {
-    "total": 50,
+    "total": 8,
     "page": 1,
     "size": 20,
     "items": [
       {
-        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "id": "macd_golden_cross",
         "name": "MACD金叉策略",
+        "description": "当MACD线上穿信号线时买入，下穿时卖出",
         "strategy_type": "technical",
         "status": "active",
-        "created_at": "2024-01-15T10:30:00Z"
+        "parameters": {
+          "fast_period": 12,
+          "slow_period": 26,
+          "signal_period": 9
+        },
+        "created_at": "2024-01-15T10:30:00Z",
+        "updated_at": "2024-01-15T10:30:00Z"
       }
     ]
   }
 }
 ```
 
+#### 创建策略
+```http
+POST /api/v1/strategies
+Content-Type: application/json
+
+{
+  "name": "RSI超买超卖策略",
+  "description": "基于RSI指标的超买超卖策略",
+  "type": "technical",
+  "code": "// 策略实现代码",
+  "parameters": {
+    "rsi_period": 14,
+    "overbought_threshold": 70,
+    "oversold_threshold": 30
+  }
+}
+```
+
+**响应**:
+```json
+{
+  "success": true,
+  "message": "策略创建成功",
+  "data": {
+    "id": "rsi_overbought_oversold",
+    "name": "RSI超买超卖策略",
+    "description": "基于RSI指标的超买超卖策略",
+    "strategy_type": "technical",
+    "status": "inactive",
+    "created_at": "2024-01-15T11:00:00Z"
+  }
+}
+```
+
 ### 2. 回测管理API
 
-#### 创建回测任务
+#### 获取回测列表
+```http
+GET /api/v1/backtests?page=1&size=20&status=completed&strategy_id=macd_golden_cross
+```
+
+**响应**:
+```json
+{
+  "success": true,
+  "message": "获取回测列表成功",
+  "data": {
+    "total": 15,
+    "page": 1,
+    "size": 20,
+    "items": [
+      {
+        "id": "bt_20240115_001",
+        "name": "多策略回测-2023年",
+        "strategy_ids": ["macd_golden_cross", "rsi_overbought_oversold"],
+        "strategy_names": ["MACD金叉策略", "RSI超买超卖策略"],
+        "symbols": ["000001.SZ", "000002.SZ", "600000.SH"],
+        "start_date": "2023-01-01T00:00:00Z",
+        "end_date": "2023-12-31T00:00:00Z",
+        "initial_cash": 1000000,
+        "commission": 0.0003,
+        "slippage": 0.0001,
+        "benchmark": "HS300",
+        "status": "completed",
+        "progress": 100,
+        "created_at": "2024-01-15T10:00:00Z",
+        "started_at": "2024-01-15T10:01:00Z",
+        "completed_at": "2024-01-15T10:15:00Z"
+      }
+    ]
+  }
+}
+```
+
+#### 创建并启动回测任务
 ```http
 POST /api/v1/backtests
 Content-Type: application/json
 
 {
-  "name": "MACD策略回测-2023年",
-  "strategy_id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "多策略组合回测-2024年",
+  "strategy_ids": ["macd_golden_cross", "rsi_overbought_oversold"],
   "symbols": ["000001.SZ", "000002.SZ", "600000.SH"],
-  "start_date": "2023-01-01",
-  "end_date": "2023-12-31",
+  "start_date": "2024-01-01",
+  "end_date": "2024-12-31",
   "initial_cash": 1000000,
   "commission": 0.0003,
   "slippage": 0.0001,
@@ -514,31 +534,17 @@ Content-Type: application/json
 **响应**:
 ```json
 {
-  "code": 200,
-  "message": "回测任务创建成功",
+  "success": true,
+  "message": "回测创建并启动成功",
   "data": {
-    "id": "660e8400-e29b-41d4-a716-446655440001",
-    "name": "MACD策略回测-2023年",
-    "status": "pending",
-    "created_at": "2024-01-15T11:00:00Z"
-  }
-}
-```
-
-#### 启动回测
-```http
-POST /api/v1/backtests/{id}/start
-```
-
-**响应**:
-```json
-{
-  "code": 200,
-  "message": "回测任务已启动",
-  "data": {
-    "id": "660e8400-e29b-41d4-a716-446655440001",
+    "id": "bt_20240115_002",
+    "name": "多策略组合回测-2024年",
+    "strategy_ids": ["macd_golden_cross", "rsi_overbought_oversold"],
+    "strategy_names": ["MACD金叉策略", "RSI超买超卖策略"],
     "status": "running",
-    "started_at": "2024-01-15T11:05:00Z"
+    "progress": 0,
+    "created_at": "2024-01-15T11:00:00Z",
+    "started_at": "2024-01-15T11:00:00Z"
   }
 }
 ```
@@ -551,13 +557,14 @@ GET /api/v1/backtests/{id}/progress
 **响应**:
 ```json
 {
-  "code": 200,
-  "message": "获取成功",
+  "success": true,
+  "message": "获取回测进度成功",
   "data": {
-    "id": "660e8400-e29b-41d4-a716-446655440001",
+    "backtest_id": "bt_20240115_002",
     "status": "running",
     "progress": 65,
-    "current_date": "2023-08-15",
+    "message": "正在处理 2024-08-15 的数据",
+    "current_date": "2024-08-15",
     "estimated_completion": "2024-01-15T11:15:00Z"
   }
 }
@@ -571,76 +578,128 @@ GET /api/v1/backtests/{id}/results
 **响应**:
 ```json
 {
-  "code": 200,
-  "message": "获取成功",
+  "success": true,
+  "message": "获取回测结果成功",
   "data": {
-    "backtest_id": "660e8400-e29b-41d4-a716-446655440001",
-    "performance": {
-      "total_return": 0.2856,
-      "annual_return": 0.2856,
-      "max_drawdown": -0.1234,
-      "sharpe_ratio": 1.45,
-      "sortino_ratio": 1.78,
-      "win_rate": 0.6234,
-      "profit_factor": 1.89,
-      "total_trades": 156,
-      "avg_trade_return": 0.0183
-    },
-    "benchmark": {
-      "total_return": 0.1234,
-      "annual_return": 0.1234,
-      "alpha": 0.1622,
-      "beta": 0.89
+    "backtest_id": "bt_20240115_001",
+    "backtest_name": "多策略回测-2023年",
+    "strategy_results": [
+      {
+        "strategy_id": "macd_golden_cross",
+        "strategy_name": "MACD金叉策略",
+        "total_return": 0.2856,
+        "annual_return": 0.2856,
+        "max_drawdown": -0.1234,
+        "sharpe_ratio": 1.45,
+        "win_rate": 0.6234,
+        "total_trades": 156
+      }
+    ],
+    "portfolio_performance": {
+      "total_return": 0.3124,
+      "annual_return": 0.3124,
+      "max_drawdown": -0.0987,
+      "sharpe_ratio": 1.67,
+      "sortino_ratio": 2.14,
+      "win_rate": 0.6785,
+      "total_trades": 312
     },
     "equity_curve": [
       {
         "date": "2023-01-01",
         "portfolio_value": 1000000,
-        "benchmark_value": 1000000
+        "cash": 1000000,
+        "holdings": 0
+      }
+    ],
+    "trades": [
+      {
+        "id": "trade_001",
+        "strategy_id": "macd_golden_cross",
+        "symbol": "000001.SZ",
+        "side": "buy",
+        "quantity": 1000,
+        "price": 12.34,
+        "timestamp": "2023-01-15T09:30:00Z"
       }
     ]
   }
 }
 ```
 
-### 3. 实时监控API
+### 3. 股票数据API
 
-#### 获取策略运行状态
+#### 获取股票基本信息
 ```http
-GET /api/v1/strategies/{id}/status
+GET /api/v1/stocks/{code}/basic
 ```
 
-#### 获取实时持仓
+#### 获取股票日线数据
 ```http
-GET /api/v1/portfolios/{id}/positions
+GET /api/v1/stocks/{code}/daily?start_date=20240101&end_date=20241231&adjust=qfq
 ```
 
-#### 获取实时信号
+#### 获取技术指标
 ```http
-GET /api/v1/signals/realtime?strategy_id={id}
+GET /api/v1/stocks/{code}/indicators
 ```
 
-### 4. WebSocket接口
+#### 获取买卖预测
+```http
+GET /api/v1/stocks/{code}/predictions
+```
 
-#### 实时数据推送
-```javascript
-// 连接WebSocket
-const ws = new WebSocket('ws://localhost:8080/ws');
+### 4. 信号计算API
 
-// 订阅回测进度
-ws.send(JSON.stringify({
-  type: 'subscribe',
-  channel: 'backtest_progress',
-  backtest_id: '660e8400-e29b-41d4-a716-446655440001'
-}));
+#### 计算单个股票信号
+```http
+POST /api/v1/signals/calculate
+Content-Type: application/json
 
-// 接收进度更新
-ws.onmessage = function(event) {
-  const data = JSON.parse(event.data);
-  if (data.type === 'backtest_progress') {
-    console.log('回测进度:', data.progress);
-  }
-};
+{
+  "ts_code": "000001.SZ",
+  "trade_date": "20240115"
+}
+```
+
+#### 批量计算信号
+```http
+POST /api/v1/signals/batch
+Content-Type: application/json
+
+{
+  "symbols": ["000001.SZ", "000002.SZ"],
+  "trade_date": "20240115"
+}
+```
+
+#### 获取最新信号
+```http
+GET /api/v1/signals?limit=20
+```
+
+### 5. 收藏管理API
+
+#### 获取收藏列表
+```http
+GET /api/v1/favorites
+```
+
+#### 添加收藏
+```http
+POST /api/v1/favorites
+Content-Type: application/json
+
+{
+  "ts_code": "000001.SZ",
+  "name": "平安银行",
+  "group_id": "group_001"
+}
+```
+
+#### 获取收藏股票信号
+```http
+GET /api/v1/favorites/signals
 ```
 
 ---
@@ -649,79 +708,128 @@ ws.onmessage = function(event) {
 
 ### 1. 数据库优化
 
-#### 索引策略
+#### SQLite索引策略
 ```sql
--- 策略查询优化
-CREATE INDEX idx_strategies_status ON strategies(status);
-CREATE INDEX idx_strategies_type ON strategies(strategy_type);
+-- 收藏股票查询优化
+CREATE INDEX IF NOT EXISTS idx_favorite_stocks_ts_code ON favorite_stocks(ts_code);
+CREATE INDEX IF NOT EXISTS idx_favorite_stocks_group_id ON favorite_stocks(group_id);
+CREATE INDEX IF NOT EXISTS idx_favorite_stocks_sort_order ON favorite_stocks(group_id, sort_order);
 
--- 回测查询优化
-CREATE INDEX idx_backtests_status ON backtests(status);
-CREATE INDEX idx_backtests_created_at ON backtests(created_at DESC);
-
--- 交易记录优化
-CREATE INDEX idx_trades_backtest_symbol ON trades(backtest_id, symbol);
-CREATE INDEX idx_trades_timestamp ON trades(timestamp);
-```
-
-#### 分区策略
-```sql
--- 按月分区交易记录表
-CREATE TABLE trades_2024_01 PARTITION OF trades
-FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
+-- 股票信号查询优化
+CREATE INDEX IF NOT EXISTS idx_stock_signals_ts_code ON stock_signals(ts_code);
+CREATE INDEX IF NOT EXISTS idx_stock_signals_trade_date ON stock_signals(trade_date);
+CREATE INDEX IF NOT EXISTS idx_stock_signals_signal_date ON stock_signals(signal_date);
+CREATE INDEX IF NOT EXISTS idx_stock_signals_signal_type ON stock_signals(signal_type);
+CREATE INDEX IF NOT EXISTS idx_stock_signals_ts_code_trade_date ON stock_signals(ts_code, trade_date);
 ```
 
 ### 2. 缓存策略
 
-#### Redis缓存设计
+#### DailyCacheService内存缓存设计
 ```go
-// 市场数据缓存
-type MarketDataCache struct {
-    client *redis.Client
-    ttl    time.Duration
+// 日线数据缓存服务
+type DailyCacheService struct {
+    cache         sync.Map      // 并发安全的缓存存储
+    defaultTTL    time.Duration // 默认过期时间
+    maxCacheAge   time.Duration // 最大缓存时间
+    cleanupTicker *time.Ticker  // 清理定时器
+    stats         CacheStats    // 缓存统计
 }
 
-func (c *MarketDataCache) GetDailyData(symbol string, date time.Time) (*MarketBar, error) {
-    key := fmt.Sprintf("market:daily:%s:%s", symbol, date.Format("2006-01-02"))
-    // 实现缓存逻辑
+// 缓存键生成
+func (s *DailyCacheService) generateKey(symbol, startDate, endDate string) string {
+    return fmt.Sprintf("%s:%s:%s", symbol, startDate, endDate)
+}
+
+// 获取缓存数据
+func (s *DailyCacheService) Get(symbol, startDate, endDate string) ([]models.StockDaily, bool) {
+    key := s.generateKey(symbol, startDate, endDate)
+    if value, ok := s.cache.Load(key); ok {
+        if entry, ok := value.(*CacheEntry); ok && !entry.IsExpired() {
+            s.incrementHits()
+            return entry.Data, true
+        }
+    }
+    s.incrementMisses()
+    return nil, false
 }
 ```
 
 ### 3. 并发处理
 
-#### 并行回测
+#### 多策略并行回测
 ```go
-// 并行处理多个股票的回测
-func (e *BacktestEngine) RunParallel(symbols []string) error {
+// 并行执行多个策略的回测
+func (s *BacktestService) runMultiStrategyBacktestTask(ctx context.Context, backtest *models.Backtest, strategies []*models.Strategy) {
+    // 预加载所有股票的历史数据
+    if err := s.preloadBacktestData(ctx, backtest.Symbols, backtest.StartDate, backtest.EndDate); err != nil {
+        s.logger.Error("预加载数据失败", logger.ErrorField(err))
+        return
+    }
+
+    // 为每个策略分配独立的goroutine
     var wg sync.WaitGroup
     semaphore := make(chan struct{}, runtime.NumCPU())
     
-    for _, symbol := range symbols {
+    for _, strategy := range strategies {
         wg.Add(1)
-        go func(sym string) {
+        go func(strat *models.Strategy) {
             defer wg.Done()
             semaphore <- struct{}{}
             defer func() { <-semaphore }()
             
-            e.runSingleSymbol(sym)
-        }(symbol)
+            s.runSingleStrategyBacktest(ctx, backtest, strat)
+        }(strategy)
     }
     
     wg.Wait()
-    return nil
+}
+```
+
+#### 异步信号计算
+```go
+// SignalService异步处理信号计算
+func (s *SignalService) Start() {
+    go s.processSignalQueue()
+}
+
+func (s *SignalService) processSignalQueue() {
+    for {
+        select {
+        case task := <-s.taskQueue:
+            s.processSignalTask(task)
+        case <-s.stopChan:
+            return
+        }
+    }
 }
 ```
 
 ### 4. 内存优化
 
-#### 数据流处理
+#### 数据预加载和缓存
 ```go
-// 使用channel进行流式数据处理
-func (e *BacktestEngine) ProcessDataStream(dataChan <-chan *MarketBar) {
-    for bar := range dataChan {
-        // 处理单个数据点，避免全量加载到内存
-        e.processBar(bar)
+// 预加载回测数据，提高回测性能
+func (s *BacktestService) preloadBacktestData(ctx context.Context, symbols []string, startDate, endDate time.Time) error {
+    for _, symbol := range symbols {
+        // 检查缓存中是否已有数据
+        if s.dailyCacheService != nil {
+            if _, found := s.dailyCacheService.Get(symbol, startDateStr, endDateStr); found {
+                continue
+            }
+        }
+
+        // 从API获取数据并存入缓存
+        data, err := client.GetDailyData(symbol, startDateStr, endDateStr, "qfq")
+        if err != nil {
+            continue
+        }
+        
+        if s.dailyCacheService != nil && len(data) > 0 {
+            s.dailyCacheService.Set(symbol, startDateStr, endDateStr, data)
+        }
     }
+    return nil
 }
 ```
 
@@ -733,23 +841,27 @@ func (e *BacktestEngine) ProcessDataStream(dataChan <-chan *MarketBar) {
 
 #### Dockerfile
 ```dockerfile
-FROM golang:1.22-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o backtest-engine ./cmd/backtest
+RUN CGO_ENABLED=1 GOOS=linux go build -o stock-a-future ./cmd/server
 
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates sqlite
 WORKDIR /root/
 
-COPY --from=builder /app/backtest-engine .
-COPY --from=builder /app/config ./config
+COPY --from=builder /app/stock-a-future .
+COPY --from=builder /app/web ./web
+COPY --from=builder /app/data ./data
+COPY --from=builder /app/sql ./sql
 
-CMD ["./backtest-engine"]
+EXPOSE 8080
+
+CMD ["./stock-a-future"]
 ```
 
 #### Docker Compose
@@ -757,166 +869,201 @@ CMD ["./backtest-engine"]
 version: '3.8'
 
 services:
-  backtest-api:
+  stock-a-future:
     build: .
     ports:
       - "8080:8080"
     environment:
-      - DB_HOST=postgres
-      - REDIS_HOST=redis
-      - INFLUX_HOST=influxdb
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+      - DATA_SOURCE_TYPE=aktools
+      - AKTOOLS_BASE_URL=http://aktools:8080
+      - LOG_LEVEL=info
+      - CACHE_ENABLED=true
+    volumes:
+      - ./data:/root/data
+      - ./logs:/root/logs
     depends_on:
-      - postgres
-      - redis
-      - influxdb
+      - aktools
 
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: backtest
-      POSTGRES_USER: backtest
-      POSTGRES_PASSWORD: password
+  aktools:
+    image: aktools/aktools:latest
+    ports:
+      - "8081:8080"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    volumes:
-      - redis_data:/data
-
-  influxdb:
-    image: influxdb:2.7
-    environment:
-      DOCKER_INFLUXDB_INIT_MODE: setup
-      DOCKER_INFLUXDB_INIT_USERNAME: admin
-      DOCKER_INFLUXDB_INIT_PASSWORD: password
-    volumes:
-      - influx_data:/var/lib/influxdb2
+      - aktools_data:/app/data
+      - aktools_logs:/app/logs
 
 volumes:
-  postgres_data:
-  redis_data:
-  influx_data:
+  aktools_data:
+  aktools_logs:
 ```
 
-### 2. Kubernetes部署
+### 2. 本地开发部署
 
-#### 服务部署清单
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: backtest-api
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: backtest-api
-  template:
-    metadata:
-      labels:
-        app: backtest-api
-    spec:
-      containers:
-      - name: backtest-api
-        image: backtest-api:latest
-        ports:
-        - containerPort: 8080
-        env:
-        - name: DB_HOST
-          value: postgres-service
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
+#### 快速启动脚本
+```bash
+#!/bin/bash
+# quick-start.sh
+
+# 启动AKTools服务
+echo "启动AKTools服务..."
+cd venv && ./start_aktools.sh
+
+# 等待AKTools服务启动
+sleep 10
+
+# 启动Stock-A-Future服务
+echo "启动Stock-A-Future服务..."
+go run cmd/server/main.go
+
+echo "服务启动完成！"
+echo "访问 http://localhost:8080 查看Web界面"
+```
+
+#### 配置文件示例
+```env
+# .env
+SERVER_HOST=localhost
+SERVER_PORT=8080
+DATA_SOURCE_TYPE=aktools
+AKTOOLS_BASE_URL=http://127.0.0.1:8080
+TUSHARE_TOKEN=your_tushare_token_here
+LOG_LEVEL=info
+LOG_FORMAT=console
+CACHE_ENABLED=true
+CACHE_DEFAULT_TTL=1h
+CLEANUP_ENABLED=true
+CLEANUP_INTERVAL=24h
+CLEANUP_RETENTION_DAYS=30
 ```
 
 ### 3. 监控和日志
 
-#### Prometheus监控
+#### Zap结构化日志
 ```go
-// 监控指标定义
-var (
-    backtestDuration = prometheus.NewHistogramVec(
-        prometheus.HistogramOpts{
-            Name: "backtest_duration_seconds",
-            Help: "回测执行时间",
-        },
-        []string{"strategy_type"},
-    )
-    
-    activeBacktests = prometheus.NewGauge(
-        prometheus.GaugeOpts{
-            Name: "active_backtests_total",
-            Help: "当前活跃回测数量",
-        },
-    )
+// 日志配置
+type Config struct {
+    Level         string
+    Format        string        // "json" or "console"
+    Output        string        // "stdout", "stderr", or file path
+    Filename      string
+    MaxSize       int          // MB
+    MaxBackups    int
+    MaxAge        int          // days
+    Compress      bool
+    ConsoleFormat bool
+    ShowCaller    bool
+    ShowTime      bool
+}
+
+// 使用结构化日志记录
+logger.Info("回测任务开始",
+    logger.String("backtest_id", backtestID),
+    logger.Any("strategy_ids", strategyIDs),
+    logger.String("start_date", startDate.Format("2006-01-02")),
+    logger.String("end_date", endDate.Format("2006-01-02")),
 )
 ```
 
-#### 结构化日志
+#### 缓存统计监控
 ```go
-// 使用结构化日志
-logger.Info("回测任务开始",
-    zap.String("backtest_id", backtestID),
-    zap.String("strategy_id", strategyID),
-    zap.Time("start_date", startDate),
-    zap.Time("end_date", endDate),
-)
+// 缓存统计
+type CacheStats struct {
+    Hits        int64     `json:"hits"`         // 命中次数
+    Misses      int64     `json:"misses"`       // 未命中次数
+    Entries     int64     `json:"entries"`      // 缓存条目数
+    Evictions   int64     `json:"evictions"`    // 清理次数
+    LastCleanup time.Time `json:"last_cleanup"` // 上次清理时间
+}
+
+// 缓存统计API
+GET /api/v1/cache/stats
 ```
 
 ---
 
 ## 📈 扩展性考虑
 
-### 1. 微服务拆分
-- **策略服务**: 独立的策略管理和执行
-- **数据服务**: 专门的市场数据处理
-- **计算服务**: 高性能回测计算集群
-- **通知服务**: 统一的消息推送服务
+### 1. 数据源扩展
+- **多数据源支持**: 当前支持Tushare和AKTools，可轻松扩展其他数据源
+- **数据源工厂模式**: 统一的数据源接口，便于添加新的数据提供商
+- **数据源切换**: 运行时动态切换数据源，提高系统可靠性
 
-### 2. 水平扩展
-- **数据库读写分离**: 主从复制提升查询性能
-- **缓存集群**: Redis Cluster支持大规模缓存
-- **计算节点**: 支持动态添加回测计算节点
+### 2. 策略扩展
+- **策略插件化**: 支持动态加载策略模块
+- **多策略类型**: 技术指标、基本面、机器学习、复合策略
+- **策略参数化**: 灵活的参数配置系统
 
-### 3. 国际化支持
-- **多语言**: 支持中英文界面
-- **多市场**: 支持A股、港股、美股等多个市场
-- **多时区**: 处理不同市场的交易时间
+### 3. 存储扩展
+- **数据库升级**: 从SQLite升级到PostgreSQL或MySQL
+- **分布式存储**: 支持数据分片和读写分离
+- **时序数据库**: 集成InfluxDB处理高频数据
+
+### 4. 计算扩展
+- **分布式回测**: 支持多节点并行回测
+- **GPU加速**: 集成CUDA加速复杂计算
+- **云计算**: 支持AWS/阿里云等云平台部署
 
 ---
 
 ## 🔒 安全性设计
 
-### 1. 认证授权
-- **JWT Token**: 无状态的用户认证
-- **RBAC**: 基于角色的访问控制
-- **API限流**: 防止恶意请求
+### 1. API安全
+- **CORS配置**: 跨域请求安全控制
+- **参数验证**: 严格的输入参数验证和清理
+- **错误处理**: 统一的错误响应格式，避免信息泄露
 
 ### 2. 数据安全
-- **数据加密**: 敏感数据加密存储
-- **传输加密**: HTTPS/WSS安全传输
-- **审计日志**: 完整的操作审计记录
+- **本地存储**: 数据存储在本地，避免网络传输风险
+- **Token保护**: Tushare Token等敏感信息脱敏处理
+- **日志安全**: 日志中不记录敏感信息
 
 ### 3. 系统安全
-- **输入验证**: 严格的参数验证
-- **SQL注入防护**: 使用参数化查询
-- **XSS防护**: 前端输入过滤
+- **输入验证**: 所有API输入进行严格验证
+- **SQL注入防护**: 使用参数化查询和ORM
+- **文件访问控制**: 限制文件系统访问范围
+- **优雅关闭**: 支持信号处理和资源清理
 
 ---
 
 ## 📝 总结
 
-本设计文档提供了一个完整的股票量化策略回测系统架构，具备以下特点：
+本设计文档基于Stock-A-Future项目的实际代码实现，提供了一个完整的股票量化策略回测系统架构，具备以下特点：
 
-1. **模块化设计**: 各模块职责清晰，便于维护和扩展
-2. **高性能**: 支持并发处理和大规模数据处理
-3. **可扩展**: 微服务架构支持水平扩展
-4. **易用性**: 完整的API接口和Web界面
-5. **可靠性**: 完善的错误处理和监控机制
+### 🎯 核心优势
 
-该系统可以满足个人投资者到机构投资者的不同需求，支持从简单的技术指标策略到复杂的机器学习策略的全方位回测需求。
+1. **轻量级架构**: 基于Go标准库和SQLite，部署简单，维护成本低
+2. **多策略支持**: 支持单策略和多策略并行回测，策略类型丰富
+3. **高性能缓存**: DailyCacheService提供高效的内存缓存机制
+4. **多数据源**: 支持Tushare和AKTools双数据源，提高数据可靠性
+5. **实时信号**: 异步信号计算和存储，支持实时买卖点预测
+6. **现代前端**: 原生JavaScript + ECharts，响应式设计，用户体验优秀
+
+### 🔧 技术特色
+
+- **Go 1.24+**: 使用最新Go版本和标准库HTTP服务器
+- **SQLite数据库**: 轻量级本地存储，无需额外数据库服务
+- **结构化日志**: Zap日志系统，支持多种输出格式
+- **并发优化**: 多goroutine并行处理，充分利用多核性能
+- **优雅关闭**: 完整的资源清理和服务关闭机制
+
+### 📈 应用场景
+
+该系统适合以下用户和场景：
+
+1. **个人投资者**: 简单部署，快速上手，支持常用技术指标策略
+2. **量化团队**: 支持多策略组合，详细回测报告和性能分析
+3. **研究机构**: 灵活的策略框架，支持自定义策略开发
+4. **教育培训**: 完整的系统设计，适合量化交易教学
+
+### 🚀 未来发展
+
+系统具备良好的扩展性，可以逐步升级：
+
+- 集成机器学习算法
+- 支持更多数据源和市场
+- 升级到分布式架构
+- 添加实盘交易接口
+
+该系统为量化交易提供了一个坚实的基础平台，既满足当前需求，又为未来扩展预留了充分的空间。
