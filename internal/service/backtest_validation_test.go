@@ -14,8 +14,12 @@ func TestValidateTradesData(t *testing.T) {
 	logConfig := &logger.Config{
 		Level:  "info",
 		Format: "console",
+		Output: "stdout",
 	}
-	log, _ := logger.NewLogger(logConfig)
+	log, err := logger.NewLogger(logConfig)
+	if err != nil {
+		t.Fatalf("创建logger失败: %v", err)
+	}
 
 	// 创建回测服务
 	dailyCacheService := NewDailyCacheService(nil)
@@ -300,8 +304,12 @@ func TestValidateTradesDataIntegration(t *testing.T) {
 	logConfig := &logger.Config{
 		Level:  "info",
 		Format: "console",
+		Output: "stdout",
 	}
-	log, _ := logger.NewLogger(logConfig)
+	log, err := logger.NewLogger(logConfig)
+	if err != nil {
+		t.Fatalf("创建logger失败: %v", err)
+	}
 
 	// 创建回测服务
 	dailyCacheService := NewDailyCacheService(nil)

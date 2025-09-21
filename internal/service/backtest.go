@@ -13,6 +13,26 @@ import (
 	"stock-a-future/internal/models"
 )
 
+// noopLogger 是一个不执行任何操作的logger实现，用于防止nil指针错误
+type noopLogger struct{}
+
+func (n *noopLogger) Debug(msg string, fields ...logger.Field)                         {}
+func (n *noopLogger) Info(msg string, fields ...logger.Field)                          {}
+func (n *noopLogger) Warn(msg string, fields ...logger.Field)                          {}
+func (n *noopLogger) Error(msg string, fields ...logger.Field)                         {}
+func (n *noopLogger) Fatal(msg string, fields ...logger.Field)                         {}
+func (n *noopLogger) DebugCtx(ctx context.Context, msg string, fields ...logger.Field) {}
+func (n *noopLogger) InfoCtx(ctx context.Context, msg string, fields ...logger.Field)  {}
+func (n *noopLogger) WarnCtx(ctx context.Context, msg string, fields ...logger.Field)  {}
+func (n *noopLogger) ErrorCtx(ctx context.Context, msg string, fields ...logger.Field) {}
+func (n *noopLogger) Debugf(format string, args ...interface{})                        {}
+func (n *noopLogger) Infof(format string, args ...interface{})                         {}
+func (n *noopLogger) Warnf(format string, args ...interface{})                         {}
+func (n *noopLogger) Errorf(format string, args ...interface{})                        {}
+func (n *noopLogger) Fatalf(format string, args ...interface{})                        {}
+func (n *noopLogger) With(fields ...logger.Field) logger.Logger                        { return n }
+func (n *noopLogger) WithRequestID(requestID string) logger.Logger                     { return n }
+
 // 辅助函数 - 使用内置max/min函数或自定义实现
 func maxInt(a, b int) int {
 	if a > b {
@@ -57,6 +77,21 @@ type BacktestService struct {
 
 // NewBacktestService 创建回测服务
 func NewBacktestService(strategyService *StrategyService, dataSourceService *DataSourceService, dailyCacheService *DailyCacheService, log logger.Logger) *BacktestService {
+	// 如果logger为nil，创建一个默认的no-op logger
+	if log == nil {
+		// 创建一个默认的logger配置，如果失败则使用no-op
+		defaultConfig := &logger.Config{
+			Level:  "info",
+			Format: "console",
+		}
+		if defaultLogger, err := logger.NewLogger(defaultConfig); err == nil {
+			log = defaultLogger
+		} else {
+			// 如果创建默认logger也失败，使用no-op logger
+			log = &noopLogger{}
+		}
+	}
+
 	return &BacktestService{
 		backtests:            make(map[string]*models.Backtest),
 		backtestResults:      make(map[string]*models.BacktestResult),
@@ -1775,20 +1810,18 @@ func (s *BacktestService) validateSingleStockTrades(symbol string, trades []mode
 			// 对于多股票组合，卖出一只股票后总持仓可能因为其他股票价格上涨而增加
 			if !isMultiStock && hasBuy && len(trades) == 2 && trade.HoldingAssets > lastBuyHoldingAssets {
 				// 🚨 发现异常：在单股票简单买入卖出序列中，卖出后持仓资产比买入后还高
-				if s.logger != nil {
-					s.logger.Error("❌ 发现异常交易记录：单股票买卖序列中卖出后持仓资产异常增加",
-						logger.String("backtest_id", backtestID),
-						logger.String("symbol", symbol),
-						logger.String("sell_trade_id", trade.ID),
-						logger.String("last_buy_trade_id", lastBuyTradeID),
-						logger.Time("sell_time", trade.Timestamp),
-						logger.Time("last_buy_time", lastBuyTime),
-						logger.Float64("sell_holding_assets", trade.HoldingAssets),
-						logger.Float64("last_buy_holding_assets", lastBuyHoldingAssets),
-						logger.Float64("abnormal_increase", trade.HoldingAssets-lastBuyHoldingAssets),
-						logger.Int("trade_index", i),
-					)
-				}
+				s.logger.Error("❌ 发现异常交易记录：单股票买卖序列中卖出后持仓资产异常增加",
+					logger.String("backtest_id", backtestID),
+					logger.String("symbol", symbol),
+					logger.String("sell_trade_id", trade.ID),
+					logger.String("last_buy_trade_id", lastBuyTradeID),
+					logger.Time("sell_time", trade.Timestamp),
+					logger.Time("last_buy_time", lastBuyTime),
+					logger.Float64("sell_holding_assets", trade.HoldingAssets),
+					logger.Float64("last_buy_holding_assets", lastBuyHoldingAssets),
+					logger.Float64("abnormal_increase", trade.HoldingAssets-lastBuyHoldingAssets),
+					logger.Int("trade_index", i),
+				)
 
 				return fmt.Errorf("股票 %s 单股票买卖序列异常：卖出后持仓资产(%.2f)比买入后(%.2f)增加了%.2f，这在逻辑上不应该发生",
 					symbol, trade.HoldingAssets, lastBuyHoldingAssets, trade.HoldingAssets-lastBuyHoldingAssets)
@@ -1811,18 +1844,16 @@ func (s *BacktestService) validateOverallHoldingAssets(trades []models.Trade, ba
 			prevTrade.HoldingAssets > 0 &&
 			currentTrade.HoldingAssets > prevTrade.HoldingAssets*1.5 {
 
-			if s.logger != nil {
-				s.logger.Warn("⚠️ 检测到可能的异常持仓资产增长",
-					logger.String("backtest_id", backtestID),
-					logger.String("prev_trade_id", prevTrade.ID),
-					logger.String("current_trade_id", currentTrade.ID),
-					logger.String("current_symbol", currentTrade.Symbol),
-					logger.String("current_side", string(currentTrade.Side)),
-					logger.Float64("prev_holding_assets", prevTrade.HoldingAssets),
-					logger.Float64("current_holding_assets", currentTrade.HoldingAssets),
-					logger.Float64("increase_ratio", currentTrade.HoldingAssets/prevTrade.HoldingAssets),
-				)
-			}
+			s.logger.Warn("⚠️ 检测到可能的异常持仓资产增长",
+				logger.String("backtest_id", backtestID),
+				logger.String("prev_trade_id", prevTrade.ID),
+				logger.String("current_trade_id", currentTrade.ID),
+				logger.String("current_symbol", currentTrade.Symbol),
+				logger.String("current_side", string(currentTrade.Side)),
+				logger.Float64("prev_holding_assets", prevTrade.HoldingAssets),
+				logger.Float64("current_holding_assets", currentTrade.HoldingAssets),
+				logger.Float64("increase_ratio", currentTrade.HoldingAssets/prevTrade.HoldingAssets),
+			)
 
 			// 注意：这里只记录警告，不返回错误，因为在多股票组合中这种情况可能是正常的
 		}
