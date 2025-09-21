@@ -3411,11 +3411,7 @@ body {
     border: 1px solid var(--border-color);
 }
 
-.table-wrapper {
-    overflow-x: auto;
-    max-height: 500px;
-    overflow-y: auto;
-}
+/* 已移动到下方，使用固定高度版本 */
 
 /* 基本面数据表格 */
 .fundamental-table {
@@ -3535,7 +3531,7 @@ body {
     }
     
     .table-wrapper {
-        max-height: 400px;
+        height: 400px; /* 移动端使用较小的固定高度 */
     }
 }
 
@@ -4291,7 +4287,8 @@ body {
 /* 交易记录表格样式 */
 .trades-table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate; /* 改为separate，确保sticky定位正常工作 */
+    border-spacing: 0; /* 移除边框间距 */
     font-size: 0.875rem;
     background: var(--bg-primary);
     border-radius: var(--radius-sm);
@@ -4301,9 +4298,7 @@ body {
 
 .trades-table thead {
     background: var(--bg-tertiary);
-    position: sticky;
-    top: 0;
-    z-index: 5;
+    /* 移除sticky定位，避免与column-headers冲突 */
 }
 
 
@@ -4314,6 +4309,8 @@ body {
     z-index: 10;
     background: var(--bg-tertiary);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    /* 确保背景完全覆盖 */
+    background-clip: padding-box;
 }
 
 /* 股票信息表头样式 - 更新：不固定位置 */
@@ -4743,9 +4740,31 @@ body {
 
 .table-wrapper {
     overflow-x: auto;
-    max-height: 500px;
+    height: 500px; /* 使用固定高度而不是max-height，确保sticky生效 */
     overflow-y: auto;
     position: relative; /* 确保sticky定位工作 */
+    /* 添加滚动条样式 */
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
+
+/* Webkit浏览器滚动条样式 */
+.table-wrapper::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
 }
 
 /* 响应式设计 */

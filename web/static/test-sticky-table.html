@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>表头冻结测试</title>
+    <link rel="stylesheet" href="css/output.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto p-6">
+        <h1 class="text-2xl font-bold mb-6">表头冻结功能测试</h1>
+        
+        <div class="table-container">
+            <div class="table-wrapper">
+                <table class="trades-table">
+                    <thead>
+                        <tr class="column-headers">
+                            <th>时间</th>
+                            <th>股票</th>
+                            <th>操作/信号</th>
+                            <th>数量</th>
+                            <th>价格</th>
+                            <th>手续费</th>
+                            <th>盈亏</th>
+                            <th>持仓资产</th>
+                            <th>总资产</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- 生成足够多的测试数据来测试滚动 -->
+                        <script>
+                            document.write(Array.from({length: 50}, (_, i) => `
+                                <tr>
+                                    <td>2024-01-${String(i + 1).padStart(2, '0')}</td>
+                                    <td class="stock-symbol">60097${i % 10}</td>
+                                    <td>
+                                        <div class="operation-signal">
+                                            <span class="operation ${i % 2 === 0 ? 'buy' : 'sell'}">
+                                                ${i % 2 === 0 ? '买入' : '卖出'}
+                                            </span>
+                                            <span class="signal-type">技术信号</span>
+                                        </div>
+                                    </td>
+                                    <td>${(i + 1) * 100}</td>
+                                    <td>¥${(10 + i * 0.1).toFixed(2)}</td>
+                                    <td>¥${(i * 0.5).toFixed(2)}</td>
+                                    <td class="${i % 3 === 0 ? 'profit' : 'loss'}">
+                                        ${i % 3 === 0 ? '+' : '-'}¥${(i * 10).toFixed(2)}
+                                    </td>
+                                    <td>¥${(i * 1000).toFixed(2)}</td>
+                                    <td class="total-assets">¥${(100000 + i * 1000).toFixed(2)}</td>
+                                </tr>
+                            `).join(''));
+                        </script>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+            <h2 class="text-lg font-semibold mb-2">测试说明：</h2>
+            <ul class="list-disc list-inside space-y-1 text-sm">
+                <li>向下滚动表格，表头应该保持在顶部不动</li>
+                <li>表头应该有阴影效果，区分于表格内容</li>
+                <li>在不同浏览器中测试兼容性</li>
+                <li>检查移动端的表现</li>
+            </ul>
+        </div>
+        
+        <div class="mt-4 p-4 bg-green-50 rounded-lg">
+            <h2 class="text-lg font-semibold mb-2">修复内容：</h2>
+            <ul class="list-disc list-inside space-y-1 text-sm">
+                <li>✅ 移除了thead的sticky定位，避免与column-headers冲突</li>
+                <li>✅ 将table-wrapper的max-height改为固定height，确保sticky生效</li>
+                <li>✅ 将表格的border-collapse改为separate，解决sticky定位问题</li>
+                <li>✅ 添加了自定义滚动条样式，提升用户体验</li>
+                <li>✅ 优化了移动端的表格高度</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
