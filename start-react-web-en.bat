@@ -23,64 +23,17 @@ if %errorlevel% neq 0 (
     echo OK: Node.js version: %NODE_VERSION%
 )
 
-REM Check and start AKTools service
+REM Start AKTools service
 echo.
 echo ==========================================
-echo STEP 1: Checking AKTools service...
+echo STEP 1: Starting AKTools service...
 echo ==========================================
-curl -s http://127.0.0.1:8080/api/public/stock_zh_a_hist >nul 2>&1
-if %errorlevel% equ 0 (
-    echo [SUCCESS] AKTools service is already running (http://127.0.0.1:8080)
-) else (
-    echo [INFO] AKTools service is not running. Starting it now...
-    
-    REM Check if Python is available
-    echo [DEBUG] Checking Python installation...
-    python --version
-    if %errorlevel% neq 0 (
-        echo [ERROR] Python not found. Please install Python 3.8+
-        echo [INFO] Continuing without AKTools (will use fallback data source)
-        goto check_go_backend
-    )
-    echo [SUCCESS] Python is available
-    
-    REM Check if AKTools is installed
-    echo [DEBUG] Checking AKTools installation...
-    python -c "import aktools; print('AKTools version:', aktools.__version__)"
-    if %errorlevel% neq 0 (
-        echo [WARNING] AKTools not installed. Installing now...
-        pip install aktools
-        if %errorlevel% neq 0 (
-            echo [ERROR] Failed to install AKTools
-            echo [INFO] Continuing without AKTools (will use fallback data source)
-            goto check_go_backend
-        )
-        echo [SUCCESS] AKTools installed successfully
-    )
-    echo [SUCCESS] AKTools is available
-    
-    echo [INFO] Starting AKTools service in background...
-    echo [DEBUG] Command: python -m aktools --port 8080
-    start "AKTools Service" cmd /k "python -m aktools --port 8080"
-    
-    REM Wait for AKTools to start
-    echo [INFO] Waiting 10 seconds for AKTools to start...
-    timeout /t 10 /nobreak >nul
-    
-    REM Check if port is listening
-    echo [DEBUG] Checking if port 8080 is listening...
-    netstat -an | findstr :8080
-    
-    REM Test AKTools API endpoint
-    echo [DEBUG] Testing AKTools API endpoint...
-    curl -s "http://127.0.0.1:8080/api/public/stock_zh_a_hist" >nul 2>&1
-    if %errorlevel% equ 0 (
-        echo [SUCCESS] AKTools service is fully ready (http://127.0.0.1:8080)
-    ) else (
-        echo [WARNING] AKTools API test failed, but continuing...
-        echo [INFO] Go backend will test the connection during startup
-    )
-)
+echo Starting AKTools on port 8080...
+start "AKTools Service" cmd /k "python -m aktools --port 8080"
+
+echo Waiting 8 seconds for AKTools to initialize...
+timeout /t 8 /nobreak >nul
+echo AKTools should now be running on http://127.0.0.1:8080
 
 :check_go_backend
 echo.
