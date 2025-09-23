@@ -4,6 +4,11 @@
 
 echo "Starting Stock-A-Future Full Stack Application..."
 echo
+echo "Service startup order:"
+echo "1. AKTools Service (Data Provider) - Port 8080"
+echo "2. Go Backend API - Port 8081"
+echo "3. Frontend Application - Port 3000"
+echo
 
 # Check Node.js
 if ! command -v node &> /dev/null; then
@@ -14,6 +19,68 @@ if ! command -v node &> /dev/null; then
 else
     NODE_VERSION=$(node --version)
     echo "OK: Node.js version: $NODE_VERSION"
+fi
+
+# Check and start AKTools service
+echo
+echo "Checking AKTools service..."
+if curl -s http://127.0.0.1:8080/health > /dev/null 2>&1; then
+    echo "OK: AKTools service is already running (http://127.0.0.1:8080)"
+else
+    echo "AKTools service is not running. Starting it now..."
+    
+    # Check if Python is available
+    if ! command -v python3 &> /dev/null && ! command -v python &> /dev/null; then
+        echo "WARNING: Python not found. Please install Python 3.8+"
+        echo "Continuing without AKTools (will use fallback data source)"
+    else
+        # Use python3 if available, otherwise python
+        PYTHON_CMD="python3"
+        if ! command -v python3 &> /dev/null; then
+            PYTHON_CMD="python"
+        fi
+        
+        # Check if AKTools is installed
+        if ! $PYTHON_CMD -c "import aktools" > /dev/null 2>&1; then
+            echo "WARNING: AKTools not installed. Installing now..."
+            pip install aktools
+            if [ $? -ne 0 ]; then
+                echo "ERROR: Failed to install AKTools"
+                echo "Continuing without AKTools (will use fallback data source)"
+            else
+                echo "AKTools installed successfully"
+            fi
+        fi
+        
+        # Try to start AKTools if it's available
+        if $PYTHON_CMD -c "import aktools" > /dev/null 2>&1; then
+            echo "Starting AKTools service in background..."
+            nohup $PYTHON_CMD -m aktools --port 8080 > /dev/null 2>&1 &
+            AKTOOLS_PID=$!
+            
+            # Wait for AKTools to start and become ready
+            echo "Waiting for AKTools to start..."
+            sleep 8
+            
+            # Check AKTools API with retry logic (same endpoint as Go backend tests)
+            AKTOOLS_READY=0
+            for i in {1..10}; do
+                echo "Testing AKTools API endpoint... (attempt $i/10)"
+                if curl -s "http://127.0.0.1:8080/api/public/stock_zh_a_hist" > /dev/null 2>&1; then
+                    echo "OK: AKTools service is fully ready (http://127.0.0.1:8080)"
+                    AKTOOLS_READY=1
+                    break
+                fi
+                sleep 6
+            done
+            
+            if [ $AKTOOLS_READY -eq 0 ]; then
+                echo "WARNING: AKTools service failed to start properly"
+                echo "The Go backend may fail to start if configured to use AKTools"
+                echo "Please check AKTools installation: pip install aktools"
+            fi
+        fi
+    fi
 fi
 
 # Check and start Go backend
@@ -127,10 +194,11 @@ case $choice in
         fi
         
         echo
-        echo "Both applications are starting:"
+        echo "All services are starting:"
         echo "- Web App: http://localhost:3000"
         echo "- Mobile Metro: http://localhost:8081 (Metro bundler)"
         echo "- Go Backend: http://localhost:8081 (API)"
+        echo "- AKTools Service: http://127.0.0.1:8080 (Data provider)"
         echo
         echo "To run on mobile device/simulator, use:"
         echo "  npm run android  (Android)"
@@ -148,6 +216,9 @@ case $choice in
             fi
             if [ ! -z "$GO_PID" ]; then
                 kill $GO_PID 2>/dev/null
+            fi
+            if [ ! -z "$AKTOOLS_PID" ]; then
+                kill $AKTOOLS_PID 2>/dev/null
             fi
             exit 0
         }

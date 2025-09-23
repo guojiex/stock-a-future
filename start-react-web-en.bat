@@ -1,8 +1,14 @@
 @echo off
+setlocal enabledelayedexpansion
 REM Stock-A-Future Full Stack Startup Script (English Version)
 REM Starts Go backend and React Native/Web frontend
 
 echo Starting Stock-A-Future Full Stack Application...
+echo.
+echo Service startup order:
+echo 1. AKTools Service (Data Provider) - Port 8080
+echo 2. Go Backend API - Port 8081  
+echo 3. Frontend Application - Port 3000
 echo.
 
 REM Check Node.js
@@ -17,37 +23,106 @@ if %errorlevel% neq 0 (
     echo OK: Node.js version: %NODE_VERSION%
 )
 
-REM Check and start Go backend
-echo Checking Go backend service...
+REM Check and start AKTools service
+echo.
+echo ==========================================
+echo STEP 1: Checking AKTools service...
+echo ==========================================
+curl -s http://127.0.0.1:8080/api/public/stock_zh_a_hist >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [SUCCESS] AKTools service is already running (http://127.0.0.1:8080)
+) else (
+    echo [INFO] AKTools service is not running. Starting it now...
+    
+    REM Check if Python is available
+    echo [DEBUG] Checking Python installation...
+    python --version
+    if %errorlevel% neq 0 (
+        echo [ERROR] Python not found. Please install Python 3.8+
+        echo [INFO] Continuing without AKTools (will use fallback data source)
+        goto check_go_backend
+    )
+    echo [SUCCESS] Python is available
+    
+    REM Check if AKTools is installed
+    echo [DEBUG] Checking AKTools installation...
+    python -c "import aktools; print('AKTools version:', aktools.__version__)"
+    if %errorlevel% neq 0 (
+        echo [WARNING] AKTools not installed. Installing now...
+        pip install aktools
+        if %errorlevel% neq 0 (
+            echo [ERROR] Failed to install AKTools
+            echo [INFO] Continuing without AKTools (will use fallback data source)
+            goto check_go_backend
+        )
+        echo [SUCCESS] AKTools installed successfully
+    )
+    echo [SUCCESS] AKTools is available
+    
+    echo [INFO] Starting AKTools service in background...
+    echo [DEBUG] Command: python -m aktools --port 8080
+    start "AKTools Service" cmd /k "python -m aktools --port 8080"
+    
+    REM Wait for AKTools to start
+    echo [INFO] Waiting 10 seconds for AKTools to start...
+    timeout /t 10 /nobreak >nul
+    
+    REM Check if port is listening
+    echo [DEBUG] Checking if port 8080 is listening...
+    netstat -an | findstr :8080
+    
+    REM Test AKTools API endpoint
+    echo [DEBUG] Testing AKTools API endpoint...
+    curl -s "http://127.0.0.1:8080/api/public/stock_zh_a_hist" >nul 2>&1
+    if %errorlevel% equ 0 (
+        echo [SUCCESS] AKTools service is fully ready (http://127.0.0.1:8080)
+    ) else (
+        echo [WARNING] AKTools API test failed, but continuing...
+        echo [INFO] Go backend will test the connection during startup
+    )
+)
+
+:check_go_backend
+echo.
+echo ==========================================
+echo STEP 2: Checking Go backend service...
+echo ==========================================
 curl -s http://localhost:8081/api/v1/health >nul 2>&1
 if %errorlevel% equ 0 (
-    echo OK: Go backend is already running (http://localhost:8081)
+    echo [SUCCESS] Go backend is already running (http://localhost:8081)
 ) else (
-    echo Go backend is not running. Starting it now...
+    echo [INFO] Go backend is not running. Starting it now...
     
     REM Check if Go is installed
-    go version >nul 2>&1
+    echo [DEBUG] Checking Go installation...
+    go version
     if %errorlevel% neq 0 (
-        echo ERROR: Go not found. Please install Go 1.22+
-        echo Download: https://golang.org/dl/
+        echo [ERROR] Go not found. Please install Go 1.22+
+        echo [INFO] Download: https://golang.org/dl/
         pause
         exit /b 1
+    ) else (
+        echo [SUCCESS] Go is available
     )
     
-    echo Starting Go backend server in background...
-    start "Stock-A-Future Backend" cmd /c "go run cmd/server/main.go"
+    echo [INFO] Starting Go backend server in background...
+    echo [DEBUG] Command: go run cmd/server/main.go
+    echo [INFO] This will test AKTools connection during startup...
+    start "Stock-A-Future Backend" cmd /k "go run cmd/server/main.go"
     
     REM Wait for server to start
-    echo Waiting for server to start...
+    echo [INFO] Waiting 5 seconds for server to start...
     timeout /t 5 /nobreak >nul
     
     REM Check if server started successfully
+    echo [DEBUG] Testing Go backend health endpoint...
     curl -s http://localhost:8081/api/v1/health >nul 2>&1
     if %errorlevel% equ 0 (
-        echo OK: Go backend started successfully (http://localhost:8081)
+        echo [SUCCESS] Go backend started successfully (http://localhost:8081)
     ) else (
-        echo WARNING: Go backend may still be starting...
-        echo If the web app fails to load data, please wait a moment and refresh.
+        echo [WARNING] Go backend may still be starting or failed...
+        echo [INFO] If it failed due to AKTools connection, check the backend terminal window
+        echo [INFO] If the web app fails to load data, please wait a moment and refresh.
     )
 )
 
@@ -115,7 +190,7 @@ if not exist "node_modules" (
         exit /b 1
     )
 )
-start "React Web App" cmd /c "npm start"
+start "React Web App" cmd /k "npm start"
 cd ..
 
 REM Start Mobile App
@@ -131,10 +206,11 @@ if not exist "node_modules" (
     )
 )
 echo.
-echo Both applications are starting:
+echo All services are starting:
 echo - Web App: http://localhost:3000
 echo - Mobile Metro: http://localhost:8081 (Metro bundler)
 echo - Go Backend: http://localhost:8081 (API)
+echo - AKTools Service: http://127.0.0.1:8080 (Data provider)
 echo.
 echo To run on mobile device/simulator, use:
 echo   npm run android  (Android)
