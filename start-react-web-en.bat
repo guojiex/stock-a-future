@@ -1,0 +1,145 @@
+@echo off
+REM Stock-A-Future Full Stack Startup Script (English Version)
+REM Starts Go backend and React Native/Web frontend
+
+echo Starting Stock-A-Future Full Stack Application...
+echo.
+
+REM Check Node.js
+node --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo ERROR: Node.js not found. Please install Node.js 18+
+    echo Download: https://nodejs.org/
+    pause
+    exit /b 1
+) else (
+    for /f "tokens=*" %%i in ('node --version') do set NODE_VERSION=%%i
+    echo OK: Node.js version: %NODE_VERSION%
+)
+
+REM Check and start Go backend
+echo Checking Go backend service...
+curl -s http://localhost:8081/api/v1/health >nul 2>&1
+if %errorlevel% equ 0 (
+    echo OK: Go backend is already running (http://localhost:8081)
+) else (
+    echo Go backend is not running. Starting it now...
+    
+    REM Check if Go is installed
+    go version >nul 2>&1
+    if %errorlevel% neq 0 (
+        echo ERROR: Go not found. Please install Go 1.22+
+        echo Download: https://golang.org/dl/
+        pause
+        exit /b 1
+    )
+    
+    echo Starting Go backend server in background...
+    start "Stock-A-Future Backend" cmd /c "go run cmd/server/main.go"
+    
+    REM Wait for server to start
+    echo Waiting for server to start...
+    timeout /t 5 /nobreak >nul
+    
+    REM Check if server started successfully
+    curl -s http://localhost:8081/api/v1/health >nul 2>&1
+    if %errorlevel% equ 0 (
+        echo OK: Go backend started successfully (http://localhost:8081)
+    ) else (
+        echo WARNING: Go backend may still be starting...
+        echo If the web app fails to load data, please wait a moment and refresh.
+    )
+)
+
+echo.
+echo Choose frontend to start:
+echo 1. React Web App (browser-based)
+echo 2. React Native Mobile App (mobile simulator)
+echo 3. Both Web and Mobile
+echo.
+set /p choice="Enter your choice (1-3): "
+
+if "%choice%"=="1" goto start_web
+if "%choice%"=="2" goto start_mobile
+if "%choice%"=="3" goto start_both
+goto start_web
+
+:start_web
+echo.
+echo Starting React Web application...
+cd web-react
+if not exist "node_modules" (
+    echo Installing web dependencies...
+    call npm install
+    if %errorlevel% neq 0 (
+        echo ERROR: Failed to install web dependencies
+        pause
+        exit /b 1
+    )
+)
+echo Web app will open in browser: http://localhost:3000
+call npm start
+goto end
+
+:start_mobile
+echo.
+echo Starting React Native mobile application...
+cd mobile
+if not exist "node_modules" (
+    echo Installing mobile dependencies...
+    call npm install
+    if %errorlevel% neq 0 (
+        echo ERROR: Failed to install mobile dependencies
+        pause
+        exit /b 1
+    )
+)
+echo Starting React Native Metro bundler...
+echo Use 'npm run android' or 'npm run ios' in another terminal to run on device/simulator
+call npm start
+goto end
+
+:start_both
+echo.
+echo Starting both Web and Mobile applications...
+
+REM Start Web App
+echo Starting React Web App...
+cd web-react
+if not exist "node_modules" (
+    echo Installing web dependencies...
+    call npm install
+    if %errorlevel% neq 0 (
+        echo ERROR: Failed to install web dependencies
+        pause
+        exit /b 1
+    )
+)
+start "React Web App" cmd /c "npm start"
+cd ..
+
+REM Start Mobile App
+echo Starting React Native Mobile App...
+cd mobile
+if not exist "node_modules" (
+    echo Installing mobile dependencies...
+    call npm install
+    if %errorlevel% neq 0 (
+        echo ERROR: Failed to install mobile dependencies
+        pause
+        exit /b 1
+    )
+)
+echo.
+echo Both applications are starting:
+echo - Web App: http://localhost:3000
+echo - Mobile Metro: http://localhost:8081 (Metro bundler)
+echo - Go Backend: http://localhost:8081 (API)
+echo.
+echo To run on mobile device/simulator, use:
+echo   npm run android  (Android)
+echo   npm run ios      (iOS)
+echo.
+call npm start
+
+:end
