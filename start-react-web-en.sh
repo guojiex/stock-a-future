@@ -6,8 +6,9 @@ echo "Starting Stock-A-Future Full Stack Application..."
 echo
 echo "Service startup order:"
 echo "1. AKTools Service (Data Provider) - Port 8080"
-echo "2. Go Backend API - Port 8081"
-echo "3. Frontend Application - Port 3000"
+echo "2. Build Go Backend API (compile to bin/server)"
+echo "3. Start Go Backend API - Port 8081"
+echo "4. Frontend Application - Port 3000"
 echo
 
 # Check Node.js
@@ -41,29 +42,53 @@ echo "Waiting 8 seconds for AKTools to initialize..."
 sleep 8
 echo "AKTools should now be running on http://127.0.0.1:8080"
 
+# Build Go backend
+echo
+echo "=========================================="
+echo "STEP 2: Building Go backend service..."
+echo "=========================================="
+
+# Check if Go is installed
+if ! command -v go &> /dev/null; then
+    echo "ERROR: Go not found. Please install Go 1.22+"
+    echo "Download: https://golang.org/dl/"
+    read -p "Press any key to exit..."
+    exit 1
+else
+    echo "OK: Go is available"
+fi
+
+# Build the Go backend
+echo "Building Go backend server..."
+echo "Command: go build -o bin/server cmd/server/main.go"
+go build -o bin/server cmd/server/main.go
+if [ $? -ne 0 ]; then
+    echo "ERROR: Failed to build Go backend"
+    echo "Please check the Go code for compilation errors"
+    read -p "Press any key to exit..."
+    exit 1
+else
+    echo "OK: Go backend built successfully: bin/server"
+fi
+
 # Check and start Go backend
 echo
-echo "Checking Go backend service..."
+echo "=========================================="
+echo "STEP 3: Checking Go backend service..."
+echo "=========================================="
 if curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
     echo "OK: Go backend is already running (http://localhost:8081)"
 else
     echo "Go backend is not running. Starting it now..."
     
-    # Check if Go is installed
-    if ! command -v go &> /dev/null; then
-        echo "ERROR: Go not found. Please install Go 1.22+"
-        echo "Download: https://golang.org/dl/"
-        read -p "Press any key to exit..."
-        exit 1
-    fi
-    
     echo "Starting Go backend server in background..."
-    nohup go run cmd/server/main.go > /dev/null 2>&1 &
+    echo "Command: ./bin/server"
+    nohup ./bin/server > /dev/null 2>&1 &
     GO_PID=$!
     
     # Wait for server to start
     echo "Waiting for server to start..."
-    sleep 8
+    sleep 10
     
     # Check if server started successfully
     if curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
@@ -76,16 +101,19 @@ fi
 
 echo
 echo "Choose frontend to start:"
-echo "1. React Web App (browser-based)"
-echo "2. React Native Mobile App (mobile simulator)"
-echo "3. Both Web and Mobile"
+echo "1. React Web App (Development Mode - Hot Reload)"
+echo "2. React Web App (Production Mode - Faster Startup)"
+echo "3. React Native Mobile App (Development Mode)"
+echo "4. React Native Mobile App (Production Mode)"
+echo "5. Both Web and Mobile (Development Mode)"
+echo "6. Both Web and Mobile (Production Mode)"
 echo
-read -p "Enter your choice (1-3): " choice
+read -p "Enter your choice (1-6): " choice
 
 case $choice in
     1)
         echo
-        echo "Starting React Web application..."
+        echo "Starting React Web application (Development Mode)..."
         cd web-react
         if [ ! -d "node_modules" ]; then
             echo "Installing web dependencies..."
@@ -97,11 +125,36 @@ case $choice in
             fi
         fi
         echo "Web app will open in browser: http://localhost:3000"
+        echo "Development mode: Hot reload enabled, slower startup"
         npm start
         ;;
     2)
         echo
-        echo "Starting React Native mobile application..."
+        echo "Starting React Web application (Production Mode)..."
+        cd web-react
+        if [ ! -d "node_modules" ]; then
+            echo "Installing web dependencies..."
+            npm install
+            if [ $? -ne 0 ]; then
+                echo "ERROR: Failed to install web dependencies"
+                read -p "Press any key to exit..."
+                exit 1
+            fi
+        fi
+        echo "Building production version..."
+        npm run build
+        if [ $? -ne 0 ]; then
+            echo "ERROR: Failed to build web application"
+            read -p "Press any key to exit..."
+            exit 1
+        fi
+        echo "Web app will open in browser: http://localhost:3000"
+        echo "Production mode: Optimized build, faster startup, no hot reload"
+        npm run serve
+        ;;
+    3)
+        echo
+        echo "Starting React Native mobile application (Development Mode)..."
         cd mobile
         if [ ! -d "node_modules" ]; then
             echo "Installing mobile dependencies..."
@@ -113,15 +166,39 @@ case $choice in
             fi
         fi
         echo "Starting React Native Metro bundler..."
+        echo "Development mode: Hot reload enabled, slower startup"
         echo "Use 'npm run android' or 'npm run ios' in another terminal to run on device/simulator"
         npm start
         ;;
-    3)
+    4)
         echo
-        echo "Starting both Web and Mobile applications..."
+        echo "Starting React Native mobile application (Production Mode)..."
+        cd mobile
+        if [ ! -d "node_modules" ]; then
+            echo "Installing mobile dependencies..."
+            npm install
+            if [ $? -ne 0 ]; then
+                echo "ERROR: Failed to install mobile dependencies"
+                read -p "Press any key to exit..."
+                exit 1
+            fi
+        fi
+        echo "Building production bundles..."
+        echo "Creating Android bundle..."
+        npm run bundle:android
+        echo "Creating iOS bundle..."
+        npm run bundle:ios
+        echo "Production mode: Optimized bundles, faster app performance"
+        echo "Use 'npm run android:release' or 'npm run ios:release' to run production builds"
+        echo "Starting Metro bundler for additional development..."
+        npm start
+        ;;
+    5)
+        echo
+        echo "Starting both Web and Mobile applications (Development Mode)..."
         
         # Start Web App in background
-        echo "Starting React Web App..."
+        echo "Starting React Web App (Development)..."
         cd web-react
         if [ ! -d "node_modules" ]; then
             echo "Installing web dependencies..."
@@ -139,7 +216,7 @@ case $choice in
         cd ..
         
         # Start Mobile App
-        echo "Starting React Native Mobile App..."
+        echo "Starting React Native Mobile App (Development)..."
         cd mobile
         if [ ! -d "node_modules" ]; then
             echo "Installing mobile dependencies..."
@@ -153,14 +230,96 @@ case $choice in
         
         echo
         echo "All services are starting:"
-        echo "- Web App: http://localhost:3000"
+        echo "- Web App: http://localhost:3000 (Development Mode)"
+        echo "- Mobile Metro: http://localhost:8081 (Metro bundler - Development)"
+        echo "- Go Backend: http://localhost:8081 (API)"
+        echo "- AKTools Service: http://127.0.0.1:8080 (Data provider)"
+        echo
+        echo "To run on mobile device/simulator, use:"
+        echo "  npm run android  (Android - Development)"
+        echo "  npm run ios      (iOS - Development)"
+        echo
+        echo "Press Ctrl+C to stop all services"
+        echo
+        
+        # Function to cleanup background processes
+        cleanup() {
+            echo
+            echo "Stopping services..."
+            if [ ! -z "$WEB_PID" ]; then
+                kill $WEB_PID 2>/dev/null
+            fi
+            if [ ! -z "$GO_PID" ]; then
+                kill $GO_PID 2>/dev/null
+            fi
+            if [ ! -z "$AKTOOLS_PID" ]; then
+                kill $AKTOOLS_PID 2>/dev/null
+            fi
+            exit 0
+        }
+        
+        # Set trap to cleanup on script exit
+        trap cleanup INT TERM
+        
+        npm start
+        ;;
+    6)
+        echo
+        echo "Starting both Web and Mobile applications (Production Mode)..."
+        
+        # Start Web App in background
+        echo "Building and starting React Web App (Production)..."
+        cd web-react
+        if [ ! -d "node_modules" ]; then
+            echo "Installing web dependencies..."
+            npm install
+            if [ $? -ne 0 ]; then
+                echo "ERROR: Failed to install web dependencies"
+                read -p "Press any key to exit..."
+                exit 1
+            fi
+        fi
+        
+        echo "Building production web app..."
+        npm run build
+        if [ $? -ne 0 ]; then
+            echo "ERROR: Failed to build web application"
+            read -p "Press any key to exit..."
+            exit 1
+        fi
+        
+        # Start web app in background
+        npm run serve > /dev/null 2>&1 &
+        WEB_PID=$!
+        cd ..
+        
+        # Start Mobile App
+        echo "Building React Native Mobile App (Production)..."
+        cd mobile
+        if [ ! -d "node_modules" ]; then
+            echo "Installing mobile dependencies..."
+            npm install
+            if [ $? -ne 0 ]; then
+                echo "ERROR: Failed to install mobile dependencies"
+                read -p "Press any key to exit..."
+                exit 1
+            fi
+        fi
+        
+        echo "Building production mobile bundles..."
+        npm run bundle:android
+        npm run bundle:ios
+        
+        echo
+        echo "All services are starting:"
+        echo "- Web App: http://localhost:3000 (Production Mode)"
         echo "- Mobile Metro: http://localhost:8081 (Metro bundler)"
         echo "- Go Backend: http://localhost:8081 (API)"
         echo "- AKTools Service: http://127.0.0.1:8080 (Data provider)"
         echo
         echo "To run on mobile device/simulator, use:"
-        echo "  npm run android  (Android)"
-        echo "  npm run ios      (iOS)"
+        echo "  npm run android:release  (Android - Production)"
+        echo "  npm run ios:release      (iOS - Production)"
         echo
         echo "Press Ctrl+C to stop all services"
         echo
@@ -187,7 +346,7 @@ case $choice in
         npm start
         ;;
     *)
-        echo "Invalid choice, starting React Web App..."
+        echo "Invalid choice, starting React Web App (Development Mode)..."
         cd web-react
         if [ ! -d "node_modules" ]; then
             echo "Installing web dependencies..."
@@ -199,6 +358,7 @@ case $choice in
             fi
         fi
         echo "Web app will open in browser: http://localhost:3000"
+        echo "Development mode: Hot reload enabled, slower startup"
         npm start
         ;;
 esac
