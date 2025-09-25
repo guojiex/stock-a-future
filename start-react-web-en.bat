@@ -149,10 +149,11 @@ if not exist "node_modules" (
         exit /b 1
     )
 )
-echo Building production version...
+echo Building production version with memory optimization...
 call npm run build
 if %errorlevel% neq 0 (
     echo ERROR: Failed to build web application
+    echo The build process ran out of memory. Try closing other applications.
     pause
     exit /b 1
 )
@@ -265,10 +266,11 @@ if not exist "node_modules" (
         exit /b 1
     )
 )
-echo Building production web app...
+echo Building production web app with memory optimization...
 call npm run build
 if %errorlevel% neq 0 (
     echo ERROR: Failed to build web application
+    echo The build process ran out of memory. Try closing other applications.
     pause
     exit /b 1
 )
