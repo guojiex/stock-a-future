@@ -56,10 +56,7 @@ const MarketPage: React.FC = () => {
     isLoading: isStockListLoading,
     error: stockListError,
     refetch: refetchStockList,
-  } = useGetStockListQuery({
-    page: 1,
-    pageSize: 100,
-  });
+  } = useGetStockListQuery();
   
   // 监听健康状态
   useEffect(() => {
@@ -84,9 +81,9 @@ const MarketPage: React.FC = () => {
   
   // 筛选股票列表
   const getFilteredStocks = (): StockBasic[] => {
-    if (!stockListData?.data?.data) return [];
+    if (!stockListData?.data?.stocks) return [];
     
-    const stocks = stockListData.data.data;
+    const stocks = stockListData.data.stocks;
     
     switch (selectedMarket) {
       case 'sh':

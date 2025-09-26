@@ -103,21 +103,16 @@ export const stockApi = createApi({
     }),
 
     // ===== 股票列表和搜索 =====
-    getStockList: builder.query<ApiResponse<PaginatedResponse<StockBasic>>, {
-      page?: number;
-      pageSize?: number;
-    }>({
-      query: ({ page = 1, pageSize = 50 }) => 
-        `stocks?page=${page}&page_size=${pageSize}`,
+    getStockList: builder.query<ApiResponse<{total: number, stocks: StockBasic[]}>, void>({
+      query: () => 'stocks',
       providesTags: ['Stock'],
     }),
 
-    searchStocks: builder.query<ApiResponse<StockBasic[]>, SearchParams>({
+    searchStocks: builder.query<ApiResponse<{keyword: string, total: number, stocks: StockBasic[]}>, SearchParams>({
       query: ({ q, limit = 20, offset = 0 }) => {
         const params = new URLSearchParams({
           q,
           limit: limit.toString(),
-          offset: offset.toString(),
         });
         return `stocks/search?${params.toString()}`;
       },

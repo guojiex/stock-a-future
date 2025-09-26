@@ -62,8 +62,8 @@ const SearchPage: React.FC = () => {
             limit: 20,
           }).unwrap();
           
-          if (result.success && result.data) {
-            dispatch(setSearchResults(result.data));
+          if (result.success && result.data && result.data.stocks) {
+            dispatch(setSearchResults(result.data.stocks));
             setShowResults(true);
           }
         } catch (error) {

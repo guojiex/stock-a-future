@@ -149,17 +149,19 @@ if not exist "node_modules" (
         exit /b 1
     )
 )
-echo Building production version with memory optimization...
-call npm run build
+echo Building production version with enhanced memory optimization...
+echo Using optimized build script with multiple fallback strategies...
+call build-optimized.bat
 if %errorlevel% neq 0 (
-    echo ERROR: Failed to build web application
-    echo The build process ran out of memory. Try closing other applications.
+    echo ERROR: Failed to build web application with all optimization attempts
+    echo Please check the error messages above for troubleshooting suggestions.
     pause
     exit /b 1
 )
 echo Web app will open in browser: http://localhost:3000
 echo Production mode: Optimized build, faster startup, no hot reload
-call npm run serve
+echo Starting production server...
+call npx serve -s build -l 3000
 goto end
 
 :start_mobile_dev
@@ -266,15 +268,16 @@ if not exist "node_modules" (
         exit /b 1
     )
 )
-echo Building production web app with memory optimization...
-call npm run build
+echo Building production web app with enhanced memory optimization...
+echo Using optimized build script with multiple fallback strategies...
+call build-optimized.bat
 if %errorlevel% neq 0 (
-    echo ERROR: Failed to build web application
-    echo The build process ran out of memory. Try closing other applications.
+    echo ERROR: Failed to build web application with all optimization attempts
+    echo Please check the error messages above for troubleshooting suggestions.
     pause
     exit /b 1
 )
-start "React Web App (Prod)" cmd /k "npm run serve"
+start "React Web App (Prod)" cmd /k "npx serve -s build -l 3000"
 cd ..
 
 REM Start Mobile App

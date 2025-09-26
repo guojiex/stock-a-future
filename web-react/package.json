@@ -32,7 +32,8 @@
   "scripts": {
     "start": "react-scripts start",
     "start:prod": "npm run build && npx serve -s build -l 3000",
-    "build": "cross-env GENERATE_SOURCEMAP=false DISABLE_ESLINT_PLUGIN=true TSC_COMPILE_ON_ERROR=true NODE_OPTIONS=\"--max-old-space-size=8192\" react-scripts build",
+    "build": "cross-env GENERATE_SOURCEMAP=false DISABLE_ESLINT_PLUGIN=true TSC_COMPILE_ON_ERROR=true SKIP_PREFLIGHT_CHECK=true NODE_OPTIONS=\"--max-old-space-size=12288 --max-semi-space-size=1024\" react-scripts build",
+    "build:safe": "cross-env GENERATE_SOURCEMAP=false DISABLE_ESLINT_PLUGIN=true TSC_COMPILE_ON_ERROR=true SKIP_PREFLIGHT_CHECK=true NODE_OPTIONS=\"--max-old-space-size=16384 --max-semi-space-size=2048\" DISABLE_NEW_JSX_TRANSFORM=true react-scripts build",
     "serve": "npx serve -s build -l 3000",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

@@ -31,16 +31,34 @@ const DEFAULT_CONFIG = {
   DEFAULT_INDICATORS: ['MA', 'MACD', 'RSI'],
 } as const;
 
+// 定义可变的配置类型
+type ConfigType = {
+  API_BASE_URL: string;
+  API_TIMEOUT: number;
+  AKTOOLS_BASE_URL: string;
+  APP_NAME: string;
+  APP_VERSION: string;
+  DEBUG_MODE: boolean;
+  LOG_LEVEL: string;
+  CACHE_TIMEOUT: number;
+  MAX_RETRIES: number;
+  REFRESH_INTERVAL: number;
+  DEFAULT_INDICATORS: string[];
+};
+
 /**
  * 获取配置值
  * 优先从环境变量获取，如果不存在则使用默认值
  */
 class Config {
   private static instance: Config;
-  private config: typeof DEFAULT_CONFIG;
+  private config: ConfigType;
 
   private constructor() {
-    this.config = { ...DEFAULT_CONFIG };
+    this.config = { 
+      ...DEFAULT_CONFIG,
+      DEFAULT_INDICATORS: [...DEFAULT_CONFIG.DEFAULT_INDICATORS]
+    };
     this.loadFromEnvironment();
   }
 
@@ -174,7 +192,7 @@ class Config {
   /**
    * 动态更新配置
    */
-  public updateConfig(newConfig: Partial<typeof DEFAULT_CONFIG>) {
+  public updateConfig(newConfig: Partial<ConfigType>) {
     this.config = { ...this.config, ...newConfig };
   }
 
@@ -182,7 +200,10 @@ class Config {
    * 重置为默认配置
    */
   public resetToDefaults() {
-    this.config = { ...DEFAULT_CONFIG };
+    this.config = { 
+      ...DEFAULT_CONFIG,
+      DEFAULT_INDICATORS: [...DEFAULT_CONFIG.DEFAULT_INDICATORS]
+    };
   }
 
   /**
