@@ -6,9 +6,8 @@ echo "Starting Stock-A-Future Full Stack Application..."
 echo
 echo "Service startup order:"
 echo "1. AKTools Service (Data Provider) - Port 8080"
-echo "2. Build Go Backend API (compile to bin/server)"
-echo "3. Start Go Backend API - Port 8081"
-echo "4. Frontend Application - Port 3000"
+echo "2. Go Backend API - Port 8081"
+echo "3. Frontend Application - Port 3000"
 echo
 
 # Check Node.js
@@ -42,10 +41,10 @@ echo "Waiting 8 seconds for AKTools to initialize..."
 sleep 8
 echo "AKTools should now be running on http://127.0.0.1:8080"
 
-# Build Go backend
+# Check Go installation
 echo
 echo "=========================================="
-echo "STEP 2: Building Go backend service..."
+echo "STEP 2: Checking Go installation..."
 echo "=========================================="
 
 # Check if Go is installed
@@ -58,23 +57,10 @@ else
     echo "OK: Go is available"
 fi
 
-# Build the Go backend
-echo "Building Go backend server..."
-echo "Command: go build -o bin/server cmd/server/main.go"
-go build -o bin/server cmd/server/main.go
-if [ $? -ne 0 ]; then
-    echo "ERROR: Failed to build Go backend"
-    echo "Please check the Go code for compilation errors"
-    read -p "Press any key to exit..."
-    exit 1
-else
-    echo "OK: Go backend built successfully: bin/server"
-fi
-
-# Check and start Go backend
+# Start Go backend directly with go run
 echo
 echo "=========================================="
-echo "STEP 3: Checking Go backend service..."
+echo "STEP 3: Starting Go backend service..."
 echo "=========================================="
 if curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
     echo "OK: Go backend is already running (http://localhost:8081)"
@@ -82,8 +68,8 @@ else
     echo "Go backend is not running. Starting it now..."
     
     echo "Starting Go backend server in background..."
-    echo "Command: ./bin/server"
-    nohup ./bin/server > /dev/null 2>&1 &
+    echo "Command: SERVER_PORT=8081 go run cmd/server/main.go"
+    nohup env SERVER_PORT=8081 go run cmd/server/main.go > /dev/null 2>&1 &
     GO_PID=$!
     
     # Wait for server to start
