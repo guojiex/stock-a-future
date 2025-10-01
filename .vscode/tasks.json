@@ -2,10 +2,156 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "启动 Stock-A-Future 服务器",
+            "label": "启动 Go API 服务器 (端口8081)",
             "type": "shell",
-            "command": "go",
-            "args": ["run", "cmd/server/main.go"],
+            "command": "SERVER_PORT=8081 go run cmd/server/main.go",
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "启动Go API服务器在8081端口"
+        },
+        {
+            "label": "启动 AKTools 服务 (端口8080)",
+            "type": "shell",
+            "command": "python3 -m aktools --port 8080",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "启动AKTools数据服务在8080端口"
+        },
+        {
+            "label": "启动 React Web (开发模式)",
+            "type": "shell",
+            "command": "npm",
+            "args": ["start"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/web-react"
+            },
+            "detail": "启动React Web应用开发服务器 (端口3000)"
+        },
+        {
+            "label": "启动 React Web (生产模式)",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "start:prod"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/web-react"
+            },
+            "detail": "构建并启动React Web应用生产版本 (端口3000)"
+        },
+        {
+            "label": "启动 React Native Metro",
+            "type": "shell",
+            "command": "npm",
+            "args": ["start"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/mobile"
+            },
+            "detail": "启动React Native Metro bundler"
+        },
+        {
+            "label": "启动 React Native Android",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "android"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/mobile"
+            },
+            "detail": "启动React Native Android应用 (开发模式)",
+            "dependsOn": ["启动 React Native Metro"]
+        },
+        {
+            "label": "启动 React Native iOS",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "ios"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/mobile"
+            },
+            "detail": "启动React Native iOS应用 (开发模式，需要macOS)",
+            "dependsOn": ["启动 React Native Metro"]
+        },
+        {
+            "label": "🚀 启动完整开发环境",
+            "dependsOn": [
+                "启动 AKTools 服务 (端口8080)",
+                "启动 Go API 服务器 (端口8081)",
+                "启动 React Web (开发模式)"
+            ],
+            "dependsOrder": "sequence",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -14,35 +160,33 @@
                 "echo": true,
                 "reveal": "always",
                 "focus": false,
-                "panel": "new",
+                "panel": "dedicated",
                 "showReuseMessage": true,
                 "clear": false
             },
             "problemMatcher": [],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "detail": "启动Go API服务器"
+            "detail": "一键启动：AKTools + Go后端 + React前端"
         },
         {
-            "label": "启动 AKTools 服务 (指定端口)",
-            "type": "shell",
-            "command": "python",
-            "args": ["-m", "aktools", "--port", "8080"],
+            "label": "🚀 启动完整开发环境 (含Mobile)",
+            "dependsOn": [
+                "启动 AKTools 服务 (端口8080)",
+                "启动 Go API 服务器 (端口8081)",
+                "启动 React Web (开发模式)",
+                "启动 React Native Metro"
+            ],
+            "dependsOrder": "sequence",
             "group": "build",
             "presentation": {
                 "echo": true,
                 "reveal": "always",
                 "focus": false,
-                "panel": "new",
+                "panel": "dedicated",
                 "showReuseMessage": true,
                 "clear": false
             },
             "problemMatcher": [],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "detail": "在指定端口8080启动AKTools服务"
+            "detail": "一键启动：AKTools + Go后端 + React Web + React Native"
         }
     ]
 }
