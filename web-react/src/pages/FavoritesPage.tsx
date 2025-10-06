@@ -39,6 +39,8 @@ import {
   Paper,
   Tabs,
   Tab,
+  Menu,
+  ListItemIcon,
 } from '@mui/material';
 import {
   Star as StarIcon,
@@ -85,6 +87,8 @@ const FavoritesPage: React.FC = () => {
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [movingFavorite, setMovingFavorite] = useState<Favorite | null>(null);
   const [targetGroupId, setTargetGroupId] = useState<string>('');
+  const [groupMenuAnchor, setGroupMenuAnchor] = useState<null | HTMLElement>(null);
+  const [menuGroupId, setMenuGroupId] = useState<string>('');
 
   // 获取数据
   const favorites = favoritesData?.data?.favorites || [];
@@ -95,9 +99,6 @@ const FavoritesPage: React.FC = () => {
     if (selectedGroup === 'all') {
       return favorites;
     }
-    if (selectedGroup === 'ungrouped') {
-      return favorites.filter(fav => !fav.group_id);
-    }
     return favorites.filter(fav => fav.group_id === selectedGroup);
   }, [favorites, selectedGroup]);
 
@@ -105,7 +106,6 @@ const FavoritesPage: React.FC = () => {
   const groupCounts = useMemo(() => {
     const counts: Record<string, number> = {
       all: favorites.length,
-      ungrouped: favorites.filter(fav => !fav.group_id).length,
     };
     groups.forEach(group => {
       counts[group.id] = favorites.filter(fav => fav.group_id === group.id).length;
@@ -220,6 +220,34 @@ const FavoritesPage: React.FC = () => {
     }
   };
 
+  // 打开分组菜单
+  const handleOpenGroupMenu = (event: React.MouseEvent<HTMLElement>, groupId: string) => {
+    event.stopPropagation();
+    setGroupMenuAnchor(event.currentTarget);
+    setMenuGroupId(groupId);
+  };
+
+  // 关闭分组菜单
+  const handleCloseGroupMenu = () => {
+    setGroupMenuAnchor(null);
+    setMenuGroupId('');
+  };
+
+  // 从菜单中编辑分组
+  const handleEditFromMenu = () => {
+    const group = groups.find(g => g.id === menuGroupId);
+    if (group) {
+      handleOpenGroupDialog(group);
+    }
+    handleCloseGroupMenu();
+  };
+
+  // 从菜单中删除分组
+  const handleDeleteFromMenu = () => {
+    handleDeleteGroup(menuGroupId, {} as React.MouseEvent);
+    handleCloseGroupMenu();
+  };
+
   // 渲染分组标签
   const renderGroupTabs = () => (
     <Paper sx={{ mb: 3 }}>
@@ -237,12 +265,6 @@ const FavoritesPage: React.FC = () => {
             icon={<FolderOpenIcon />}
             iconPosition="start"
           />
-          <Tab
-            label={`未分组 (${groupCounts.ungrouped || 0})`}
-            value="ungrouped"
-            icon={<FolderIcon />}
-            iconPosition="start"
-          />
           {groups.map(group => (
             <Tab
               key={group.id}
@@ -257,6 +279,19 @@ const FavoritesPage: React.FC = () => {
                     }}
                   />
                   {`${group.name} (${groupCounts[group.id] || 0})`}
+                  <Box
+                    component="span"
+                    onClick={(e) => handleOpenGroupMenu(e, group.id)}
+                    sx={{
+                      ml: 0.5,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      opacity: 0.6,
+                      '&:hover': { opacity: 1 },
+                    }}
+                  >
+                    <MoreVertIcon fontSize="small" />
+                  </Box>
                 </Box>
               }
               value={group.id}
@@ -265,33 +300,6 @@ const FavoritesPage: React.FC = () => {
             />
           ))}
         </Tabs>
-        
-        {/* 当前选中分组的操作按钮 */}
-        {selectedGroup !== 'all' && selectedGroup !== 'ungrouped' && (
-          <Box sx={{ display: 'flex', gap: 0.5 }}>
-            <IconButton
-              size="small"
-              onClick={() => {
-                const group = groups.find(g => g.id === selectedGroup);
-                if (group) handleOpenGroupDialog(group);
-              }}
-              title="编辑分组"
-            >
-              <EditIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-              size="small"
-              color="error"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteGroup(selectedGroup, e);
-              }}
-              title="删除分组"
-            >
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Box>
-        )}
         
         <Button
           startIcon={<AddIcon />}
@@ -302,6 +310,28 @@ const FavoritesPage: React.FC = () => {
           新建分组
         </Button>
       </Box>
+
+      {/* 分组操作菜单 */}
+      <Menu
+        anchorEl={groupMenuAnchor}
+        open={Boolean(groupMenuAnchor)}
+        onClose={handleCloseGroupMenu}
+      >
+        <MenuItem onClick={handleEditFromMenu}>
+          <ListItemIcon>
+            <EditIcon fontSize="small" />
+          </ListItemIcon>
+          <Typography variant="body2">编辑分组</Typography>
+        </MenuItem>
+        <MenuItem onClick={handleDeleteFromMenu}>
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" color="error" />
+          </ListItemIcon>
+          <Typography variant="body2" color="error">
+            删除分组
+          </Typography>
+        </MenuItem>
+      </Menu>
     </Paper>
   );
 
@@ -325,7 +355,9 @@ const FavoritesPage: React.FC = () => {
                 {selectedGroup === 'all' ? '还没有收藏任何股票' : '该分组暂无收藏'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                在股票详情页点击星标按钮添加收藏
+                {selectedGroup === 'all' 
+                  ? '在股票详情页点击星标按钮添加收藏' 
+                  : '点击股票右侧的文件夹图标可将股票移动到该分组'}
               </Typography>
             </Box>
           </CardContent>
@@ -377,9 +409,6 @@ const FavoritesPage: React.FC = () => {
                     secondary={
                       <Typography variant="body2" color="text.secondary">
                         收藏于 {new Date(favorite.created_at).toLocaleDateString()}
-                        {favorite.start_date && favorite.end_date && (
-                          <> · 日期范围: {favorite.start_date} ~ {favorite.end_date}</>
-                        )}
                       </Typography>
                     }
                   />
