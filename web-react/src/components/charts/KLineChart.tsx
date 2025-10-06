@@ -2,7 +2,7 @@
  * K线图组件 - 使用 Recharts 绘制真正的蜡烛图
  */
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo } from 'react';
 import {
   ComposedChart,
   Line,
@@ -14,7 +14,6 @@ import {
   ResponsiveContainer,
   Bar,
   Cell,
-  ReferenceLine,
 } from 'recharts';
 import { Box, Typography, useTheme } from '@mui/material';
 import { StockDaily } from '../../types/stock';
@@ -25,7 +24,7 @@ interface KLineChartProps {
 
 // 自定义蜡烛图形状 - 使用 Bar 的 shape 属性
 const Candlestick = (props: any) => {
-  const { x, y, width, height, payload, background } = props;
+  const { x, y, width, height, payload } = props;
   
   if (!payload || !payload.open || !payload.close || !payload.high || !payload.low) {
     return null;
