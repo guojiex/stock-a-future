@@ -110,10 +110,30 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
     });
   }, [data]);
 
-  // 格式化日期
+  // 格式化日期 - 将日期转换为 MM/DD 格式
   const formatDate = (dateStr: string) => {
-    if (!dateStr || dateStr.length !== 8) return dateStr;
-    return `${dateStr.substring(4, 6)}/${dateStr.substring(6, 8)}`;
+    if (!dateStr) return dateStr;
+    
+    // 处理 YYYYMMDD 格式 (如: "20250717")
+    if (dateStr.length === 8 && /^\d{8}$/.test(dateStr)) {
+      return `${dateStr.substring(4, 6)}/${dateStr.substring(6, 8)}`;
+    }
+    
+    // 处理 ISO 日期格式 (如: "2025-08-01T00:00:00.000" 或 "2025-08-01")
+    if (dateStr.includes('T')) {
+      // 提取日期部分，去掉时间部分
+      const datePart = dateStr.split('T')[0];
+      const [, month, day] = datePart.split('-');
+      return `${month}/${day}`;
+    }
+    
+    // 处理 YYYY-MM-DD 格式
+    if (dateStr.includes('-')) {
+      const [, month, day] = dateStr.split('-');
+      return `${month}/${day}`;
+    }
+    
+    return dateStr;
   };
 
   // 格式化价格
@@ -137,6 +157,28 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
 
     const data = payload[0].payload;
 
+    // 格式化完整日期显示（YYYY-MM-DD 格式）
+    const formatFullDate = (dateStr: string) => {
+      if (!dateStr) return dateStr;
+      
+      // 处理 YYYYMMDD 格式
+      if (dateStr.length === 8 && /^\d{8}$/.test(dateStr)) {
+        return `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+      }
+      
+      // 处理 ISO 日期格式，提取日期部分
+      if (dateStr.includes('T')) {
+        return dateStr.split('T')[0];
+      }
+      
+      // 已经是 YYYY-MM-DD 格式
+      if (dateStr.includes('-')) {
+        return dateStr;
+      }
+      
+      return dateStr;
+    };
+
     return (
       <Box
         sx={{
@@ -149,7 +191,7 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
         }}
       >
         <Typography variant="body2" gutterBottom>
-          日期: {data.date}
+          日期: {formatFullDate(data.date)}
         </Typography>
         <Typography variant="body2" color={data.isUp ? 'success.main' : 'error.main'}>
           开: {formatPrice(data.open)}
@@ -204,6 +246,7 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
           <Bar
             dataKey="candle"
             shape={Candlestick}
+            name="K线"
             isAnimationActive={false}
           />
 
