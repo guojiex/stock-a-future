@@ -14,7 +14,6 @@ import {
   ResponsiveContainer,
   Bar,
   Cell,
-  Customized,
 } from 'recharts';
 import { Box, Typography, useTheme } from '@mui/material';
 import { StockDaily } from '../../types/stock';
@@ -23,79 +22,61 @@ interface KLineChartProps {
   data: StockDaily[];
 }
 
-// 自定义蜡烛图层 - 作为 Recharts 的自定义元素
-const CandlestickLayer: React.FC<any> = ({ xAxisMap, yAxisMap, data, offset }) => {
-  if (!xAxisMap || !yAxisMap || !data) return null;
+// 自定义蜡烛图形状组件
+const CandleShape = (props: any) => {
+  const { x, y, width, height, payload } = props;
   
-  const xAxis = xAxisMap[0];
-  const yAxis = yAxisMap[0];
+  if (!payload || !payload.open || !payload.close || !payload.high || !payload.low) {
+    return null;
+  }
+
+  const { open, close, high, low, isUp } = payload;
+  const color = isUp ? '#26a69a' : '#ef5350';
   
-  if (!xAxis || !yAxis) return null;
+  // 计算Y坐标的比例（基于图表的高度和数据范围）
+  const { chartHeight = 314, yMin = 22.5, yMax = 24.5 } = props;
+  const priceRange = yMax - yMin;
+  const yScale = chartHeight / priceRange;
   
-  const { scale: xScale } = xAxis;
-  const { scale: yScale } = yAxis;
+  // 计算各个价格点的Y坐标（相对于图表顶部）
+  const highY = (yMax - high) * yScale;
+  const lowY = (yMax - low) * yScale;
+  const openY = (yMax - open) * yScale;
+  const closeY = (yMax - close) * yScale;
   
-  // 计算每个蜡烛的宽度
-  const dataKeys = data.map((item: any) => item.date);
-  const bandwidth = xScale.bandwidth ? xScale.bandwidth() : 
-    (dataKeys.length > 1 ? Math.abs(xScale(dataKeys[1]) - xScale(dataKeys[0])) * 0.8 : 20);
+  // 蜡烛实体的top和height
+  const bodyTop = Math.min(openY, closeY);
+  let bodyHeight = Math.abs(closeY - openY);
+  
+  // 十字星的最小高度
+  if (bodyHeight < 2) bodyHeight = 2;
+  
+  // 计算宽度
+  const wickWidth = Math.max(1, width * 0.15);
+  const bodyWidth = Math.max(3, width * 0.7);
+  const centerX = x + width / 2;
   
   return (
-    <g className="recharts-candlestick-layer">
-      {data.map((item: any, index: number) => {
-        const { open, close, high, low, isUp, date } = item;
-        
-        if (!open || !close || !high || !low) return null;
-        
-        const color = isUp ? '#26a69a' : '#ef5350';
-        
-        // 使用 yScale 将价格转换为 Y 坐标
-        const highY = yScale(high);
-        const lowY = yScale(low);
-        const openY = yScale(open);
-        const closeY = yScale(close);
-        
-        // 使用 xScale 获取 X 坐标
-        const x = xScale(date);
-        if (x === undefined) return null;
-        
-        const centerX = x + bandwidth / 2;
-        
-        // 蜡烛实体
-        const bodyTop = Math.min(openY, closeY);
-        let bodyHeight = Math.abs(closeY - openY);
-        
-        // 十字星的最小高度
-        if (bodyHeight < 2) bodyHeight = 2;
-        
-        // 计算宽度
-        const wickWidth = Math.max(1, bandwidth * 0.15);
-        const bodyWidth = Math.max(3, bandwidth * 0.7);
-        
-        return (
-          <g key={`candle-${date}-${index}`}>
-            {/* 上下影线 */}
-            <line
-              x1={centerX}
-              y1={highY}
-              x2={centerX}
-              y2={lowY}
-              stroke={color}
-              strokeWidth={wickWidth}
-            />
-            {/* 蜡烛实体 */}
-            <rect
-              x={centerX - bodyWidth / 2}
-              y={bodyTop}
-              width={bodyWidth}
-              height={bodyHeight}
-              fill={color}
-              stroke={color}
-              strokeWidth={0.5}
-            />
-          </g>
-        );
-      })}
+    <g>
+      {/* 上下影线 */}
+      <line
+        x1={centerX}
+        y1={highY + y}
+        x2={centerX}
+        y2={lowY + y}
+        stroke={color}
+        strokeWidth={wickWidth}
+      />
+      {/* 蜡烛实体 */}
+      <rect
+        x={centerX - bodyWidth / 2}
+        y={bodyTop + y}
+        width={bodyWidth}
+        height={bodyHeight}
+        fill={color}
+        stroke={color}
+        strokeWidth={0.5}
+      />
     </g>
   );
 };
@@ -114,11 +95,6 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
       const low = parseFloat(item.low);
       const vol = parseFloat(item.vol);
 
-      // 计算K线实体的起点和高度
-      const bodyTop = Math.max(open, close);
-      const bodyBottom = Math.min(open, close);
-      const bodyHeight = bodyTop - bodyBottom;
-
       return {
         date: item.trade_date,
         open,
@@ -127,11 +103,28 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
         low,
         vol,
         isUp: close >= open,
-        // 用于占位的 Bar（不可见）
-        placeholder: 0,
+        // 用于蜡烛图的占位值（使用low作为基准）
+        candleBase: low,
+        candleHeight: high - low,
       };
     });
   }, [data]);
+
+  // 计算价格范围（用于蜡烛图渲染）
+  const priceRange = useMemo(() => {
+    if (chartData.length === 0) return { min: 0, max: 0 };
+    
+    const prices = chartData.flatMap(d => [d.high, d.low]);
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    
+    // 添加5%的padding
+    const padding = (max - min) * 0.05;
+    return {
+      min: min - padding,
+      max: max + padding,
+    };
+  }, [chartData]);
 
   // 格式化日期
   const formatDate = (dateStr: string) => {
@@ -223,8 +216,19 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
           <Tooltip content={<CustomTooltip />} />
           <Legend />
 
-          {/* 自定义蜡烛图层 - 使用 Customized 组件 */}
-          <Customized component={<CandlestickLayer data={chartData} />} />
+          {/* 蜡烛图 - 使用 Bar 组件配合自定义形状 */}
+          <Bar
+            dataKey="candleHeight"
+            shape={(props: any) => (
+              <CandleShape
+                {...props}
+                chartHeight={314}
+                yMin={priceRange.min}
+                yMax={priceRange.max}
+              />
+            )}
+            isAnimationActive={false}
+          />
 
           {/* MA5 */}
           <Line
