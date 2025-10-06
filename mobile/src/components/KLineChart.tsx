@@ -7,6 +7,7 @@ import React, { useRef, useEffect } from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
 import { Text, ActivityIndicator, useTheme } from 'react-native-paper';
 import { WebView } from 'react-native-webview';
+import { SkeletonChart } from '@/components/common/SkeletonLoader';
 import * as echarts from 'echarts/core';
 import { CandlestickChart, LineChart, BarChart } from 'echarts/charts';
 import {
@@ -373,12 +374,7 @@ const KLineChart: React.FC<KLineChartProps> = ({
   };
 
   if (loading) {
-    return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={styles.loadingText}>加载图表数据中...</Text>
-      </View>
-    );
+    return <SkeletonChart height={400} />;
   }
 
   if (!data || data.length === 0) {

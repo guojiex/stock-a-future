@@ -9,6 +9,9 @@ import { Card, useTheme, SegmentedButtons, Chip } from 'react-native-paper';
 
 import { MarketStackParamList } from '@/navigation/AppNavigator';
 import KLineChart from '@/components/KLineChart';
+import TechnicalIndicators from '@/components/TechnicalIndicators';
+import PredictionSignals from '@/components/PredictionSignals';
+import FundamentalData from '@/components/FundamentalData';
 import { apiService } from '@/services/apiService';
 
 type StockDetailRouteProp = RouteProp<MarketStackParamList, 'StockDetail'>;
@@ -227,42 +230,21 @@ const StockDetailScreen: React.FC = () => {
         )}
 
         {selectedTab === 'indicators' && (
-          <Card style={styles.card}>
-            <Card.Content>
-              <Text style={[styles.cardTitle, { color: theme.colors.onSurface }]}>
-                技术指标
-              </Text>
-              <Text style={[styles.placeholder, { color: theme.colors.onSurfaceVariant }]}>
-                技术指标功能开发中...
-              </Text>
-            </Card.Content>
-          </Card>
+          <View style={styles.fullContainer}>
+            <TechnicalIndicators stockCode={stockCode} stockName={stockName} />
+          </View>
         )}
 
         {selectedTab === 'predictions' && (
-          <Card style={styles.card}>
-            <Card.Content>
-              <Text style={[styles.cardTitle, { color: theme.colors.onSurface }]}>
-                买卖预测
-              </Text>
-              <Text style={[styles.placeholder, { color: theme.colors.onSurfaceVariant }]}>
-                买卖预测功能开发中...
-              </Text>
-            </Card.Content>
-          </Card>
+          <View style={styles.fullContainer}>
+            <PredictionSignals stockCode={stockCode} stockName={stockName} />
+          </View>
         )}
 
         {selectedTab === 'fundamental' && (
-          <Card style={styles.card}>
-            <Card.Content>
-              <Text style={[styles.cardTitle, { color: theme.colors.onSurface }]}>
-                基本面数据
-              </Text>
-              <Text style={[styles.placeholder, { color: theme.colors.onSurfaceVariant }]}>
-                基本面数据功能开发中...
-              </Text>
-            </Card.Content>
-          </Card>
+          <View style={styles.fullContainer}>
+            <FundamentalData stockCode={stockCode} stockName={stockName} />
+          </View>
         )}
       </View>
     </ScrollView>
@@ -354,6 +336,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     paddingVertical: 32,
+  },
+  fullContainer: {
+    flex: 1,
+    height: 600, // 给技术指标足够的高度
   },
 });
 

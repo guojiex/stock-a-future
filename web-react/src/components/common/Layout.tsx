@@ -15,6 +15,8 @@ import {
   Paper,
   useTheme,
   useMediaQuery,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   TrendingUp as MarketIcon,
@@ -55,9 +57,43 @@ const Layout: React.FC = () => {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             Stock-A-Future
           </Typography>
-          <Typography variant="body2" color="inherit" sx={{ opacity: 0.8 }}>
-            Web版
-          </Typography>
+          
+          {/* 桌面端：顶部标签导航 */}
+          {!isMobile && (
+            <Tabs
+              value={getCurrentNavValue()}
+              onChange={handleNavChange}
+              textColor="inherit"
+              indicatorColor="secondary"
+              sx={{ 
+                ml: 'auto',
+                '& .MuiTab-root': { 
+                  color: 'rgba(255, 255, 255, 0.7)',
+                  minHeight: 64,
+                },
+                '& .Mui-selected': {
+                  color: 'white',
+                }
+              }}
+            >
+              {navItems.map((item) => (
+                <Tab
+                  key={item.value}
+                  label={item.label}
+                  value={item.value}
+                  icon={item.icon}
+                  iconPosition="start"
+                />
+              ))}
+            </Tabs>
+          )}
+          
+          {/* 移动端：显示版本信息 */}
+          {isMobile && (
+            <Typography variant="body2" color="inherit" sx={{ opacity: 0.8 }}>
+              Web版
+            </Typography>
+          )}
         </Toolbar>
       </AppBar>
       
@@ -66,8 +102,8 @@ const Layout: React.FC = () => {
         <Outlet />
       </Box>
       
-      {/* 底部导航（移动端）或侧边导航（桌面端） */}
-      {isMobile ? (
+      {/* 移动端：底部导航栏 */}
+      {isMobile && (
         <Paper 
           sx={{ position: 'fixed', bottom: 0, left: 0, right: 0 }} 
           elevation={3}
@@ -87,9 +123,6 @@ const Layout: React.FC = () => {
             ))}
           </BottomNavigation>
         </Paper>
-      ) : (
-        // 桌面端可以考虑添加侧边导航，这里暂时使用顶部标签
-        null
       )}
     </Box>
   );
