@@ -44,3 +44,73 @@ aktools_log.log.*
 stock-server
 coverage
 /debug
+
+# ============================================
+# Node.js / React / React Native
+# ============================================
+
+# Dependencies
+node_modules/
+*/node_modules/
+**/node_modules/
+
+# npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# React Native
+*.jsbundle
+*.bundle
+
+# Metro bundler
+.metro-health-check*
+
+# React Native / iOS
+mobile/ios/Pods/
+mobile/ios/build/
+mobile/ios/.xcode.env.local
+*.xcworkspace/
+!mobile/ios/*.xcworkspace/contents.xcworkspacedata
+*.xcuserstate
+mobile/ios/Podfile.lock
+
+# React Native / Android
+mobile/android/.gradle/
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/.idea/
+mobile/android/local.properties
+*.apk
+*.aab
+
+# Web React build
+web-react/build/
+web-react/.env.local
+web-react/.env.development.local
+web-react/.env.test.local
+web-react/.env.production.local
+
+# Package manager locks (optional - uncomment if you want to ignore)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Cache directories
+.cache/
+.npm/
+.eslintcache
+.stylelintcache
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/

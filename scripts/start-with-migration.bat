@@ -16,7 +16,7 @@ echo 服务器已启动！
 echo 等待数据迁移完成...
 echo.
 echo 迁移完成后，您可以在浏览器中访问：
-echo   http://localhost:8080
+echo   http://localhost:8081
 echo.
 echo 按任意键退出...
 pause > nul
