@@ -88,12 +88,22 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return [];
 
-    return data.map((item) => {
+    return data.map((item, index) => {
       const open = parseFloat(item.open);
       const close = parseFloat(item.close);
       const high = parseFloat(item.high);
       const low = parseFloat(item.low);
       const vol = parseFloat(item.vol);
+
+      // 计算涨跌幅
+      let change = 0;
+      let changePercent = 0;
+      
+      if (index > 0) {
+        const prevClose = parseFloat(data[index - 1].close);
+        change = close - prevClose;
+        changePercent = (change / prevClose) * 100;
+      }
 
       return {
         date: item.trade_date,
@@ -103,6 +113,8 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
         low,
         vol,
         isUp: close >= open,
+        change,
+        changePercent,
         // 用于绘制蜡烛图：使用一个从 low 开始、高度为 high-low 的数组
         candle: [low, high],
       };
@@ -178,6 +190,10 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
       return dateStr;
     };
 
+    // 判断涨跌（基于收盘价相对于前一日）
+    const isPriceUp = data.change >= 0;
+    const priceColor = isPriceUp ? 'success.main' : 'error.main';
+
     return (
       <Box
         sx={{
@@ -189,7 +205,7 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
           boxShadow: 2,
         }}
       >
-        <Typography variant="body2" gutterBottom>
+        <Typography variant="body2" gutterBottom fontWeight="bold">
           日期: {formatFullDate(data.date)}
         </Typography>
         <Typography variant="body2" color={data.isUp ? 'success.main' : 'error.main'}>
@@ -204,6 +220,11 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
         <Typography variant="body2" color={data.isUp ? 'success.main' : 'error.main'}>
           收: {formatPrice(data.close)}
         </Typography>
+        {data.change !== 0 && (
+          <Typography variant="body2" color={priceColor} fontWeight="bold">
+            涨跌: {isPriceUp ? '+' : ''}{data.change.toFixed(2)} ({isPriceUp ? '+' : ''}{data.changePercent.toFixed(2)}%)
+          </Typography>
+        )}
         <Typography variant="body2">
           量: {formatVolume(data.vol)}
         </Typography>
