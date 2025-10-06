@@ -9,15 +9,9 @@ import {
   StockDaily,
   TechnicalIndicators,
   FundamentalData,
-  IncomeStatement,
-  BalanceSheet,
-  CashFlowStatement,
-  DailyBasic,
   Favorite,
   AddFavoriteRequest,
-  StockGroup,
   ApiResponse,
-  PaginatedResponse,
   SearchParams,
 } from '../types/stock';
 import { appConfig } from '../constants/config';

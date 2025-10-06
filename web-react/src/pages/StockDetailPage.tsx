@@ -19,6 +19,7 @@ import {
   Paper,
   Button,
   ButtonGroup,
+  Snackbar,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -35,6 +36,7 @@ import {
   useGetIndicatorsQuery,
   useGetFundamentalDataQuery,
   useCheckFavoriteQuery,
+  useGetFavoritesQuery,
   useAddFavoriteMutation,
   useDeleteFavoriteMutation,
 } from '../services/api';
@@ -63,6 +65,8 @@ const StockDetailPage: React.FC = () => {
   // 状态
   const [selectedTab, setSelectedTab] = useState<TabValue>('kline');
   const [timeRange, setTimeRange] = useState(90); // 默认3个月
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   // 获取日期范围
   const getDateRange = () => {
@@ -123,8 +127,12 @@ const StockDetailPage: React.FC = () => {
     refetch: refetchFavorite,
   } = useCheckFavoriteQuery(stockCode || '', { skip: !stockCode });
 
+  const {
+    data: favoritesData,
+  } = useGetFavoritesQuery();
+
   const [addFavorite, { isLoading: isAddingFavorite }] = useAddFavoriteMutation();
-  const [, { isLoading: isDeletingFavorite }] = useDeleteFavoriteMutation();
+  const [deleteFavorite, { isLoading: isDeletingFavorite }] = useDeleteFavoriteMutation();
 
   // 处理收藏
   const handleToggleFavorite = async () => {
@@ -132,9 +140,21 @@ const StockDetailPage: React.FC = () => {
 
     try {
       if (favoriteCheck?.data?.is_favorite) {
-        // 取消收藏（需要获取favorite ID）
-        // TODO: 这里需要一个API来获取favorite ID
-        console.log('取消收藏功能待完善');
+        // 取消收藏 - 从收藏列表中找到对应的ID
+        const favoriteItem = favoritesData?.data?.find(
+          (fav) => fav.ts_code === stockCode
+        );
+        
+        if (favoriteItem) {
+          await deleteFavorite(favoriteItem.id).unwrap();
+          refetchFavorite();
+          setSnackbarMessage('已取消收藏');
+          setSnackbarOpen(true);
+        } else {
+          console.error('未找到收藏记录');
+          setSnackbarMessage('取消收藏失败：未找到收藏记录');
+          setSnackbarOpen(true);
+        }
       } else {
         // 添加收藏
         await addFavorite({
@@ -142,10 +162,19 @@ const StockDetailPage: React.FC = () => {
           name: basicData.data.name,
         }).unwrap();
         refetchFavorite();
+        setSnackbarMessage('已添加到收藏');
+        setSnackbarOpen(true);
       }
     } catch (error) {
       console.error('收藏操作失败:', error);
+      setSnackbarMessage('收藏操作失败，请重试');
+      setSnackbarOpen(true);
     }
+  };
+
+  // 处理Snackbar关闭
+  const handleSnackbarClose = () => {
+    setSnackbarOpen(false);
   };
 
   // 处理刷新
@@ -389,6 +418,15 @@ const StockDetailPage: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* 消息提示 */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={handleSnackbarClose}
+        message={snackbarMessage}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      />
     </Container>
   );
 };

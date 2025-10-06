@@ -53,12 +53,12 @@ const SearchPage: React.FC = () => {
   const [searchStocks, { isLoading: isSearchLoading }] = useLazySearchStocksQuery();
   
   // 防抖搜索
-  const debounceSearch = useCallback(
-    debounce(async (query: string) => {
-      if (query.trim().length >= 1) {
+  const debounceSearch = useCallback((query: string) => {
+    const debounced = debounce(async (q: string) => {
+      if (q.trim().length >= 1) {
         try {
           const result = await searchStocks({
-            q: query.trim(),
+            q: q.trim(),
             limit: 20,
           }).unwrap();
           
@@ -73,9 +73,10 @@ const SearchPage: React.FC = () => {
         dispatch(setSearchResults([]));
         setShowResults(false);
       }
-    }, 300),
-    [searchStocks, dispatch]
-  );
+    }, 300);
+    
+    debounced(query);
+  }, [searchStocks, dispatch]);
   
   // 处理搜索输入变化
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
