@@ -2,7 +2,7 @@
  * K线图组件 - 使用 Recharts 绘制真正的蜡烛图
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import {
   ComposedChart,
   Line,
@@ -14,6 +14,7 @@ import {
   ResponsiveContainer,
   Bar,
   Cell,
+  ReferenceLine,
 } from 'recharts';
 import { Box, Typography, useTheme } from '@mui/material';
 import { StockDaily } from '../../types/stock';
@@ -22,9 +23,9 @@ interface KLineChartProps {
   data: StockDaily[];
 }
 
-// 自定义蜡烛图形状组件
-const CandleShape = (props: any) => {
-  const { x, y, width, height, payload } = props;
+// 自定义蜡烛图形状 - 使用 Bar 的 shape 属性
+const Candlestick = (props: any) => {
+  const { x, y, width, height, payload, background } = props;
   
   if (!payload || !payload.open || !payload.close || !payload.high || !payload.low) {
     return null;
@@ -33,27 +34,27 @@ const CandleShape = (props: any) => {
   const { open, close, high, low, isUp } = payload;
   const color = isUp ? '#26a69a' : '#ef5350';
   
-  // 计算Y坐标的比例（基于图表的高度和数据范围）
-  const { chartHeight = 314, yMin = 22.5, yMax = 24.5 } = props;
-  const priceRange = yMax - yMin;
-  const yScale = chartHeight / priceRange;
+  // y 是 Bar 的顶部位置（对应 high 值）
+  // height 是 Bar 的高度（对应 high - low）
   
-  // 计算各个价格点的Y坐标（相对于图表顶部）
-  const highY = (yMax - high) * yScale;
-  const lowY = (yMax - low) * yScale;
-  const openY = (yMax - open) * yScale;
-  const closeY = (yMax - close) * yScale;
+  // 计算 open 和 close 在 bar 中的相对位置
+  const range = high - low;
+  const openRatio = range > 0 ? (high - open) / range : 0.5;
+  const closeRatio = range > 0 ? (high - close) / range : 0.5;
+  
+  const openY = y + height * openRatio;
+  const closeY = y + height * closeRatio;
   
   // 蜡烛实体的top和height
   const bodyTop = Math.min(openY, closeY);
   let bodyHeight = Math.abs(closeY - openY);
   
   // 十字星的最小高度
-  if (bodyHeight < 2) bodyHeight = 2;
+  if (bodyHeight < 1) bodyHeight = 1;
   
   // 计算宽度
   const wickWidth = Math.max(1, width * 0.15);
-  const bodyWidth = Math.max(3, width * 0.7);
+  const bodyWidth = Math.max(2, width * 0.6);
   const centerX = x + width / 2;
   
   return (
@@ -61,16 +62,16 @@ const CandleShape = (props: any) => {
       {/* 上下影线 */}
       <line
         x1={centerX}
-        y1={highY + y}
+        y1={y}
         x2={centerX}
-        y2={lowY + y}
+        y2={y + height}
         stroke={color}
         strokeWidth={wickWidth}
       />
       {/* 蜡烛实体 */}
       <rect
         x={centerX - bodyWidth / 2}
-        y={bodyTop + y}
+        y={bodyTop}
         width={bodyWidth}
         height={bodyHeight}
         fill={color}
@@ -103,28 +104,11 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
         low,
         vol,
         isUp: close >= open,
-        // 用于蜡烛图的占位值（使用low作为基准）
-        candleBase: low,
-        candleHeight: high - low,
+        // 用于绘制蜡烛图：使用一个从 low 开始、高度为 high-low 的数组
+        candle: [low, high],
       };
     });
   }, [data]);
-
-  // 计算价格范围（用于蜡烛图渲染）
-  const priceRange = useMemo(() => {
-    if (chartData.length === 0) return { min: 0, max: 0 };
-    
-    const prices = chartData.flatMap(d => [d.high, d.low]);
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    
-    // 添加5%的padding
-    const padding = (max - min) * 0.05;
-    return {
-      min: min - padding,
-      max: max + padding,
-    };
-  }, [chartData]);
 
   // 格式化日期
   const formatDate = (dateStr: string) => {
@@ -218,15 +202,8 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
 
           {/* 蜡烛图 - 使用 Bar 组件配合自定义形状 */}
           <Bar
-            dataKey="candleHeight"
-            shape={(props: any) => (
-              <CandleShape
-                {...props}
-                chartHeight={314}
-                yMin={priceRange.min}
-                yMax={priceRange.max}
-              />
-            )}
+            dataKey="candle"
+            shape={Candlestick}
             isAnimationActive={false}
           />
 
