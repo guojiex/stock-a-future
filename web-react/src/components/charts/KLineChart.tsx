@@ -31,7 +31,8 @@ const Candlestick = (props: any) => {
   }
 
   const { open, close, high, low, isUp } = payload;
-  const color = isUp ? '#26a69a' : '#ef5350';
+  // 中国股市：红色代表涨，绿色代表跌
+  const color = isUp ? '#ef5350' : '#26a69a';
   
   // y 是 Bar 的顶部位置（对应 high 值）
   // height 是 Bar 的高度（对应 high - low）
@@ -191,8 +192,9 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
     };
 
     // 判断涨跌（基于收盘价相对于前一日）
+    // 中国股市：红色代表涨，绿色代表跌
     const isPriceUp = data.change >= 0;
-    const priceColor = isPriceUp ? 'success.main' : 'error.main';
+    const priceColor = isPriceUp ? 'error.main' : 'success.main'; // 红涨绿跌
 
     return (
       <Box
@@ -208,16 +210,16 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
         <Typography variant="body2" gutterBottom fontWeight="bold">
           日期: {formatFullDate(data.date)}
         </Typography>
-        <Typography variant="body2" color={data.isUp ? 'success.main' : 'error.main'}>
+        <Typography variant="body2" color={data.isUp ? 'error.main' : 'success.main'}>
           开: {formatPrice(data.open)}
         </Typography>
-        <Typography variant="body2" color={data.isUp ? 'success.main' : 'error.main'}>
+        <Typography variant="body2" color={data.isUp ? 'error.main' : 'success.main'}>
           高: {formatPrice(data.high)}
         </Typography>
-        <Typography variant="body2" color={data.isUp ? 'success.main' : 'error.main'}>
+        <Typography variant="body2" color={data.isUp ? 'error.main' : 'success.main'}>
           低: {formatPrice(data.low)}
         </Typography>
-        <Typography variant="body2" color={data.isUp ? 'success.main' : 'error.main'}>
+        <Typography variant="body2" color={data.isUp ? 'error.main' : 'success.main'}>
           收: {formatPrice(data.close)}
         </Typography>
         {data.change !== 0 && (
@@ -346,7 +348,7 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
             name="成交量"
           >
             {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.isUp ? '#26a69a' : '#ef5350'} />
+              <Cell key={`cell-${index}`} fill={entry.isUp ? '#ef5350' : '#26a69a'} />
             ))}
           </Bar>
         </ComposedChart>

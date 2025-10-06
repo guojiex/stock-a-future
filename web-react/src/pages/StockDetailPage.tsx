@@ -183,6 +183,29 @@ const StockDetailPage: React.FC = () => {
   const isPositive = change >= 0;
   const isFavorite = favoriteCheck?.data?.is_favorite || false;
 
+  // 根据涨跌幅度获取颜色（红涨绿跌，涨跌幅越大颜色越深）
+  const getPriceColor = () => {
+    const absPercent = Math.abs(changePercent);
+    
+    if (isPositive) {
+      // 上涨 - 红色系，涨幅越大越深
+      if (absPercent >= 9) return '#d32f2f'; // 深红（接近涨停）
+      if (absPercent >= 5) return '#e53935'; // 中深红
+      if (absPercent >= 3) return '#f44336'; // 标准红
+      if (absPercent >= 1) return '#ef5350'; // 浅红
+      return '#e57373'; // 微涨红
+    } else {
+      // 下跌 - 绿色系，跌幅越大越深
+      if (absPercent >= 9) return '#1b5e20'; // 深绿（接近跌停）
+      if (absPercent >= 5) return '#2e7d32'; // 中深绿
+      if (absPercent >= 3) return '#388e3c'; // 标准绿
+      if (absPercent >= 1) return '#43a047'; // 浅绿
+      return '#66bb6a'; // 微跌绿
+    }
+  };
+
+  const priceColor = getPriceColor();
+
   // 加载状态
   if (isBasicLoading || isDailyLoading) {
     return (
@@ -266,13 +289,13 @@ const StockDetailPage: React.FC = () => {
                 {isFavorite ? <FavoriteIcon /> : <FavoriteBorderIcon />}
               </IconButton>
             </Box>
-            <Paper elevation={0} sx={{ bgcolor: isPositive ? 'success.light' : 'error.light', p: 2 }}>
-              <Typography variant="h3" align="right" color={isPositive ? 'success.dark' : 'error.dark'}>
+            <Paper elevation={0} sx={{ bgcolor: isPositive ? 'rgba(239, 83, 80, 0.08)' : 'rgba(38, 166, 154, 0.08)', p: 2 }}>
+              <Typography variant="h3" align="right" sx={{ color: priceColor, fontWeight: 'bold' }}>
                 ¥{latestPrice.toFixed(2)}
               </Typography>
               <Box display="flex" justifyContent="flex-end" alignItems="center" mt={1}>
-                {isPositive ? <TrendingUp /> : <TrendingDown />}
-                <Typography variant="h6" sx={{ ml: 1 }} color={isPositive ? 'success.dark' : 'error.dark'}>
+                {isPositive ? <TrendingUp sx={{ color: priceColor }} /> : <TrendingDown sx={{ color: priceColor }} />}
+                <Typography variant="h6" sx={{ ml: 1, color: priceColor, fontWeight: 'bold' }}>
                   {isPositive ? '+' : ''}{change.toFixed(2)} ({isPositive ? '+' : ''}{changePercent.toFixed(2)}%)
                 </Typography>
               </Box>
