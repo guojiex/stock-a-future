@@ -125,31 +125,57 @@ export interface DailyBasic {
 
 // 收藏股票
 export interface Favorite {
-  id: number;
+  id: string;           // 改为string以匹配后端UUID
   ts_code: string;
   name: string;
-  group_id?: number;
+  start_date?: string;  // 添加开始日期
+  end_date?: string;    // 添加结束日期
+  group_id?: string;    // 改为string
   notes?: string;
+  sort_order?: number;  // 改为sort_order
   created_at: string;
   updated_at: string;
-  order_index?: number;
 }
 
 // 添加收藏请求
 export interface AddFavoriteRequest {
   ts_code: string;
   name: string;
-  group_id?: number;
+  start_date?: string;
+  end_date?: string;
+  group_id?: string;
   notes?: string;
 }
 
-// 股票组
-export interface StockGroup {
-  id: number;
+// 收藏分组
+export interface FavoriteGroup {
+  id: string;
   name: string;
-  description?: string;
+  color?: string;       // 添加颜色
+  sort_order?: number;
   created_at: string;
   updated_at: string;
+}
+
+// 创建分组请求
+export interface CreateGroupRequest {
+  name: string;
+  color?: string;
+}
+
+// 更新分组请求
+export interface UpdateGroupRequest {
+  name?: string;
+  color?: string;
+  sort_order?: number;
+}
+
+// 更新收藏请求
+export interface UpdateFavoriteRequest {
+  start_date?: string;
+  end_date?: string;
+  group_id?: string;
+  sort_order?: number;
 }
 
 // API响应格式

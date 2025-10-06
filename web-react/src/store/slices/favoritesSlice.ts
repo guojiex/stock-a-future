@@ -3,7 +3,7 @@
  */
 
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Favorite, StockGroup } from '../../types/stock';
+import { Favorite, FavoriteGroup } from '../../types/stock';
 
 // 收藏状态接口
 interface FavoritesState {
@@ -11,10 +11,10 @@ interface FavoritesState {
   favorites: Favorite[];
   
   // 分组列表
-  groups: StockGroup[];
+  groups: FavoriteGroup[];
   
   // 当前选中的分组
-  selectedGroupId?: number;
+  selectedGroupId?: string;  // 改为string
   
   // 排序方式
   sortBy: 'name' | 'code' | 'created_at' | 'updated_at' | 'custom';
@@ -70,19 +70,19 @@ const favoritesSlice = createSlice({
     },
     
     // 删除收藏
-    removeFavorite: (state, action: PayloadAction<number>) => {
+    removeFavorite: (state, action: PayloadAction<string>) => {  // 改为string
       const favoriteId = action.payload;
       state.favorites = state.favorites.filter(item => item.id !== favoriteId);
       state.needsSync = true;
     },
     
     // 设置分组列表
-    setGroups: (state, action: PayloadAction<StockGroup[]>) => {
+    setGroups: (state, action: PayloadAction<FavoriteGroup[]>) => {
       state.groups = action.payload;
     },
     
     // 选择分组
-    selectGroup: (state, action: PayloadAction<number | undefined>) => {
+    selectGroup: (state, action: PayloadAction<string | undefined>) => {  // 改为string
       state.selectedGroupId = action.payload;
     },
     

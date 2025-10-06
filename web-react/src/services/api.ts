@@ -10,7 +10,11 @@ import {
   TechnicalIndicators,
   FundamentalData,
   Favorite,
+  FavoriteGroup,
   AddFavoriteRequest,
+  CreateGroupRequest,
+  UpdateGroupRequest,
+  UpdateFavoriteRequest,
   ApiResponse,
   SearchParams,
 } from '../types/stock';
@@ -37,7 +41,7 @@ export const stockApi = createApi({
     'TechnicalIndicators',
     'FundamentalData',
     'Favorites',
-    'Groups',
+    'FavoriteGroups',
     'Signals'
   ],
   endpoints: (builder) => ({
@@ -128,10 +132,19 @@ export const stockApi = createApi({
       invalidatesTags: ['Favorites'],
     }),
 
-    deleteFavorite: builder.mutation<ApiResponse, number>({
+    deleteFavorite: builder.mutation<ApiResponse, string>({
       query: (id) => ({
         url: `favorites/${id}`,
         method: 'DELETE',
+      }),
+      invalidatesTags: ['Favorites'],
+    }),
+
+    updateFavorite: builder.mutation<ApiResponse, { id: string; data: UpdateFavoriteRequest }>({
+      query: ({ id, data }) => ({
+        url: `favorites/${id}`,
+        method: 'PUT',
+        body: data,
       }),
       invalidatesTags: ['Favorites'],
     }),
@@ -141,6 +154,38 @@ export const stockApi = createApi({
       providesTags: (result, error, stockCode) => [
         { type: 'Favorites', id: stockCode },
       ],
+    }),
+
+    // ===== 分组管理 =====
+    getGroups: builder.query<ApiResponse<{total: number, groups: FavoriteGroup[]}>, void>({
+      query: () => 'groups',
+      providesTags: ['FavoriteGroups'],
+    }),
+
+    createGroup: builder.mutation<ApiResponse<FavoriteGroup>, CreateGroupRequest>({
+      query: (group) => ({
+        url: 'groups',
+        method: 'POST',
+        body: group,
+      }),
+      invalidatesTags: ['FavoriteGroups'],
+    }),
+
+    updateGroup: builder.mutation<ApiResponse<FavoriteGroup>, { id: string; data: UpdateGroupRequest }>({
+      query: ({ id, data }) => ({
+        url: `groups/${id}`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: ['FavoriteGroups'],
+    }),
+
+    deleteGroup: builder.mutation<ApiResponse, string>({
+      query: (id) => ({
+        url: `groups/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['FavoriteGroups', 'Favorites'],
     }),
 
     // ===== 数据刷新 =====
@@ -183,8 +228,15 @@ export const {
   // 收藏管理
   useGetFavoritesQuery,
   useAddFavoriteMutation,
+  useUpdateFavoriteMutation,
   useDeleteFavoriteMutation,
   useCheckFavoriteQuery,
+  
+  // 分组管理
+  useGetGroupsQuery,
+  useCreateGroupMutation,
+  useUpdateGroupMutation,
+  useDeleteGroupMutation,
   
   // 数据刷新
   useRefreshLocalDataMutation,
