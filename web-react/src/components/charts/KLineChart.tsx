@@ -1,18 +1,20 @@
 /**
- * K线图组件 - 使用 Recharts
+ * K线图组件 - 使用 Recharts 绘制真正的蜡烛图
  */
 
 import React, { useMemo } from 'react';
 import {
   ComposedChart,
   Line,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
   ResponsiveContainer,
+  Bar,
+  Cell,
+  Customized,
 } from 'recharts';
 import { Box, Typography, useTheme } from '@mui/material';
 import { StockDaily } from '../../types/stock';
@@ -20,6 +22,83 @@ import { StockDaily } from '../../types/stock';
 interface KLineChartProps {
   data: StockDaily[];
 }
+
+// 自定义蜡烛图层 - 作为 Recharts 的自定义元素
+const CandlestickLayer: React.FC<any> = ({ xAxisMap, yAxisMap, data, offset }) => {
+  if (!xAxisMap || !yAxisMap || !data) return null;
+  
+  const xAxis = xAxisMap[0];
+  const yAxis = yAxisMap[0];
+  
+  if (!xAxis || !yAxis) return null;
+  
+  const { scale: xScale } = xAxis;
+  const { scale: yScale } = yAxis;
+  
+  // 计算每个蜡烛的宽度
+  const dataKeys = data.map((item: any) => item.date);
+  const bandwidth = xScale.bandwidth ? xScale.bandwidth() : 
+    (dataKeys.length > 1 ? Math.abs(xScale(dataKeys[1]) - xScale(dataKeys[0])) * 0.8 : 20);
+  
+  return (
+    <g className="recharts-candlestick-layer">
+      {data.map((item: any, index: number) => {
+        const { open, close, high, low, isUp, date } = item;
+        
+        if (!open || !close || !high || !low) return null;
+        
+        const color = isUp ? '#26a69a' : '#ef5350';
+        
+        // 使用 yScale 将价格转换为 Y 坐标
+        const highY = yScale(high);
+        const lowY = yScale(low);
+        const openY = yScale(open);
+        const closeY = yScale(close);
+        
+        // 使用 xScale 获取 X 坐标
+        const x = xScale(date);
+        if (x === undefined) return null;
+        
+        const centerX = x + bandwidth / 2;
+        
+        // 蜡烛实体
+        const bodyTop = Math.min(openY, closeY);
+        let bodyHeight = Math.abs(closeY - openY);
+        
+        // 十字星的最小高度
+        if (bodyHeight < 2) bodyHeight = 2;
+        
+        // 计算宽度
+        const wickWidth = Math.max(1, bandwidth * 0.15);
+        const bodyWidth = Math.max(3, bandwidth * 0.7);
+        
+        return (
+          <g key={`candle-${date}-${index}`}>
+            {/* 上下影线 */}
+            <line
+              x1={centerX}
+              y1={highY}
+              x2={centerX}
+              y2={lowY}
+              stroke={color}
+              strokeWidth={wickWidth}
+            />
+            {/* 蜡烛实体 */}
+            <rect
+              x={centerX - bodyWidth / 2}
+              y={bodyTop}
+              width={bodyWidth}
+              height={bodyHeight}
+              fill={color}
+              stroke={color}
+              strokeWidth={0.5}
+            />
+          </g>
+        );
+      })}
+    </g>
+  );
+};
 
 const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
   const theme = useTheme();
@@ -47,13 +126,9 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
         high,
         low,
         vol,
-        bodyTop,
-        bodyBottom,
-        bodyHeight,
         isUp: close >= open,
-        // 用于显示K线上下影线
-        shadowTop: high,
-        shadowBottom: low,
+        // 用于占位的 Bar（不可见）
+        placeholder: 0,
       };
     });
   }, [data]);
@@ -130,9 +205,9 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
 
   return (
     <Box>
-      {/* 价格走势图 */}
+      {/* K线蜡烛图 */}
       <ResponsiveContainer width="100%" height={400}>
-        <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+        <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
           <XAxis
             dataKey="date"
@@ -140,64 +215,73 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
             stroke={theme.palette.text.secondary}
           />
           <YAxis
-            yAxisId="price"
             domain={['auto', 'auto']}
             tickFormatter={formatPrice}
             stroke={theme.palette.text.secondary}
+            width={80}
           />
           <Tooltip content={<CustomTooltip />} />
           <Legend />
 
-          {/* 收盘价折线 */}
-          <Line
-            yAxisId="price"
-            type="monotone"
-            dataKey="close"
-            stroke={theme.palette.primary.main}
-            strokeWidth={2}
-            dot={false}
-            name="收盘价"
-          />
+          {/* 自定义蜡烛图层 - 使用 Customized 组件 */}
+          <Customized component={<CandlestickLayer data={chartData} />} />
 
           {/* MA5 */}
           <Line
-            yAxisId="price"
             type="monotone"
             dataKey={(data) => {
-              // 简单计算5日均线
               const index = chartData.indexOf(data);
               if (index < 4) return null;
               const sum = chartData.slice(index - 4, index + 1).reduce((acc, item) => acc + item.close, 0);
               return sum / 5;
             }}
-            stroke={theme.palette.warning.main}
-            strokeWidth={1}
+            stroke="#FFA726"
+            strokeWidth={1.5}
             dot={false}
             name="MA5"
+            connectNulls
+            isAnimationActive={false}
           />
 
           {/* MA10 */}
           <Line
-            yAxisId="price"
             type="monotone"
             dataKey={(data) => {
-              // 简单计算10日均线
               const index = chartData.indexOf(data);
               if (index < 9) return null;
               const sum = chartData.slice(index - 9, index + 1).reduce((acc, item) => acc + item.close, 0);
               return sum / 10;
             }}
-            stroke={theme.palette.info.main}
-            strokeWidth={1}
+            stroke="#42A5F5"
+            strokeWidth={1.5}
             dot={false}
             name="MA10"
+            connectNulls
+            isAnimationActive={false}
+          />
+
+          {/* MA20 */}
+          <Line
+            type="monotone"
+            dataKey={(data) => {
+              const index = chartData.indexOf(data);
+              if (index < 19) return null;
+              const sum = chartData.slice(index - 19, index + 1).reduce((acc, item) => acc + item.close, 0);
+              return sum / 20;
+            }}
+            stroke="#AB47BC"
+            strokeWidth={1.5}
+            dot={false}
+            name="MA20"
+            connectNulls
+            isAnimationActive={false}
           />
         </ComposedChart>
       </ResponsiveContainer>
 
       {/* 成交量图 */}
       <ResponsiveContainer width="100%" height={150}>
-        <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+        <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
           <XAxis
             dataKey="date"
@@ -207,6 +291,7 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
           <YAxis
             tickFormatter={formatVolume}
             stroke={theme.palette.text.secondary}
+            width={80}
           />
           <Tooltip
             formatter={(value: number) => formatVolume(value)}
@@ -214,9 +299,12 @@ const KLineChart: React.FC<KLineChartProps> = ({ data }) => {
           />
           <Bar
             dataKey="vol"
-            fill={theme.palette.primary.main}
             name="成交量"
-          />
+          >
+            {chartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.isUp ? '#26a69a' : '#ef5350'} />
+            ))}
+          </Bar>
         </ComposedChart>
       </ResponsiveContainer>
     </Box>
