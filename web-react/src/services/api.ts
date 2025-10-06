@@ -114,7 +114,7 @@ export const stockApi = createApi({
     }),
 
     // ===== 收藏管理 =====
-    getFavorites: builder.query<ApiResponse<Favorite[]>, void>({
+    getFavorites: builder.query<ApiResponse<{total: number, favorites: Favorite[]}>, void>({
       query: () => 'favorites',
       providesTags: ['Favorites'],
     }),

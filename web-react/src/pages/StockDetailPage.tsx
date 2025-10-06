@@ -141,7 +141,8 @@ const StockDetailPage: React.FC = () => {
     try {
       if (favoriteCheck?.data?.is_favorite) {
         // 取消收藏 - 从收藏列表中找到对应的ID
-        const favoriteItem = favoritesData?.data?.find(
+        const favoritesList = favoritesData?.data?.favorites || [];
+        const favoriteItem = favoritesList.find(
           (fav) => fav.ts_code === stockCode
         );
         

@@ -28,7 +28,8 @@ const { data: favoritesData } = useGetFavoritesQuery();
 const handleToggleFavorite = async () => {
   if (favoriteCheck?.data?.is_favorite) {
     // 取消收藏：从收藏列表中找到对应的ID，然后调用删除API
-    const favoriteItem = favoritesData?.data?.find(
+    const favoritesList = favoritesData?.data?.favorites || [];
+    const favoriteItem = favoritesList.find(
       (fav) => fav.ts_code === stockCode
     );
     if (favoriteItem) {
@@ -96,7 +97,13 @@ const handleToggleFavorite = async () => {
 2. **获取收藏列表**
    ```
    GET /api/v1/favorites
-   Response: { "total": 10, "favorites": [...] }
+   Response: { 
+     "success": true,
+     "data": {
+       "total": 10, 
+       "favorites": [...]
+     }
+   }
    ```
 
 3. **添加收藏**
@@ -197,9 +204,43 @@ const handleToggleFavorite = async () => {
 - 原 Web 版本实现: `web/static/js/services/favorites.js`
 - 后端实现: `internal/handler/stock.go`
 
+## 问题修复记录
+
+### Issue #1: TypeError - find is not a function
+
+**问题描述**: 
+- 错误信息: `TypeError: _favoritesData$data.find is not a function`
+- 原因: API 返回的数据结构与代码期望不匹配
+
+**后端实际返回格式**:
+```json
+{
+  "success": true,
+  "data": {
+    "total": 10,
+    "favorites": [...]
+  }
+}
+```
+
+**修复方案**:
+1. 更新 `api.ts` 中的类型定义：
+   ```typescript
+   getFavorites: builder.query<ApiResponse<{total: number, favorites: Favorite[]}>, void>
+   ```
+
+2. 更新 `StockDetailPage.tsx` 中的数据访问：
+   ```typescript
+   const favoritesList = favoritesData?.data?.favorites || [];
+   const favoriteItem = favoritesList.find(fav => fav.ts_code === stockCode);
+   ```
+
+**状态**: ✅ 已修复
+
 ---
 
 **更新时间**: 2025-10-06  
+**最后修复**: 2025-10-06  
 **实现者**: AI Assistant  
 **状态**: ✅ 已完成并测试
 
