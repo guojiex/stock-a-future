@@ -15,6 +15,7 @@ import MarketPage from './pages/MarketPage';
 import SearchPage from './pages/SearchPage';
 import FavoritesPage from './pages/FavoritesPage';
 import SettingsPage from './pages/SettingsPage';
+import StockDetailPage from './pages/StockDetailPage';
 
 function AppContent() {
   // 检测系统主题偏好
@@ -33,6 +34,7 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<MarketPage />} />
+            <Route path="stock/:stockCode" element={<StockDetailPage />} />
             <Route path="search" element={<SearchPage />} />
             <Route path="favorites" element={<FavoritesPage />} />
             <Route path="settings" element={<SettingsPage />} />

@@ -3,6 +3,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Typography,
@@ -18,12 +19,10 @@ import {
   Alert,
   IconButton,
   Divider,
-  Badge,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
   TrendingUp as TrendingUpIcon,
-  Favorite as FavoriteIcon,
   FavoriteBorder as FavoriteBorderIcon,
 } from '@mui/icons-material';
 
@@ -34,6 +33,7 @@ import { StockBasic } from '../types/stock';
 
 const MarketPage: React.FC = () => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   
   // 本地状态
   const [selectedMarket, setSelectedMarket] = useState<'all' | 'sh' | 'sz'>('all');
@@ -44,7 +44,6 @@ const MarketPage: React.FC = () => {
   // API查询
   const {
     data: healthData,
-    isLoading: isHealthLoading,
     error: healthError,
     refetch: refetchHealth,
   } = useGetHealthStatusQuery(undefined, {
@@ -97,8 +96,8 @@ const MarketPage: React.FC = () => {
   
   // 处理股票点击
   const handleStockClick = (stock: StockBasic) => {
-    // TODO: 导航到股票详情页面
-    console.log('点击股票:', stock);
+    // 导航到股票详情页面
+    navigate(`/stock/${stock.ts_code}`);
   };
   
   // 渲染连接状态
