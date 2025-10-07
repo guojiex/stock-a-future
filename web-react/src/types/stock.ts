@@ -344,3 +344,28 @@ export interface CandlestickData extends ChartDataPoint {
   close: number;
   volume: number;
 }
+
+// 买卖点预测
+export interface TradingPointPrediction {
+  type: 'BUY' | 'SELL';           // 买入或卖出
+  price: number;                   // 预测价格
+  date: string;                    // 预测日期 YYYYMMDD
+  probability: number;             // 概率 (0-1)
+  reason: string;                  // 预测理由
+  indicators: string[];            // 相关指标
+  signal_date: string;             // 信号产生的日期（基于哪一天的数据）
+  backtested: boolean;             // 是否已回测
+  is_correct?: boolean;            // 预测是否正确
+  next_day_price?: number;         // 第二天收盘价
+  price_diff?: number;             // 价格差值
+  price_diff_ratio?: number;       // 价格差值百分比
+}
+
+// 预测结果
+export interface PredictionResult {
+  ts_code: string;
+  trade_date: string;
+  predictions: TradingPointPrediction[];
+  confidence: number;              // 预测置信度 (0-1)
+  updated_at: string;
+}

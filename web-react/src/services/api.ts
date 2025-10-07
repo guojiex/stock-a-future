@@ -9,6 +9,7 @@ import {
   StockDaily,
   TechnicalIndicators,
   FundamentalData,
+  PredictionResult,
   Favorite,
   FavoriteGroup,
   AddFavoriteRequest,
@@ -40,6 +41,7 @@ export const stockApi = createApi({
     'StockDaily',
     'TechnicalIndicators',
     'FundamentalData',
+    'Predictions',
     'Favorites',
     'FavoriteGroups',
     'Signals'
@@ -83,6 +85,14 @@ export const stockApi = createApi({
       query: (stockCode) => `stocks/${stockCode}/indicators`,
       providesTags: (result, error, stockCode) => [
         { type: 'TechnicalIndicators', id: stockCode },
+      ],
+    }),
+
+    // ===== 买卖预测 =====
+    getPredictions: builder.query<ApiResponse<PredictionResult>, string>({
+      query: (stockCode) => `stocks/${stockCode}/predictions`,
+      providesTags: (result, error, stockCode) => [
+        { type: 'Predictions', id: stockCode },
       ],
     }),
 
@@ -215,6 +225,10 @@ export const {
   // 技术指标
   useGetIndicatorsQuery,
   useLazyGetIndicatorsQuery,
+  
+  // 买卖预测
+  useGetPredictionsQuery,
+  useLazyGetPredictionsQuery,
   
   // 基本面数据
   useGetFundamentalDataQuery,

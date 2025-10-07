@@ -55,6 +55,27 @@ const getSignalIcon = (signal?: string) => {
   return <RemoveIcon fontSize="small" />;
 };
 
+// 格式化日期显示 (YYYYMMDD 或 ISO 格式 -> YYYY-MM-DD)
+const formatDateForDisplay = (dateStr: string): string => {
+  if (!dateStr) return dateStr;
+  
+  // 如果是 ISO 格式 (包含 T 或 -)
+  if (dateStr.includes('T') || dateStr.includes('-')) {
+    const date = new Date(dateStr);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  
+  // 如果是 YYYYMMDD 格式
+  if (dateStr.length === 8) {
+    return `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+  }
+  
+  return dateStr;
+};
+
 // 指标卡片组件
 interface IndicatorCardProps {
   title: string;
@@ -161,7 +182,7 @@ const TechnicalIndicatorsView: React.FC<TechnicalIndicatorsViewProps> = ({ data 
     <Box sx={{ p: 2 }}>
       {/* 标题 */}
       <Typography variant="h6" gutterBottom sx={{ mb: 2, fontWeight: 'bold' }}>
-        📊 技术指标分析 ({data.trade_date})
+        📊 技术指标分析 ({formatDateForDisplay(data.trade_date)})
       </Typography>
 
       {/* 传统技术指标 */}

@@ -33,6 +33,32 @@ const FundamentalDataView: React.FC<FundamentalDataViewProps> = ({ data }) => {
     return `${value.toFixed(2)}%`;
   };
 
+  // 格式化日期显示 (YYYYMMDD 或 ISO 格式 -> YYYY-MM-DD)
+  const formatDateForDisplay = (dateStr?: string): string => {
+    if (!dateStr) return '--';
+    
+    // 如果是 ISO 格式 (包含 T 或已经有 - 且长度大于10)
+    if (dateStr.includes('T') || (dateStr.includes('-') && dateStr.length > 10)) {
+      const date = new Date(dateStr);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    
+    // 如果是 YYYYMMDD 格式
+    if (dateStr.length === 8 && !dateStr.includes('-')) {
+      return `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+    }
+    
+    // 如果已经是 YYYY-MM-DD 格式
+    if (dateStr.length === 10 && dateStr.includes('-')) {
+      return dateStr;
+    }
+    
+    return dateStr;
+  };
+
   // 数据卡片
   const DataCard = ({ title, value, unit }: { title: string; value: string; unit?: string }) => (
     <Paper elevation={1} sx={{ p: 2 }}>
@@ -96,7 +122,7 @@ const FundamentalDataView: React.FC<FundamentalDataViewProps> = ({ data }) => {
       {data.income_statement && (
         <Box mb={4}>
           <Typography variant="h6" gutterBottom>
-            利润表 ({data.income_statement.end_date})
+            利润表 ({formatDateForDisplay(data.income_statement.end_date)})
           </Typography>
           <Box
             sx={{
@@ -140,7 +166,7 @@ const FundamentalDataView: React.FC<FundamentalDataViewProps> = ({ data }) => {
       {data.balance_sheet && (
         <Box mb={4}>
           <Typography variant="h6" gutterBottom>
-            资产负债表 ({data.balance_sheet.end_date})
+            资产负债表 ({formatDateForDisplay(data.balance_sheet.end_date)})
           </Typography>
           <Box
             sx={{
@@ -179,7 +205,7 @@ const FundamentalDataView: React.FC<FundamentalDataViewProps> = ({ data }) => {
       {data.cash_flow_statement && (
         <Box mb={4}>
           <Typography variant="h6" gutterBottom>
-            现金流量表 ({data.cash_flow_statement.end_date})
+            现金流量表 ({formatDateForDisplay(data.cash_flow_statement.end_date)})
           </Typography>
           <Box
             sx={{
