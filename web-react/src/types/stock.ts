@@ -30,41 +30,163 @@ export interface StockDaily {
   amount?: string;        // 成交额
 }
 
-// 技术指标数据
+// 技术指标数据 - 匹配后端Go结构
 export interface TechnicalIndicators {
   ts_code: string;
   trade_date: string;
   
-  // 移动平均线
-  ma5?: number;
-  ma10?: number;
-  ma20?: number;
-  ma30?: number;
-  ma60?: number;
+  // 传统指标
+  macd?: MACDIndicator;
+  rsi?: RSIIndicator;
+  boll?: BollingerBandsIndicator;
+  ma?: MovingAverageIndicator;
+  kdj?: KDJIndicator;
   
-  // MACD指标
-  macd_dif?: number;
-  macd_dea?: number;
-  macd_histogram?: number;
+  // 动量因子
+  wr?: WilliamsRIndicator;
+  momentum?: MomentumIndicator;
+  roc?: ROCIndicator;
   
-  // RSI指标
-  rsi6?: number;
-  rsi12?: number;
-  rsi24?: number;
+  // 趋势因子
+  adx?: ADXIndicator;
+  sar?: SARIndicator;
+  ichimoku?: IchimokuIndicator;
   
-  // 布林带
-  boll_upper?: number;
-  boll_mid?: number;
-  boll_lower?: number;
+  // 波动率因子
+  atr?: ATRIndicator;
+  stddev?: StdDevIndicator;
+  hv?: HistoricalVolatilityIndicator;
   
-  // KDJ指标
-  kdj_k?: number;
-  kdj_d?: number;
-  kdj_j?: number;
-  
-  // 成交量指标
-  volume_ratio?: number;
-  turnover_rate?: number;
+  // 成交量因子
+  vwap?: VWAPIndicator;
+  ad_line?: ADLineIndicator;
+  emv?: EMVIndicator;
+  vpt?: VPTIndicator;
+}
+
+// MACD指标
+export interface MACDIndicator {
+  dif: number;
+  dea: number;
+  histogram: number;
+  signal?: string;
+}
+
+// RSI指标
+export interface RSIIndicator {
+  rsi14: number;
+  signal?: string;
+}
+
+// 布林带指标
+export interface BollingerBandsIndicator {
+  upper: number;
+  middle: number;
+  lower: number;
+  signal?: string;
+}
+
+// 移动平均线指标
+export interface MovingAverageIndicator {
+  ma5: number;
+  ma10: number;
+  ma20: number;
+  ma60: number;
+  ma120: number;
+}
+
+// KDJ指标
+export interface KDJIndicator {
+  k: number;
+  d: number;
+  j: number;
+  signal?: string;
+}
+
+// 威廉指标
+export interface WilliamsRIndicator {
+  wr14: number;
+  signal?: string;
+}
+
+// 动量指标
+export interface MomentumIndicator {
+  momentum10: number;
+  momentum20: number;
+  signal?: string;
+}
+
+// 变化率指标
+export interface ROCIndicator {
+  roc10: number;
+  roc20: number;
+  signal?: string;
+}
+
+// ADX指标
+export interface ADXIndicator {
+  adx: number;
+  pdi: number;
+  mdi: number;
+  signal?: string;
+}
+
+// SAR指标
+export interface SARIndicator {
+  sar: number;
+  signal?: string;
+}
+
+// 一目均衡表
+export interface IchimokuIndicator {
+  tenkan_sen: number;
+  kijun_sen: number;
+  senkou_span_a: number;
+  senkou_span_b: number;
+  signal?: string;
+}
+
+// ATR指标
+export interface ATRIndicator {
+  atr14: number;
+  signal?: string;
+}
+
+// 标准差指标
+export interface StdDevIndicator {
+  stddev20: number;
+  signal?: string;
+}
+
+// 历史波动率指标
+export interface HistoricalVolatilityIndicator {
+  hv20: number;
+  hv60: number;
+  signal?: string;
+}
+
+// VWAP指标
+export interface VWAPIndicator {
+  vwap: number;
+  signal?: string;
+}
+
+// A/D线指标
+export interface ADLineIndicator {
+  ad_line: number;
+  signal?: string;
+}
+
+// EMV指标
+export interface EMVIndicator {
+  emv14: number;
+  signal?: string;
+}
+
+// VPT指标
+export interface VPTIndicator {
+  vpt: number;
+  signal?: string;
 }
 
 // 基本面数据

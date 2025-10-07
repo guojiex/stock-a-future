@@ -384,7 +384,7 @@ const StockDetailPage: React.FC = () => {
                 <Box display="flex" justifyContent="center" py={4}>
                   <CircularProgress />
                 </Box>
-              ) : indicatorsData?.data && indicatorsData.data.length > 0 ? (
+              ) : indicatorsData?.data ? (
                 <TechnicalIndicatorsView data={indicatorsData.data} />
               ) : (
                 <Typography variant="body1" color="text.secondary" align="center" py={4}>

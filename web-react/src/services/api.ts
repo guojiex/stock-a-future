@@ -79,7 +79,7 @@ export const stockApi = createApi({
     }),
 
     // ===== 技术指标 =====
-    getIndicators: builder.query<ApiResponse<TechnicalIndicators[]>, string>({
+    getIndicators: builder.query<ApiResponse<TechnicalIndicators>, string>({
       query: (stockCode) => `stocks/${stockCode}/indicators`,
       providesTags: (result, error, stockCode) => [
         { type: 'TechnicalIndicators', id: stockCode },
