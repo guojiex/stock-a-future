@@ -3,6 +3,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Typography,
@@ -37,6 +38,7 @@ import { StockBasic } from '../types/stock';
 
 const SearchPage: React.FC = () => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   
   // Redux状态
   const currentQuery = useAppSelector(state => state.search.currentQuery);
@@ -115,8 +117,8 @@ const SearchPage: React.FC = () => {
     // 添加到最近查看
     dispatch(addRecentlyViewed(stock));
     
-    // TODO: 导航到股票详情页面
-    console.log('选择股票:', stock);
+    // 导航到股票详情页面
+    navigate(`/stock/${stock.ts_code}`);
     
     // 清除搜索状态
     setSearchInput('');
@@ -135,8 +137,8 @@ const SearchPage: React.FC = () => {
   // 处理历史搜索选择
   const handleHistorySelect = (historyItem: any) => {
     if (historyItem.stockCode) {
-      // 如果是股票历史，直接导航
-      console.log('导航到历史股票:', historyItem);
+      // 如果是股票历史，直接导航到股票详情页
+      navigate(`/stock/${historyItem.stockCode}`);
     } else {
       // 如果是搜索历史，重新搜索
       setSearchInput(historyItem.query);
