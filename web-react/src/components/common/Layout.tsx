@@ -19,7 +19,6 @@ import {
 } from '@mui/material';
 import {
   TrendingUp as MarketIcon,
-  Search as SearchIcon,
   Star as FavoritesIcon,
   Settings as SettingsIcon,
 } from '@mui/icons-material';
@@ -33,7 +32,6 @@ const Layout: React.FC = () => {
   // 导航项配置
   const navItems = [
     { label: '市场', value: '/', icon: <MarketIcon /> },
-    { label: '搜索', value: '/search', icon: <SearchIcon /> },
     { label: '收藏', value: '/favorites', icon: <FavoritesIcon /> },
     { label: '设置', value: '/settings', icon: <SettingsIcon /> },
   ];

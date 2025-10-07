@@ -11,8 +11,7 @@ import { ThemeProvider, CssBaseline, useMediaQuery } from '@mui/material';
 import store from './store';
 import { getTheme } from './constants/theme';
 import Layout from './components/common/Layout';
-import MarketPage from './pages/MarketPage';
-import SearchPage from './pages/SearchPage';
+import MarketSearchPage from './pages/MarketSearchPage';
 import FavoritesPage from './pages/FavoritesPage';
 import SettingsPage from './pages/SettingsPage';
 import StockDetailPage from './pages/StockDetailPage';
@@ -33,9 +32,8 @@ function AppContent() {
       <Router>
         <Routes>
           <Route path="/" element={<Layout />}>
-            <Route index element={<MarketPage />} />
+            <Route index element={<MarketSearchPage />} />
             <Route path="stock/:stockCode" element={<StockDetailPage />} />
-            <Route path="search" element={<SearchPage />} />
             <Route path="favorites" element={<FavoritesPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
