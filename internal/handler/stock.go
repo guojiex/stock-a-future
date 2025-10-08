@@ -27,13 +27,14 @@ type StockHandler struct {
 	localStockService        *service.LocalStockService
 	dailyCacheService        *service.DailyCacheService
 	favoriteService          *service.FavoriteService
+	recentViewService        *service.RecentViewService
 	fundamentalFactorService *service.FundamentalFactorService
 	config                   *config.Config // 添加配置字段
 	app                      *service.App   // 应用上下文，用于获取其他服务
 }
 
 // NewStockHandler 创建股票处理器
-func NewStockHandler(dataSourceClient client.DataSourceClient, cacheService *service.DailyCacheService, favoriteService *service.FavoriteService, app *service.App) *StockHandler {
+func NewStockHandler(dataSourceClient client.DataSourceClient, cacheService *service.DailyCacheService, favoriteService *service.FavoriteService, recentViewService *service.RecentViewService, app *service.App) *StockHandler {
 	return &StockHandler{
 		dataSourceClient:         dataSourceClient,
 		calculator:               indicators.NewCalculator(),
@@ -41,6 +42,7 @@ func NewStockHandler(dataSourceClient client.DataSourceClient, cacheService *ser
 		localStockService:        service.NewLocalStockService("data"),
 		dailyCacheService:        cacheService,
 		favoriteService:          favoriteService,
+		recentViewService:        recentViewService,
 		fundamentalFactorService: service.NewFundamentalFactorService(dataSourceClient),
 		config:                   config.Load(), // 初始化配置
 		app:                      app,           // 应用上下文
@@ -1794,6 +1796,159 @@ func (h *StockHandler) BatchCalculateFundamentalFactors(w http.ResponseWriter, r
 		SuccessCount: len(factors),
 		Factors:      factors,
 		UpdatedAt:    time.Now(),
+	}
+
+	h.writeSuccessResponse(w, response)
+}
+
+// ===== 最近查看相关API =====
+
+// AddRecentView 添加或更新最近查看记录
+func (h *StockHandler) AddRecentView(w http.ResponseWriter, r *http.Request) {
+	// 只支持POST方法
+	if r.Method != http.MethodPost {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持POST方法")
+		return
+	}
+
+	// 解析请求体
+	var request models.AddRecentViewRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, "请求数据格式错误")
+		return
+	}
+
+	// 验证必填字段
+	if request.TSCode == "" || request.Name == "" {
+		h.writeErrorResponse(w, http.StatusBadRequest, "股票代码和名称不能为空")
+		return
+	}
+
+	// 添加或更新记录
+	view, err := h.recentViewService.AddOrUpdateRecentView(&request)
+	if err != nil {
+		log.Printf("添加最近查看记录失败: %v", err)
+		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("添加失败: %v", err))
+		return
+	}
+
+	h.writeSuccessResponse(w, view)
+}
+
+// GetRecentViews 获取最近查看列表
+func (h *StockHandler) GetRecentViews(w http.ResponseWriter, r *http.Request) {
+	// 只支持GET方法
+	if r.Method != http.MethodGet {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持GET方法")
+		return
+	}
+
+	// 解析查询参数
+	query := r.URL.Query()
+
+	// 获取limit参数，默认20
+	limit := 20
+	if limitStr := query.Get("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 && parsedLimit <= 100 {
+			limit = parsedLimit
+		}
+	}
+
+	// 获取includeExpired参数，默认false
+	includeExpired := query.Get("include_expired") == "true"
+
+	// 获取最近查看列表
+	views, err := h.recentViewService.GetRecentViews(limit, includeExpired)
+	if err != nil {
+		log.Printf("获取最近查看列表失败: %v", err)
+		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("获取失败: %v", err))
+		return
+	}
+
+	// 获取记录总数
+	count, _ := h.recentViewService.GetRecentViewCount()
+
+	response := map[string]interface{}{
+		"total": count,
+		"views": views,
+	}
+
+	h.writeSuccessResponse(w, response)
+}
+
+// DeleteRecentView 删除指定的最近查看记录
+func (h *StockHandler) DeleteRecentView(w http.ResponseWriter, r *http.Request) {
+	// 只支持DELETE方法
+	if r.Method != http.MethodDelete {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持DELETE方法")
+		return
+	}
+
+	// 解析路径参数
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 4 {
+		h.writeErrorResponse(w, http.StatusBadRequest, "无效的股票代码")
+		return
+	}
+
+	stockCode := pathParts[3] // /api/v1/recent-views/{code}
+
+	// 删除记录
+	if err := h.recentViewService.DeleteRecentView(stockCode); err != nil {
+		log.Printf("删除最近查看记录失败: %v", err)
+		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("删除失败: %v", err))
+		return
+	}
+
+	response := map[string]interface{}{
+		"message": "删除成功",
+		"ts_code": stockCode,
+	}
+
+	h.writeSuccessResponse(w, response)
+}
+
+// ClearExpiredRecentViews 清理过期的最近查看记录
+func (h *StockHandler) ClearExpiredRecentViews(w http.ResponseWriter, r *http.Request) {
+	// 只支持POST方法
+	if r.Method != http.MethodPost {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持POST方法")
+		return
+	}
+
+	// 清理过期记录
+	count, err := h.recentViewService.ClearExpiredViews()
+	if err != nil {
+		log.Printf("清理过期记录失败: %v", err)
+		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("清理失败: %v", err))
+		return
+	}
+
+	response := map[string]interface{}{
+		"message": fmt.Sprintf("成功清理 %d 条过期记录", count),
+		"count":   count,
+	}
+
+	h.writeSuccessResponse(w, response)
+}
+
+// ClearAllRecentViews 清空所有最近查看记录
+func (h *StockHandler) ClearAllRecentViews(w http.ResponseWriter, r *http.Request) {
+	// 只支持DELETE方法
+	if r.Method != http.MethodDelete {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "只支持DELETE方法")
+		return
+	}
+
+	// 清空所有记录
+	if err := h.recentViewService.ClearAllViews(); err != nil {
+		log.Printf("清空所有最近查看记录失败: %v", err)
+		h.writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("清空失败: %v", err))
+		return
+	}
+
+	response := map[string]interface{}{
+		"message": "已清空所有最近查看记录",
 	}
 
 	h.writeSuccessResponse(w, response)
