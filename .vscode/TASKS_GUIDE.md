@@ -21,31 +21,31 @@
 - **描述**: 启动React Web应用开发服务器
 - **端口**: 3000
 - **特性**: 热重载、开发工具
-- **✨ 新特性**: 使用VSCode包管理器检测，支持npm/yarn/pnpm
+- **✨ 新特性**: 使用npm命令，跨平台兼容
 
 #### 4. 启动 React Web (生产模式) ✅ 跨平台兼容
 - **描述**: 构建并启动React Web应用生产版本
 - **端口**: 3000
 - **特性**: 优化构建、无源码映射
-- **✨ 新特性**: 使用VSCode包管理器检测，支持npm/yarn/pnpm
+- **✨ 新特性**: 使用npm命令，跨平台兼容
 
 #### 5. 启动 React Native Metro ✅ 跨平台兼容
 - **描述**: 启动React Native Metro bundler
 - **端口**: 8081 (Metro默认端口)
 - **注意**: 与Go API端口冲突，建议单独使用
-- **✨ 新特性**: 使用VSCode包管理器检测，修复Windows PowerShell兼容性
+- **✨ 新特性**: 使用npm命令，跨平台兼容
 
 #### 6. 启动 React Native Android ✅ 跨平台兼容
 - **描述**: 启动React Native Android应用
 - **依赖**: 需要先启动Metro bundler
 - **要求**: Android SDK和模拟器/真机
-- **✨ 新特性**: 使用VSCode包管理器检测，支持Windows/macOS/Linux
+- **✨ 新特性**: 使用npm命令，跨平台兼容
 
 #### 7. 启动 React Native iOS ✅ 跨平台兼容
 - **描述**: 启动React Native iOS应用
 - **依赖**: 需要先启动Metro bundler
 - **要求**: macOS、Xcode、模拟器/真机
-- **✨ 新特性**: 使用VSCode包管理器检测，但iOS开发仍需要macOS
+- **✨ 新特性**: 使用npm命令，但iOS开发仍需要macOS
 
 ---
 
@@ -180,13 +180,13 @@
 **问题**: `SERVER_PORT=8081 go run cmd/server/main.go` 在Windows PowerShell中报错
 **解决方案**: 已更新tasks.json使用VSCode的env配置，现在支持跨平台
 
-### Q2: React Native任务失败 ✅ 已修复
-**问题**: `'react-scripts' 不是内部或外部命令` 错误
-**原因**: React Native项目使用 `react-native` 命令，不是 `react-scripts`
+### Q2: Node.js包管理器命令找不到 ✅ 已修复
+**问题**: `command 'nodejs.packageManager' not found` 错误
+**原因**: VS Code无法找到Node.js包管理器命令
 **解决方案**: 
-- 已更新所有React Native任务使用 `${command:nodejs.packageManager}`
-- 自动检测npm/yarn/pnpm包管理器
-- 修复Windows PowerShell兼容性问题
+- 已更新所有Node.js相关任务使用 `npm` 命令
+- 简化配置，移除复杂的包管理器检测
+- 确保npm已安装：`npm --version`
 
 ### Q3: Python命令找不到 ✅ 已修复
 **问题**: `python3` 在Windows上找不到，或 `command 'python.interpreterPath' not found` 错误

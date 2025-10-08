@@ -70,7 +70,7 @@
         {
             "label": "启动 React Web (开发模式)",
             "type": "shell",
-            "command": "${command:nodejs.packageManager}",
+            "command": "npm",
             "args": ["start"],
             "group": "build",
             "presentation": {
@@ -83,18 +83,14 @@
             },
             "problemMatcher": [],
             "options": {
-                "cwd": "${workspaceFolder}/web-react",
-                "shell": {
-                    "executable": "${command:nodejs.packageManager}",
-                    "args": ["start"]
-                }
+                "cwd": "${workspaceFolder}/web-react"
             },
-            "detail": "启动React Web应用开发服务器 (端口3000，跨平台兼容)"
+            "detail": "启动React Web应用开发服务器 (端口3000，使用npm)"
         },
         {
             "label": "启动 React Web (生产模式)",
             "type": "shell",
-            "command": "${command:nodejs.packageManager}",
+            "command": "npm",
             "args": ["run", "start:prod"],
             "group": "build",
             "presentation": {
@@ -107,18 +103,14 @@
             },
             "problemMatcher": [],
             "options": {
-                "cwd": "${workspaceFolder}/web-react",
-                "shell": {
-                    "executable": "${command:nodejs.packageManager}",
-                    "args": ["run", "start:prod"]
-                }
+                "cwd": "${workspaceFolder}/web-react"
             },
-            "detail": "构建并启动React Web应用生产版本 (端口3000，跨平台兼容)"
+            "detail": "构建并启动React Web应用生产版本 (端口3000，使用npm)"
         },
         {
             "label": "启动 React Native Metro",
             "type": "shell",
-            "command": "${command:nodejs.packageManager}",
+            "command": "npm",
             "args": ["start"],
             "group": "build",
             "presentation": {
@@ -131,18 +123,14 @@
             },
             "problemMatcher": [],
             "options": {
-                "cwd": "${workspaceFolder}/mobile",
-                "shell": {
-                    "executable": "${command:nodejs.packageManager}",
-                    "args": ["start"]
-                }
+                "cwd": "${workspaceFolder}/mobile"
             },
-            "detail": "启动React Native Metro bundler (跨平台兼容)"
+            "detail": "启动React Native Metro bundler (使用npm)"
         },
         {
             "label": "启动 React Native Android",
             "type": "shell",
-            "command": "${command:nodejs.packageManager}",
+            "command": "npm",
             "args": ["run", "android"],
             "group": "build",
             "presentation": {
@@ -155,19 +143,15 @@
             },
             "problemMatcher": [],
             "options": {
-                "cwd": "${workspaceFolder}/mobile",
-                "shell": {
-                    "executable": "${command:nodejs.packageManager}",
-                    "args": ["run", "android"]
-                }
+                "cwd": "${workspaceFolder}/mobile"
             },
-            "detail": "启动React Native Android应用 (开发模式，跨平台兼容)",
+            "detail": "启动React Native Android应用 (开发模式，使用npm)",
             "dependsOn": ["启动 React Native Metro"]
         },
         {
             "label": "启动 React Native iOS",
             "type": "shell",
-            "command": "${command:nodejs.packageManager}",
+            "command": "npm",
             "args": ["run", "ios"],
             "group": "build",
             "presentation": {
@@ -180,13 +164,9 @@
             },
             "problemMatcher": [],
             "options": {
-                "cwd": "${workspaceFolder}/mobile",
-                "shell": {
-                    "executable": "${command:nodejs.packageManager}",
-                    "args": ["run", "ios"]
-                }
+                "cwd": "${workspaceFolder}/mobile"
             },
-            "detail": "启动React Native iOS应用 (开发模式，需要macOS，跨平台兼容)",
+            "detail": "启动React Native iOS应用 (开发模式，需要macOS，使用npm)",
             "dependsOn": ["启动 React Native Metro"]
         },
         {
