@@ -44,3 +44,4 @@ aktools_log.log.*
 stock-server
 coverage
 /debug
+node_modules
