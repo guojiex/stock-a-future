@@ -72,22 +72,60 @@ const StockDetailScreen: React.FC = () => {
         setLoading(true);
       }
 
+      console.log('🔍 [StockDetail] 开始加载股票数据', {
+        stockCode,
+        stockName,
+        timeRange
+      });
+
       // 获取股票基本信息
       const basicResponse = await apiService.getStockBasic(stockCode);
+      console.log('📊 [StockDetail] 股票基本信息响应:', {
+        success: basicResponse.success,
+        hasData: !!basicResponse.data,
+        data: basicResponse.data
+      });
+      
       if (basicResponse.success && basicResponse.data) {
         setStockBasic(basicResponse.data);
       }
 
       // 获取日线数据
       const { start_date, end_date } = getDateRange(parseInt(timeRange));
+      console.log('📅 [StockDetail] 请求日线数据', {
+        stockCode,
+        start_date,
+        end_date,
+        timeRange: parseInt(timeRange)
+      });
+      
       const dailyResponse = await apiService.getDailyData(stockCode, start_date, end_date);
       
+      console.log('📈 [StockDetail] 日线数据响应:', {
+        success: dailyResponse.success,
+        hasData: !!dailyResponse.data,
+        dataLength: dailyResponse.data?.length || 0,
+        error: dailyResponse.error
+      });
+      
       if (dailyResponse.success && dailyResponse.data) {
+        console.log('📉 [StockDetail] 日线数据详情:', {
+          总记录数: dailyResponse.data.length,
+          第一条: dailyResponse.data[0],
+          最后一条: dailyResponse.data[dailyResponse.data.length - 1],
+          价格范围: {
+            最高: Math.max(...dailyResponse.data.map(d => parseFloat(String(d.high)))),
+            最低: Math.min(...dailyResponse.data.map(d => parseFloat(String(d.low)))),
+            开盘: parseFloat(String(dailyResponse.data[0].open)),
+            收盘: parseFloat(String(dailyResponse.data[dailyResponse.data.length - 1].close))
+          }
+        });
+        
         setDailyData(dailyResponse.data);
       }
 
     } catch (error) {
-      console.error('加载股票数据失败:', error);
+      console.error('❌ [StockDetail] 加载股票数据失败:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);

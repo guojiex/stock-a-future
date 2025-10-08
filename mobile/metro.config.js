@@ -7,6 +7,9 @@ const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
  * @type {import('metro-config').MetroConfig}
  */
 const config = {
+  server: {
+    port: 8082, // 使用8082端口避免与Go API服务器冲突
+  },
   resolver: {
     alias: {
       '@': './src',

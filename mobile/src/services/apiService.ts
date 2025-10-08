@@ -25,6 +25,15 @@ class ApiService {
   ): Promise<ApiResponse<T>> {
     try {
       const url = `${this.baseURL}${endpoint}`;
+      
+      // 打印请求信息
+      console.log('🚀 API请求:', {
+        url,
+        method: options.method || 'GET',
+        headers: options.headers,
+        body: options.body
+      });
+      
       const response = await fetch(url, {
         ...options,
         headers: {
@@ -39,9 +48,33 @@ class ApiService {
       }
 
       const data = await response.json();
+      
+      // 打印响应信息
+      console.log('📥 [ApiService] API响应:', {
+        url,
+        status: response.status,
+        success: data.success,
+        hasData: !!data.data,
+        dataType: data.data ? (Array.isArray(data.data) ? 'array' : typeof data.data) : 'none',
+        dataLength: Array.isArray(data.data) ? data.data.length : 'N/A'
+      });
+      
+      // 对于大数据量，不打印完整数据
+      if (Array.isArray(data.data) && data.data.length > 10) {
+        console.log('📄 [ApiService] 数据样本 (前2条和后2条):', {
+          first: data.data.slice(0, 2),
+          last: data.data.slice(-2)
+        });
+      } else {
+        console.log('📄 [ApiService] 完整数据:', data);
+      }
+      
       return data;
     } catch (error) {
-      console.error('API请求失败:', error);
+      console.error('❌ API请求失败:', {
+        url: `${this.baseURL}${endpoint}`,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -66,7 +99,40 @@ class ApiService {
     if (endDate) params.append('end_date', endDate);
     params.append('adjust', adjust);
 
-    return this.request(`/api/v1/stocks/${stockCode}/daily?${params.toString()}`);
+    console.log('📊 [ApiService] 获取日线数据请求:', {
+      stockCode,
+      startDate,
+      endDate,
+      adjust,
+      fullUrl: `/api/v1/stocks/${stockCode}/daily?${params.toString()}`
+    });
+
+    const response = await this.request(`/api/v1/stocks/${stockCode}/daily?${params.toString()}`);
+    
+    // 额外的日线数据日志
+    if (response.success && response.data && Array.isArray(response.data)) {
+      const dataArray = response.data as any[];
+      console.log('📈 [ApiService] 日线数据响应详情:', {
+        stockCode,
+        dataLength: dataArray.length,
+        dateRange: {
+          start: dataArray[0]?.trade_date,
+          end: dataArray[dataArray.length - 1]?.trade_date
+        },
+        priceRange: {
+          highest: Math.max(...dataArray.map((d: any) => parseFloat(String(d.high)))),
+          lowest: Math.min(...dataArray.map((d: any) => parseFloat(String(d.low)))),
+          firstOpen: parseFloat(String(dataArray[0]?.open)),
+          lastClose: parseFloat(String(dataArray[dataArray.length - 1]?.close))
+        },
+        sampleData: {
+          first: dataArray[0],
+          last: dataArray[dataArray.length - 1]
+        }
+      });
+    }
+    
+    return response;
   }
 
   // 获取技术指标
