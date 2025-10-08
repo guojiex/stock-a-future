@@ -30,7 +30,8 @@
         {
             "label": "启动 AKTools 服务 (端口8080)",
             "type": "shell",
-            "command": "python3 -m aktools --port 8080",
+            "command": "python",
+            "args": ["-m", "aktools", "--port", "8080"],
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -44,12 +45,32 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "detail": "启动AKTools数据服务在8080端口"
+            "detail": "启动AKTools数据服务在8080端口 (跨平台兼容)"
+        },
+        {
+            "label": "启动 AKTools 服务 (Windows专用)",
+            "type": "shell",
+            "command": "cmd.exe",
+            "args": ["/c", "python", "-m", "aktools", "--port", "8080"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "启动AKTools数据服务在8080端口 (Windows专用，如果跨平台版本失败请使用此版本)"
         },
         {
             "label": "启动 React Web (开发模式)",
             "type": "shell",
-            "command": "npm",
+            "command": "${command:nodejs.packageManager}",
             "args": ["start"],
             "group": "build",
             "presentation": {
@@ -62,14 +83,18 @@
             },
             "problemMatcher": [],
             "options": {
-                "cwd": "${workspaceFolder}/web-react"
+                "cwd": "${workspaceFolder}/web-react",
+                "shell": {
+                    "executable": "${command:nodejs.packageManager}",
+                    "args": ["start"]
+                }
             },
-            "detail": "启动React Web应用开发服务器 (端口3000)"
+            "detail": "启动React Web应用开发服务器 (端口3000，跨平台兼容)"
         },
         {
             "label": "启动 React Web (生产模式)",
             "type": "shell",
-            "command": "npm",
+            "command": "${command:nodejs.packageManager}",
             "args": ["run", "start:prod"],
             "group": "build",
             "presentation": {
@@ -82,14 +107,18 @@
             },
             "problemMatcher": [],
             "options": {
-                "cwd": "${workspaceFolder}/web-react"
+                "cwd": "${workspaceFolder}/web-react",
+                "shell": {
+                    "executable": "${command:nodejs.packageManager}",
+                    "args": ["run", "start:prod"]
+                }
             },
-            "detail": "构建并启动React Web应用生产版本 (端口3000)"
+            "detail": "构建并启动React Web应用生产版本 (端口3000，跨平台兼容)"
         },
         {
             "label": "启动 React Native Metro",
             "type": "shell",
-            "command": "npm",
+            "command": "${command:nodejs.packageManager}",
             "args": ["start"],
             "group": "build",
             "presentation": {
@@ -102,14 +131,18 @@
             },
             "problemMatcher": [],
             "options": {
-                "cwd": "${workspaceFolder}/mobile"
+                "cwd": "${workspaceFolder}/mobile",
+                "shell": {
+                    "executable": "${command:nodejs.packageManager}",
+                    "args": ["start"]
+                }
             },
             "detail": "启动React Native Metro bundler (跨平台兼容)"
         },
         {
             "label": "启动 React Native Android",
             "type": "shell",
-            "command": "npm",
+            "command": "${command:nodejs.packageManager}",
             "args": ["run", "android"],
             "group": "build",
             "presentation": {
@@ -122,7 +155,11 @@
             },
             "problemMatcher": [],
             "options": {
-                "cwd": "${workspaceFolder}/mobile"
+                "cwd": "${workspaceFolder}/mobile",
+                "shell": {
+                    "executable": "${command:nodejs.packageManager}",
+                    "args": ["run", "android"]
+                }
             },
             "detail": "启动React Native Android应用 (开发模式，跨平台兼容)",
             "dependsOn": ["启动 React Native Metro"]
@@ -130,7 +167,7 @@
         {
             "label": "启动 React Native iOS",
             "type": "shell",
-            "command": "npm",
+            "command": "${command:nodejs.packageManager}",
             "args": ["run", "ios"],
             "group": "build",
             "presentation": {
@@ -143,90 +180,14 @@
             },
             "problemMatcher": [],
             "options": {
-                "cwd": "${workspaceFolder}/mobile"
+                "cwd": "${workspaceFolder}/mobile",
+                "shell": {
+                    "executable": "${command:nodejs.packageManager}",
+                    "args": ["run", "ios"]
+                }
             },
             "detail": "启动React Native iOS应用 (开发模式，需要macOS，跨平台兼容)",
             "dependsOn": ["启动 React Native Metro"]
-        },
-        {
-            "label": "启动 React Native Metro (Windows CMD)",
-            "type": "shell",
-            "command": "cmd",
-            "args": ["/c", "npm", "start"],
-            "group": "build",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "problemMatcher": [],
-            "options": {
-                "cwd": "${workspaceFolder}/mobile"
-            },
-            "detail": "启动React Native Metro bundler (Windows CMD专用)"
-        },
-        {
-            "label": "启动 React Native Metro (PowerShell)",
-            "type": "shell",
-            "command": "powershell",
-            "args": ["-Command", "npm", "start"],
-            "group": "build",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "problemMatcher": [],
-            "options": {
-                "cwd": "${workspaceFolder}/mobile"
-            },
-            "detail": "启动React Native Metro bundler (PowerShell专用)"
-        },
-        {
-            "label": "检查 React Native 环境",
-            "type": "shell",
-            "command": "npx",
-            "args": ["react-native", "doctor"],
-            "group": "test",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "problemMatcher": [],
-            "options": {
-                "cwd": "${workspaceFolder}/mobile"
-            },
-            "detail": "检查React Native开发环境配置"
-        },
-        {
-            "label": "清理 React Native 缓存",
-            "type": "shell",
-            "command": "npm",
-            "args": ["run", "start:reset"],
-            "group": "build",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "problemMatcher": [],
-            "options": {
-                "cwd": "${workspaceFolder}/mobile"
-            },
-            "detail": "清理React Native Metro缓存并重启"
         },
         {
             "label": "🚀 启动完整开发环境",

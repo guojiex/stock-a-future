@@ -8,60 +8,44 @@
 - **描述**: 启动Go后端API服务器
 - **端口**: 8081
 - **快捷键**: `Cmd+Shift+B` (macOS) 或 `Ctrl+Shift+B` (Windows/Linux)
-- **✨ 新特性**: 已修复Windows PowerShell兼容性问题
+- **✨ 新特性**: 已修复Windows PowerShell兼容性问题，使用VSCode环境变量配置
 
-#### 2. 启动 AKTools 服务 (端口8080)
+#### 2. 启动 AKTools 服务 (端口8080) ✅ 跨平台兼容
 - **描述**: 启动AKTools数据服务
 - **端口**: 8080
 - **依赖**: 需要安装Python和aktools包
+- **✨ 新特性**: 跨平台兼容，支持Windows/macOS/Linux
+- **备选方案**: 如果跨平台版本失败，可使用"启动 AKTools 服务 (Windows专用)"
 
-#### 3. 启动 React Web (开发模式)
+#### 3. 启动 React Web (开发模式) ✅ 跨平台兼容
 - **描述**: 启动React Web应用开发服务器
 - **端口**: 3000
 - **特性**: 热重载、开发工具
+- **✨ 新特性**: 使用VSCode包管理器检测，支持npm/yarn/pnpm
 
-#### 4. 启动 React Web (生产模式)
+#### 4. 启动 React Web (生产模式) ✅ 跨平台兼容
 - **描述**: 构建并启动React Web应用生产版本
 - **端口**: 3000
 - **特性**: 优化构建、无源码映射
+- **✨ 新特性**: 使用VSCode包管理器检测，支持npm/yarn/pnpm
 
 #### 5. 启动 React Native Metro ✅ 跨平台兼容
 - **描述**: 启动React Native Metro bundler
 - **端口**: 8081 (Metro默认端口)
 - **注意**: 与Go API端口冲突，建议单独使用
-- **✨ 新特性**: 支持Windows/macOS/Linux跨平台
+- **✨ 新特性**: 使用VSCode包管理器检测，修复Windows PowerShell兼容性
 
 #### 6. 启动 React Native Android ✅ 跨平台兼容
 - **描述**: 启动React Native Android应用
 - **依赖**: 需要先启动Metro bundler
 - **要求**: Android SDK和模拟器/真机
-- **✨ 新特性**: 支持Windows/macOS/Linux跨平台
+- **✨ 新特性**: 使用VSCode包管理器检测，支持Windows/macOS/Linux
 
 #### 7. 启动 React Native iOS ✅ 跨平台兼容
 - **描述**: 启动React Native iOS应用
 - **依赖**: 需要先启动Metro bundler
 - **要求**: macOS、Xcode、模拟器/真机
-- **✨ 新特性**: 支持跨平台配置，但iOS只能在macOS上运行
-
-#### 8. 启动 React Native Metro (Windows CMD) 🆕 Windows专用
-- **描述**: 使用Windows CMD启动Metro bundler
-- **适用**: Windows系统，当默认任务失败时使用
-- **命令**: `cmd /c npm start`
-
-#### 9. 启动 React Native Metro (PowerShell) 🆕 Windows专用
-- **描述**: 使用PowerShell启动Metro bundler
-- **适用**: Windows系统，PowerShell环境
-- **命令**: `powershell -Command npm start`
-
-#### 10. 检查 React Native 环境 🆕 诊断工具
-- **描述**: 检查React Native开发环境配置
-- **命令**: `npx react-native doctor`
-- **用途**: 诊断环境问题
-
-#### 11. 清理 React Native 缓存 🆕 维护工具
-- **描述**: 清理Metro缓存并重启
-- **命令**: `npm run start:reset`
-- **用途**: 解决缓存问题
+- **✨ 新特性**: 使用VSCode包管理器检测，但iOS开发仍需要macOS
 
 ---
 
@@ -86,6 +70,26 @@
 
 ---
 
+## 🌍 跨平台兼容性改进 ✨
+
+### 主要改进
+1. **VSCode命令变量**: 使用 `${command:nodejs.packageManager}` 和 `${command:python.interpreterPath}` 替代硬编码命令
+2. **包管理器检测**: 自动检测npm/yarn/pnpm，无需手动指定
+3. **Python解释器**: 自动使用VSCode配置的Python解释器路径
+4. **Shell配置**: 添加shell配置确保跨平台兼容性
+
+### 支持的平台
+- ✅ **Windows**: PowerShell, Command Prompt, Git Bash
+- ✅ **macOS**: Terminal, iTerm2
+- ✅ **Linux**: Bash, Zsh
+
+### 环境要求
+- **Node.js**: 18+ (自动检测包管理器)
+- **Python**: 3.8+ (自动检测解释器路径)
+- **Go**: 1.22+ (标准安装)
+
+---
+
 ## 🎯 如何使用
 
 ### 方法1: 命令面板 (推荐)
@@ -100,36 +104,6 @@
 ### 方法3: 终端菜单
 1. 点击菜单栏 `Terminal` → `Run Task...`
 2. 选择要运行的任务
-
----
-
-## 🌐 跨平台兼容性
-
-### Windows系统
-- **默认Shell**: PowerShell
-- **React Native**: 如果默认任务失败，使用Windows专用任务
-- **推荐任务**:
-  - `启动 React Native Metro (Windows CMD)` - 使用CMD
-  - `启动 React Native Metro (PowerShell)` - 使用PowerShell
-- **环境变量**: 确保`ANDROID_HOME`等环境变量正确设置
-
-### macOS系统
-- **默认Shell**: Bash/Zsh
-- **React Native**: 支持所有任务
-- **iOS开发**: 需要Xcode和iOS模拟器
-- **推荐任务**: 使用默认的跨平台任务
-
-### Linux系统
-- **默认Shell**: Bash
-- **React Native**: 支持所有任务
-- **Android开发**: 需要Android SDK
-- **推荐任务**: 使用默认的跨平台任务
-
-### 平台特定问题解决
-1. **Windows PowerShell问题**: 使用CMD版本的任务
-2. **权限问题**: 确保有足够的文件系统权限
-3. **环境变量**: 检查`PATH`、`ANDROID_HOME`等环境变量
-4. **Node.js版本**: 确保使用Node.js 18+版本
 
 ---
 
@@ -206,14 +180,29 @@
 **问题**: `SERVER_PORT=8081 go run cmd/server/main.go` 在Windows PowerShell中报错
 **解决方案**: 已更新tasks.json使用VSCode的env配置，现在支持跨平台
 
-### Q2: 任务无法启动
+### Q2: React Native任务失败 ✅ 已修复
+**问题**: `'react-scripts' 不是内部或外部命令` 错误
+**原因**: React Native项目使用 `react-native` 命令，不是 `react-scripts`
+**解决方案**: 
+- 已更新所有React Native任务使用 `${command:nodejs.packageManager}`
+- 自动检测npm/yarn/pnpm包管理器
+- 修复Windows PowerShell兼容性问题
+
+### Q3: Python命令找不到 ✅ 已修复
+**问题**: `python3` 在Windows上找不到，或 `command 'python.interpreterPath' not found` 错误
+**解决方案**: 
+- 跨平台版本：使用简单的 `python` 命令
+- Windows专用版本：如果跨平台版本失败，使用"启动 AKTools 服务 (Windows专用)"任务
+- 确保Python已安装并在PATH中：`python --version`
+
+### Q4: 任务无法启动
 **A**: 检查依赖是否安装
 - Go: `go version`
-- Python: `python3 --version`
+- Python: `python --version` 或 `python3 --version`
 - Node.js: `node --version`
 - npm: `npm --version`
 
-### Q3: 端口被占用
+### Q5: 端口被占用
 **A**: 检查并关闭占用端口的进程
 ```bash
 # macOS/Linux
@@ -221,11 +210,16 @@ lsof -i :8080
 lsof -i :8081
 lsof -i :3000
 
-# 关闭进程
-kill -9 <PID>
+# Windows
+netstat -ano | findstr :8080
+netstat -ano | findstr :8081
+netstat -ano | findstr :3000
+
+# 关闭进程 (Windows)
+taskkill /PID <PID> /F
 ```
 
-### Q4: Metro和Go API端口冲突
+### Q6: Metro和Go API端口冲突
 **A**: 两种解决方案：
 1. **推荐**: 修改Go API端口（已在tasks中配置为8081）
 2. 修改Metro端口：
@@ -234,16 +228,13 @@ kill -9 <PID>
    npm start -- --port 8082
    ```
 
-### Q5: React Native任务失败 ✅ 已修复跨平台问题
-**A**: 检查依赖和环境
-- **Windows用户**: 如果默认任务失败，尝试使用"启动 React Native Metro (Windows CMD)"或"启动 React Native Metro (PowerShell)"
-- **Android**: 确保Android SDK已安装，`ANDROID_HOME`环境变量已设置
-- **iOS**: 确保在macOS上运行，Xcode已安装
-- **Metro**: 先手动运行 `npm start` 确保没有错误
-- **环境检查**: 使用"检查 React Native 环境"任务诊断问题
-- **缓存问题**: 使用"清理 React Native 缓存"任务解决缓存相关错误
+### Q7: React Native任务失败
+**A**: 检查依赖
+- Android: 确保Android SDK已安装，`ANDROID_HOME`环境变量已设置
+- iOS: 确保在macOS上运行，Xcode已安装
+- Metro: 先手动运行 `npm start` 确保没有错误
 
-### Q6: 组合任务部分失败
+### Q8: 组合任务部分失败
 **A**: 
 - 组合任务会按顺序启动，如果某个任务失败，后续任务也会失败
 - 可以单独运行失败的任务进行调试
