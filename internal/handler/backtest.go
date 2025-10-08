@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -562,11 +563,11 @@ func (h *BacktestHandler) validateCreateBacktestRequest(req *models.CreateBackte
 	}
 
 	if req.Commission < 0 || req.Commission > 0.01 {
-		return fmt.Errorf("手续费率必须在0-1%之间")
+		return errors.New("手续费率必须在0-1%之间")
 	}
 
 	if req.Slippage < 0 || req.Slippage > 0.01 {
-		return fmt.Errorf("滑点必须在0-1%之间")
+		return errors.New("滑点必须在0-1%之间")
 	}
 
 	return nil
