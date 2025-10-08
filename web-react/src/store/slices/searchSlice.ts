@@ -139,6 +139,11 @@ const searchSlice = createSlice({
       state.history = [];
     },
     
+    // 设置最近查看列表（从后端获取）
+    setRecentlyViewed: (state, action: PayloadAction<StockBasic[]>) => {
+      state.recentlyViewed = action.payload;
+    },
+    
     // 清除最近查看
     clearRecentlyViewed: (state) => {
       state.recentlyViewed = [];
@@ -154,6 +159,7 @@ export const {
   clearSearchResults,
   addSearchHistory,
   addRecentlyViewed,
+  setRecentlyViewed,
   clearSearchHistory,
   clearRecentlyViewed,
 } = searchSlice.actions;

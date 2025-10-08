@@ -720,3 +720,26 @@ type FundamentalFactor struct {
 
 	UpdatedAt time.Time `json:"updated_at"` // 更新时间
 }
+
+// ===== 最近查看数据结构 =====
+
+// RecentView 最近查看记录
+type RecentView struct {
+	ID        string    `json:"id"`         // 唯一标识
+	TSCode    string    `json:"ts_code"`    // 股票代码
+	Name      string    `json:"name"`       // 股票名称
+	Symbol    string    `json:"symbol"`     // 股票简称
+	Market    string    `json:"market"`     // 市场类型
+	ViewedAt  time.Time `json:"viewed_at"`  // 查看时间
+	ExpiresAt time.Time `json:"expires_at"` // 过期时间
+	CreatedAt time.Time `json:"created_at"` // 创建时间
+	UpdatedAt time.Time `json:"updated_at"` // 更新时间
+}
+
+// AddRecentViewRequest 添加最近查看请求
+type AddRecentViewRequest struct {
+	TSCode string `json:"ts_code"` // 股票代码
+	Name   string `json:"name"`    // 股票名称
+	Symbol string `json:"symbol"`  // 股票简称
+	Market string `json:"market"`  // 市场类型
+}

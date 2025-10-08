@@ -119,6 +119,21 @@ func (s *DatabaseService) initTables() error {
 		UNIQUE(ts_code, trade_date)         -- 每个股票每天只有一个信号记录
 	);`
 
+	// 创建最近查看表
+	createRecentViewsTable := `
+	CREATE TABLE IF NOT EXISTS recent_views (
+		id TEXT PRIMARY KEY,
+		ts_code TEXT NOT NULL,
+		name TEXT NOT NULL,
+		symbol TEXT,
+		market TEXT,
+		viewed_at DATETIME NOT NULL,
+		expires_at DATETIME NOT NULL,
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL,
+		UNIQUE(ts_code)
+	);`
+
 	// 创建索引
 	createIndexes := []string{
 		// 收藏股票索引
@@ -133,10 +148,15 @@ func (s *DatabaseService) initTables() error {
 		"CREATE INDEX IF NOT EXISTS idx_stock_signals_signal_date ON stock_signals(signal_date);",
 		"CREATE INDEX IF NOT EXISTS idx_stock_signals_signal_type ON stock_signals(signal_type);",
 		"CREATE INDEX IF NOT EXISTS idx_stock_signals_ts_code_trade_date ON stock_signals(ts_code, trade_date);",
+
+		// 最近查看索引
+		"CREATE INDEX IF NOT EXISTS idx_recent_views_ts_code ON recent_views(ts_code);",
+		"CREATE INDEX IF NOT EXISTS idx_recent_views_viewed_at ON recent_views(viewed_at DESC);",
+		"CREATE INDEX IF NOT EXISTS idx_recent_views_expires_at ON recent_views(expires_at);",
 	}
 
 	// 执行建表语句
-	statements := append([]string{createGroupsTable, createStocksTable, createSignalsTable}, createIndexes...)
+	statements := append([]string{createGroupsTable, createStocksTable, createSignalsTable, createRecentViewsTable}, createIndexes...)
 
 	for _, stmt := range statements {
 		if _, err := s.db.Exec(stmt); err != nil {

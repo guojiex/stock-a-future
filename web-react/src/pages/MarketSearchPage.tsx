@@ -33,7 +33,13 @@ import {
   History as HistoryIcon,
 } from '@mui/icons-material';
 
-import { useGetStockListQuery, useGetHealthStatusQuery, useLazySearchStocksQuery } from '../services/api';
+import { 
+  useGetStockListQuery, 
+  useGetHealthStatusQuery, 
+  useLazySearchStocksQuery,
+  useGetRecentViewsQuery,
+  useAddRecentViewMutation,
+} from '../services/api';
 import { useAppDispatch, useAppSelector } from '../hooks/redux';
 import { setConnectionStatus } from '../store/slices/appSlice';
 import {
@@ -41,6 +47,7 @@ import {
   setSearchResults,
   addSearchHistory,
   addRecentlyViewed,
+  setRecentlyViewed,
 } from '../store/slices/searchSlice';
 import { StockBasic } from '../types/stock';
 
@@ -78,6 +85,19 @@ const MarketSearchPage: React.FC = () => {
   } = useGetStockListQuery();
   
   const [searchStocks, { isLoading: isSearchLoading }] = useLazySearchStocksQuery();
+  
+  // 获取最近查看列表
+  const { data: recentViewsData } = useGetRecentViewsQuery({ limit: 20 });
+  
+  // 添加最近查看的mutation
+  const [addRecentViewMutation] = useAddRecentViewMutation();
+  
+  // 从API获取最近查看数据并更新Redux状态
+  useEffect(() => {
+    if (recentViewsData?.success && recentViewsData?.data?.views) {
+      dispatch(setRecentlyViewed(recentViewsData.data.views));
+    }
+  }, [recentViewsData, dispatch]);
   
   // 监听健康状态
   useEffect(() => {
@@ -167,7 +187,7 @@ const MarketSearchPage: React.FC = () => {
   };
   
   // 处理股票点击
-  const handleStockClick = (stock: StockBasic) => {
+  const handleStockClick = async (stock: StockBasic) => {
     // 添加到搜索历史
     if (searchInput.trim()) {
       dispatch(addSearchHistory({
@@ -177,8 +197,21 @@ const MarketSearchPage: React.FC = () => {
       }));
     }
     
-    // 添加到最近查看
+    // 添加到Redux本地状态（立即更新UI）
     dispatch(addRecentlyViewed(stock));
+    
+    // 异步保存到后端数据库
+    try {
+      await addRecentViewMutation({
+        ts_code: stock.ts_code,
+        name: stock.name,
+        symbol: stock.symbol,
+        market: stock.market,
+      }).unwrap();
+    } catch (error) {
+      console.error('保存最近查看记录失败:', error);
+      // 不影响用户体验，静默失败
+    }
     
     // 导航到股票详情页面
     navigate(`/stock/${stock.ts_code}`);

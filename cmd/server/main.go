@@ -13,6 +13,7 @@ import (
 	"stock-a-future/internal/service"
 	"strings"
 	"syscall"
+	"time"
 )
 
 // 日志相关配置
@@ -140,6 +141,14 @@ func main() {
 		logger.Fatal("创建数据库服务失败", logger.ErrorField(err))
 	}
 
+	// 创建最近查看服务
+	recentViewService := service.NewRecentViewService(databaseService.GetDB())
+	logger.Info("✓ 最近查看服务已创建")
+
+	// 启动自动清理过期记录任务（每小时执行一次）
+	recentViewService.StartAutoCleanup(1 * time.Hour)
+	logger.Info("✓ 最近查看自动清理任务已启动")
+
 	// 创建数据清理服务
 	var cleanupService *service.CleanupService
 	if cfg.CleanupEnabled {
@@ -194,7 +203,7 @@ func main() {
 	logger.Info("✓ 回测服务已创建")
 
 	// 创建处理器
-	stockHandler := handler.NewStockHandler(dataSourceClient, cacheService, favoriteService, app)
+	stockHandler := handler.NewStockHandler(dataSourceClient, cacheService, favoriteService, recentViewService, app)
 	patternHandler := handler.NewPatternHandler(patternService)
 	signalHandler := handler.NewSignalHandler(signalService)
 	strategyHandler := handler.NewStrategyHandler(strategyService, logger.GetGlobalLogger())
@@ -240,6 +249,8 @@ func main() {
 	logger.Info("  添加收藏: POST http://" + addr + "/api/v1/favorites")
 	logger.Info("  删除收藏: DELETE http://" + addr + "/api/v1/favorites/{id}")
 	logger.Info("  检查收藏: GET http://" + addr + "/api/v1/favorites/check/{code}")
+	logger.Info("  最近查看: GET http://" + addr + "/api/v1/recent-views")
+	logger.Info("  添加查看: POST http://" + addr + "/api/v1/recent-views")
 	logger.Info("  图形识别: GET http://" + addr + "/api/v1/patterns/recognize?ts_code=000001.SZ")
 	logger.Info("  图形搜索: POST http://" + addr + "/api/v1/patterns/search")
 	logger.Info("  图形摘要: GET http://" + addr + "/api/v1/patterns/summary?ts_code=000001.SZ")
@@ -349,6 +360,13 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patt
 	mux.HandleFunc("POST /api/v1/groups", stockHandler.CreateGroup)
 	mux.HandleFunc("PUT /api/v1/groups/{id}", stockHandler.UpdateGroup)
 	mux.HandleFunc("DELETE /api/v1/groups/{id}", stockHandler.DeleteGroup)
+
+	// 最近查看API
+	mux.HandleFunc("GET /api/v1/recent-views", stockHandler.GetRecentViews)
+	mux.HandleFunc("POST /api/v1/recent-views", stockHandler.AddRecentView)
+	mux.HandleFunc("DELETE /api/v1/recent-views/{code}", stockHandler.DeleteRecentView)
+	mux.HandleFunc("POST /api/v1/recent-views/cleanup", stockHandler.ClearExpiredRecentViews)
+	mux.HandleFunc("DELETE /api/v1/recent-views", stockHandler.ClearAllRecentViews)
 
 	// 图形识别API
 	mux.HandleFunc("GET /api/v1/patterns/recognize", patternHandler.RecognizePatterns)

@@ -44,7 +44,8 @@ export const stockApi = createApi({
     'Predictions',
     'Favorites',
     'FavoriteGroups',
-    'Signals'
+    'Signals',
+    'RecentViews'
   ],
   endpoints: (builder) => ({
     // ===== 健康检查 =====
@@ -206,6 +207,59 @@ export const stockApi = createApi({
       }),
       invalidatesTags: ['Stock', 'StockBasic'],
     }),
+
+    // ===== 最近查看 =====
+    getRecentViews: builder.query<ApiResponse<{total: number, views: StockBasic[]}>, {
+      limit?: number;
+      includeExpired?: boolean;
+    }>({
+      query: ({ limit = 20, includeExpired = false }) => {
+        const params = new URLSearchParams({
+          limit: limit.toString(),
+          include_expired: includeExpired.toString(),
+        });
+        return `recent-views?${params.toString()}`;
+      },
+      providesTags: ['RecentViews'],
+    }),
+
+    addRecentView: builder.mutation<ApiResponse, {
+      ts_code: string;
+      name: string;
+      symbol?: string;
+      market?: string;
+    }>({
+      query: (view) => ({
+        url: 'recent-views',
+        method: 'POST',
+        body: view,
+      }),
+      invalidatesTags: ['RecentViews'],
+    }),
+
+    deleteRecentView: builder.mutation<ApiResponse, string>({
+      query: (tsCode) => ({
+        url: `recent-views/${tsCode}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['RecentViews'],
+    }),
+
+    clearExpiredRecentViews: builder.mutation<ApiResponse, void>({
+      query: () => ({
+        url: 'recent-views/cleanup',
+        method: 'POST',
+      }),
+      invalidatesTags: ['RecentViews'],
+    }),
+
+    clearAllRecentViews: builder.mutation<ApiResponse, void>({
+      query: () => ({
+        url: 'recent-views',
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['RecentViews'],
+    }),
   }),
 });
 
@@ -254,6 +308,13 @@ export const {
   
   // 数据刷新
   useRefreshLocalDataMutation,
+  
+  // 最近查看
+  useGetRecentViewsQuery,
+  useAddRecentViewMutation,
+  useDeleteRecentViewMutation,
+  useClearExpiredRecentViewsMutation,
+  useClearAllRecentViewsMutation,
 } = stockApi;
 
 // 导出API实例
