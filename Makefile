@@ -104,6 +104,16 @@ dev:
 	@echo "开发模式启动..."
 	$(GOCMD) run $(MAIN_PATH)
 
+# 使用环境变量运行（开发模式，端口8081）
+dev-8081:
+	@echo "开发模式启动（端口8081）..."
+	@export SERVER_PORT=8081; $(GOCMD) run $(MAIN_PATH)
+
+# Windows PowerShell运行（端口8081）
+dev-win:
+	@echo "Windows PowerShell启动（端口8081）..."
+	@powershell -Command "$$env:SERVER_PORT='8081'; go run cmd/server/main.go"
+
 # 格式化代码
 fmt:
 	@echo "格式化代码..."
@@ -259,6 +269,8 @@ help:
 	@echo "  make deps        - 下载依赖"
 	@echo "  make run         - 构建并运行"
 	@echo "  make dev         - 开发模式运行"
+	@echo "  make dev-8081    - 开发模式运行（端口8081）"
+	@echo "  make dev-win     - Windows PowerShell开发模式运行（端口8081）"
 	@echo ""
 	@echo "代码质量检查:"
 	@echo "  make fmt         - 格式化代码"

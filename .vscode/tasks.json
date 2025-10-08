@@ -4,7 +4,8 @@
         {
             "label": "启动 Go API 服务器 (端口8081)",
             "type": "shell",
-            "command": "SERVER_PORT=8081 go run cmd/server/main.go",
+            "command": "go",
+            "args": ["run", "cmd/server/main.go"],
             "group": {
                 "kind": "build",
                 "isDefault": false
@@ -19,7 +20,10 @@
             },
             "problemMatcher": [],
             "options": {
-                "cwd": "${workspaceFolder}"
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "SERVER_PORT": "8081"
+                }
             },
             "detail": "启动Go API服务器在8081端口"
         },
@@ -100,7 +104,7 @@
             "options": {
                 "cwd": "${workspaceFolder}/mobile"
             },
-            "detail": "启动React Native Metro bundler"
+            "detail": "启动React Native Metro bundler (跨平台兼容)"
         },
         {
             "label": "启动 React Native Android",
@@ -120,7 +124,7 @@
             "options": {
                 "cwd": "${workspaceFolder}/mobile"
             },
-            "detail": "启动React Native Android应用 (开发模式)",
+            "detail": "启动React Native Android应用 (开发模式，跨平台兼容)",
             "dependsOn": ["启动 React Native Metro"]
         },
         {
@@ -141,8 +145,88 @@
             "options": {
                 "cwd": "${workspaceFolder}/mobile"
             },
-            "detail": "启动React Native iOS应用 (开发模式，需要macOS)",
+            "detail": "启动React Native iOS应用 (开发模式，需要macOS，跨平台兼容)",
             "dependsOn": ["启动 React Native Metro"]
+        },
+        {
+            "label": "启动 React Native Metro (Windows CMD)",
+            "type": "shell",
+            "command": "cmd",
+            "args": ["/c", "npm", "start"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/mobile"
+            },
+            "detail": "启动React Native Metro bundler (Windows CMD专用)"
+        },
+        {
+            "label": "启动 React Native Metro (PowerShell)",
+            "type": "shell",
+            "command": "powershell",
+            "args": ["-Command", "npm", "start"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/mobile"
+            },
+            "detail": "启动React Native Metro bundler (PowerShell专用)"
+        },
+        {
+            "label": "检查 React Native 环境",
+            "type": "shell",
+            "command": "npx",
+            "args": ["react-native", "doctor"],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/mobile"
+            },
+            "detail": "检查React Native开发环境配置"
+        },
+        {
+            "label": "清理 React Native 缓存",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "start:reset"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/mobile"
+            },
+            "detail": "清理React Native Metro缓存并重启"
         },
         {
             "label": "🚀 启动完整开发环境",
