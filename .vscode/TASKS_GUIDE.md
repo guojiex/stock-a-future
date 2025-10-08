@@ -195,14 +195,23 @@
 - Windows专用版本：如果跨平台版本失败，使用"启动 AKTools 服务 (Windows专用)"任务
 - 确保Python已安装并在PATH中：`python --version`
 
-### Q4: 任务无法启动
+### Q4: React项目启动失败 ✅ 已修复
+**问题**: `'react-scripts' 不是内部或外部命令` 或类似错误
+**原因**: Node.js项目依赖未安装
+**解决方案**: 
+- **web-react项目**: 在 `web-react` 目录运行 `npm install`
+- **mobile项目**: 在 `mobile` 目录运行 `npm install`
+- 确保在正确的目录下安装依赖
+
+### Q5: 任务无法启动
 **A**: 检查依赖是否安装
 - Go: `go version`
 - Python: `python --version` 或 `python3 --version`
 - Node.js: `node --version`
 - npm: `npm --version`
+- React项目依赖: 确保在项目目录下运行了 `npm install`
 
-### Q5: 端口被占用
+### Q6: 端口被占用
 **A**: 检查并关闭占用端口的进程
 ```bash
 # macOS/Linux
@@ -219,7 +228,7 @@ netstat -ano | findstr :3000
 taskkill /PID <PID> /F
 ```
 
-### Q6: Metro和Go API端口冲突
+### Q7: Metro和Go API端口冲突
 **A**: 两种解决方案：
 1. **推荐**: 修改Go API端口（已在tasks中配置为8081）
 2. 修改Metro端口：
@@ -228,13 +237,13 @@ taskkill /PID <PID> /F
    npm start -- --port 8082
    ```
 
-### Q7: React Native任务失败
+### Q8: React Native任务失败
 **A**: 检查依赖
 - Android: 确保Android SDK已安装，`ANDROID_HOME`环境变量已设置
 - iOS: 确保在macOS上运行，Xcode已安装
 - Metro: 先手动运行 `npm start` 确保没有错误
 
-### Q8: 组合任务部分失败
+### Q9: 组合任务部分失败
 **A**: 
 - 组合任务会按顺序启动，如果某个任务失败，后续任务也会失败
 - 可以单独运行失败的任务进行调试
