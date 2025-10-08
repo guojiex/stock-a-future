@@ -546,20 +546,20 @@ func (h *BacktestHandler) validateCreateBacktestRequest(req *models.CreateBackte
 	}
 
 	if !startDate.Before(endDate) {
-		return fmt.Errorf("开始日期必须早于结束日期")
+		return errors.New("开始日期必须早于结束日期")
 	}
 
 	// 验证回测时间范围（不能超过5年）
 	if endDate.Sub(startDate).Hours() > 24*365*5 {
-		return fmt.Errorf("回测时间范围不能超过5年")
+		return errors.New("回测时间范围不能超过5年")
 	}
 
 	if req.InitialCash < 10000 {
-		return fmt.Errorf("初始资金不能少于10000元")
+		return errors.New("初始资金不能少于10000元")
 	}
 
 	if req.InitialCash > 100000000 { // 1亿
-		return fmt.Errorf("初始资金不能超过1亿元")
+		return errors.New("初始资金不能超过1亿元")
 	}
 
 	if req.Commission < 0 || req.Commission > 0.01 {
