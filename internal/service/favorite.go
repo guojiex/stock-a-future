@@ -304,8 +304,8 @@ func (s *FavoriteService) saveFavoriteToDB(favorite *models.FavoriteStock) error
 
 // sortFavorites 对收藏股票进行排序
 func sortFavorites(favorites []*models.FavoriteStock) {
-	// 按照分组ID和排序顺序进行排序
-	// 首先按分组ID排序，然后按sort_order排序
+	// 按照分组ID和创建时间进行排序
+	// 首先按分组ID排序，然后按创建时间降序排序(最新的在前面)
 	for i := 0; i < len(favorites)-1; i++ {
 		for j := i + 1; j < len(favorites); j++ {
 			if shouldSwap(favorites[i], favorites[j]) {
@@ -322,13 +322,9 @@ func shouldSwap(a, b *models.FavoriteStock) bool {
 		return a.GroupID > b.GroupID
 	}
 
-	// 分组ID相同时，按排序顺序排序
-	if a.SortOrder != b.SortOrder {
-		return a.SortOrder > b.SortOrder
-	}
-
-	// 排序顺序相同时，按创建时间排序
-	return a.CreatedAt.After(b.CreatedAt)
+	// 分组ID相同时，按创建时间降序排序(最新的排在前面)
+	// 如果a的创建时间早于b，则需要交换，让b排在前面
+	return a.CreatedAt.Before(b.CreatedAt)
 }
 
 // updateFavoriteInDB 更新数据库中的收藏
