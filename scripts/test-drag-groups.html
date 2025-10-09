@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拖拽分组功能测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .test-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2563eb;
+            margin-bottom: 10px;
+        }
+        
+        h2 {
+            color: #1e40af;
+            font-size: 1.3rem;
+            margin-top: 0;
+        }
+        
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .checklist li {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f9fafb;
+            border-left: 4px solid #e5e7eb;
+            border-radius: 4px;
+        }
+        
+        .checklist li:hover {
+            background: #eff6ff;
+            border-left-color: #3b82f6;
+        }
+        
+        .feature-box {
+            background: linear-gradient(135deg, #eff6ff, #dbeafe);
+            border: 1px solid #93c5fd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        .feature-box strong {
+            color: #1e40af;
+        }
+        
+        .emoji {
+            font-size: 1.5rem;
+            margin-right: 10px;
+        }
+        
+        code {
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #dc2626;
+        }
+        
+        .success {
+            color: #16a34a;
+            font-weight: 600;
+        }
+        
+        .warning {
+            color: #ea580c;
+            font-weight: 600;
+        }
+        
+        .steps {
+            counter-reset: step-counter;
+            list-style: none;
+            padding: 0;
+        }
+        
+        .steps li {
+            counter-increment: step-counter;
+            position: relative;
+            padding: 10px 10px 10px 40px;
+            margin: 10px 0;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+        }
+        
+        .steps li::before {
+            content: counter(step-counter);
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 24px;
+            background: #3b82f6;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎯 收藏分组拖拽功能测试指南</h1>
+    
+    <div class="test-section">
+        <h2>📋 问题说明</h2>
+        <p><span class="emoji">❓</span><strong>用户反馈：</strong>分组里面的股票不能拖动到其他分组里面去</p>
+        
+        <div class="feature-box">
+            <strong>根本原因：</strong>非激活的分组内容区域使用了 <code>display: none</code> 隐藏，
+            导致这些区域无法接收拖拽事件（drag & drop events）。
+        </div>
+        
+        <div class="feature-box">
+            <span class="emoji">✅</span>
+            <strong>解决方案：</strong>将股票拖拽到<strong>分组标签页（Tab）</strong>上，而不是拖拽到分组内容区域。
+            分组标签页始终可见，因此可以正常接收拖拽事件。
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>🚀 新增功能</h2>
+        <ul class="checklist">
+            <li>✅ 支持拖拽股票到分组标签页进行跨分组移动</li>
+            <li>✅ 改进拖拽视觉反馈（拖拽中的样式 + 目标高亮）</li>
+            <li>✅ 添加脉冲边框动画提示目标分组</li>
+            <li>✅ 显示用户提示横幅（当有多个分组时）</li>
+            <li>✅ 改进拖拽手柄的提示文本</li>
+            <li>✅ 优化空分组提示文案</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>🧪 测试步骤</h2>
+        
+        <h3>准备工作</h3>
+        <ol class="steps">
+            <li>启动股票分析系统</li>
+            <li>打开浏览器访问系统</li>
+            <li>创建至少 <strong>2个分组</strong></li>
+            <li>在不同分组中添加若干收藏股票</li>
+        </ol>
+        
+        <h3>测试场景 1：跨分组移动</h3>
+        <ol class="steps">
+            <li>找到任意一个股票项，鼠标悬停显示拖拽手柄（⋮⋮）</li>
+            <li>按住鼠标左键拖拽该股票</li>
+            <li>观察：股票项应该显示虚线边框和半透明效果</li>
+            <li>将鼠标移动到<strong>其他分组的标签页</strong>上</li>
+            <li>观察：目标标签页应该高亮（蓝色渐变 + 脉冲动画）</li>
+            <li>松开鼠标</li>
+            <li>验证：股票是否成功移动到目标分组</li>
+        </ol>
+        
+        <h3>测试场景 2：分组内排序</h3>
+        <ol class="steps">
+            <li>在同一个分组中，拖拽一个股票</li>
+            <li>将其放置到另一个股票项上</li>
+            <li>验证：排序是否发生变化</li>
+        </ol>
+        
+        <h3>测试场景 3：拖拽到空分组</h3>
+        <ol class="steps">
+            <li>创建一个新的空分组</li>
+            <li>拖拽任意股票到该空分组的标签页</li>
+            <li>验证：股票是否成功添加到空分组中</li>
+        </ol>
+        
+        <h3>测试场景 4：用户提示</h3>
+        <ol class="steps">
+            <li>检查收藏列表顶部是否显示提示横幅</li>
+            <li>鼠标悬停在拖拽手柄上，检查提示文本</li>
+            <li>查看空分组的提示信息</li>
+        </ol>
+    </div>
+    
+    <div class="test-section">
+        <h2>✨ 视觉效果验证</h2>
+        <ul class="checklist">
+            <li><strong>拖拽手柄：</strong>默认半透明，悬停时完全不透明并变为蓝色</li>
+            <li><strong>拖拽中：</strong>股票项半透明 + 虚线边框 + 缩小效果</li>
+            <li><strong>目标高亮：</strong>分组标签页蓝色渐变 + 放大 + 脉冲边框动画</li>
+            <li><strong>提示横幅：</strong>蓝色渐变背景，包含清晰的使用说明</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>📝 检查清单</h2>
+        <ul class="checklist">
+            <li>[ ] 能否正常拖拽股票到其他分组的标签页</li>
+            <li>[ ] 拖拽过程中视觉反馈是否清晰</li>
+            <li>[ ] 分组标签页高亮效果是否明显</li>
+            <li>[ ] 松开鼠标后是否成功移动</li>
+            <li>[ ] 是否显示成功提示消息</li>
+            <li>[ ] 列表是否自动刷新</li>
+            <li>[ ] 分组内排序是否正常工作</li>
+            <li>[ ] 拖拽到空分组是否正常工作</li>
+            <li>[ ] 所有提示信息是否显示正确</li>
+            <li>[ ] 在不同浏览器中测试（Chrome、Firefox、Edge）</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>⚠️ 已知限制</h2>
+        <ul class="checklist">
+            <li class="warning">移动端浏览器暂不支持拖拽功能（触摸拖拽需要额外开发）</li>
+            <li class="warning">无法直接拖拽到隐藏的分组内容区域（技术限制）</li>
+            <li class="warning">必须拖拽到分组标签页才能跨分组移动</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>🎉 预期结果</h2>
+        <p class="success">✅ 用户能够通过拖拽股票到分组标签页，轻松实现跨分组移动</p>
+        <p class="success">✅ 视觉反馈清晰，用户知道如何操作和当前状态</p>
+        <p class="success">✅ 操作流畅，没有明显的延迟或卡顿</p>
+    </div>
+    
+    <div class="test-section">
+        <h2>📚 相关文档</h2>
+        <ul>
+            <li>详细文档：<code>docs/features/DRAG_AND_DROP_GROUPS.md</code></li>
+            <li>JavaScript实现：<code>web/static/js/modules/favorites.js</code></li>
+            <li>CSS样式：<code>web/static/styles.css</code></li>
+        </ul>
+    </div>
+</body>
+</html>
+

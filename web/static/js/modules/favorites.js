@@ -348,17 +348,27 @@ class FavoritesModule {
         // 按分组整理收藏
         const favoritesByGroup = this.groupFavorites();
         
+        // 按分组排序渲染所有分组tab
+        const sortedGroups = [...this.groups].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+        
         // 渲染分组tab和收藏列表
         let listHTML = '';
+        
+        // 添加拖拽提示横幅（仅当有多个分组时显示）
+        if (sortedGroups.length > 1) {
+            listHTML += `
+                <div class="drag-tip-banner">
+                    <span class="tip-icon">💡</span>
+                    <span class="tip-text">提示：拖拽股票到<strong>分组标签页</strong>可以移动到其他分组</span>
+                </div>
+            `;
+        }
         
         // 分组tab导航
         listHTML += `
             <div class="group-tabs-container">
                 <div class="group-tabs">
         `;
-        
-        // 按分组排序渲染所有分组tab
-        const sortedGroups = [...this.groups].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
         
         // 如果当前分组不存在，设置为第一个分组
         if (sortedGroups.length > 0 && !sortedGroups.find(g => g.id === this.currentGroupId)) {
@@ -413,7 +423,7 @@ class FavoritesModule {
                     
                     listHTML += `
                         <div class="favorite-item" data-favorite-id="${favorite.id}" data-stock-code="${favorite.ts_code}" data-group-id="${favorite.group_id || 'default'}" draggable="true">
-                            <div class="drag-handle" title="拖拽排序">⋮⋮</div>
+                            <div class="drag-handle" title="拖拽到其他股票上进行排序，或拖拽到分组标签页进行分组">⋮⋮</div>
                             <div class="favorite-info">
                                 <div class="favorite-stock">
                                     <span class="stock-name">${favorite.name}</span>
@@ -440,7 +450,7 @@ class FavoritesModule {
                 listHTML += `
                     <div class="empty-group-hint">
                         <p>该分组暂无收藏股票</p>
-                        <p>可以拖拽其他收藏到这里进行分组</p>
+                        <p>💡 提示：拖拽股票到上方的 <strong>分组标签页</strong> 即可移动到该分组</p>
                     </div>
                 `;
             }
@@ -635,12 +645,19 @@ class FavoritesModule {
                     stockCode: item.dataset.stockCode
                 };
                 
-                e.target.style.opacity = '0.5';
+                e.target.classList.add('dragging');
                 e.dataTransfer.effectAllowed = 'move';
+                
+                // 设置拖拽时的提示文本
+                e.dataTransfer.setData('text/plain', '拖拽到分组标签页以移动到其他分组');
             });
 
             item.addEventListener('dragend', (e) => {
-                e.target.style.opacity = '1';
+                e.target.classList.remove('dragging');
+                // 移除所有拖拽高亮
+                document.querySelectorAll('.group-tab').forEach(tab => {
+                    tab.classList.remove('drag-over');
+                });
                 draggedElement = null;
                 draggedData = null;
             });
@@ -672,13 +689,22 @@ class FavoritesModule {
             tab.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
+                
                 // 高亮显示可放置的tab
-                tab.classList.add('drag-over');
+                if (draggedData && tab.dataset.groupId !== draggedData.groupId) {
+                    tab.classList.add('drag-over');
+                }
             });
 
             tab.addEventListener('dragleave', (e) => {
-                // 移除高亮
-                tab.classList.remove('drag-over');
+                // 只在真正离开tab时移除高亮
+                const rect = tab.getBoundingClientRect();
+                const x = e.clientX;
+                const y = e.clientY;
+                
+                if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+                    tab.classList.remove('drag-over');
+                }
             });
 
             tab.addEventListener('drop', (e) => {

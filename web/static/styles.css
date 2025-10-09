@@ -1830,10 +1830,20 @@ body {
 
 /* 拖拽状态样式 */
 .group-tab.drag-over {
-    background-color: var(--color-primary-light);
-    border-color: var(--color-primary);
-    transform: scale(1.02);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, var(--color-primary-light), #e0f2fe);
+    border: 2px solid var(--color-primary);
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    animation: pulse-border 1s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+    0%, 100% {
+        border-color: var(--color-primary);
+    }
+    50% {
+        border-color: #60a5fa;
+    }
 }
 
 .favorite-item[draggable="true"]:hover .drag-handle {
@@ -1848,6 +1858,34 @@ body {
 .empty-group-hint:hover {
     border-color: var(--color-primary);
     background-color: var(--color-primary-light);
+}
+
+/* 拖拽提示横幅 */
+.drag-tip-banner {
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    border: 1px solid #93c5fd;
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 0.875rem;
+    color: #1e40af;
+}
+
+.drag-tip-banner .tip-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.drag-tip-banner .tip-text {
+    flex: 1;
+}
+
+.drag-tip-banner strong {
+    color: var(--color-primary);
+    font-weight: 600;
 }
 
 /* 分组内容区域 */
@@ -1975,6 +2013,14 @@ body {
     cursor: grabbing;
 }
 
+/* 拖拽中的样式 */
+.favorite-item.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    border: 2px dashed var(--color-primary);
+}
+
 .drag-handle {
     position: absolute;
     left: var(--spacing-xs);
@@ -1985,6 +2031,12 @@ body {
     line-height: 1;
     cursor: grab;
     user-select: none;
+    opacity: 0.5;
+    transition: all 0.2s ease;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
 }
 
 .favorite-item .favorite-info {
