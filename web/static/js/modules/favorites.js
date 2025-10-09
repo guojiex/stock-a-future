@@ -829,12 +829,12 @@ class FavoritesModule {
             favoritesByGroup[groupId].push(favorite);
         });
 
-        // 按排序字段排序每个分组内的收藏
+        // 按创建时间从新到旧排序每个分组内的收藏
         Object.keys(favoritesByGroup).forEach(groupId => {
             favoritesByGroup[groupId].sort((a, b) => {
-                const aOrder = a.sort_order || 0;
-                const bOrder = b.sort_order || 0;
-                return aOrder - bOrder;
+                const aTime = new Date(a.created_at).getTime();
+                const bTime = new Date(b.created_at).getTime();
+                return bTime - aTime; // 新的在前面
             });
         });
 

@@ -185,13 +185,36 @@ const PredictionItem: React.FC<{
 
             {/* 相关指标 */}
             {prediction.indicators && prediction.indicators.length > 0 && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm opacity-70">相关指标:</span>
-                {prediction.indicators.map((indicator, idx) => (
-                  <div key={idx} className="badge badge-outline badge-sm">
-                    {indicator}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-semibold">
+                    {prediction.indicators.length > 1 ? '🔗 综合信号:' : '📊 相关指标:'}
+                  </span>
+                  {prediction.indicators.length > 1 && (
+                    <div className="badge badge-warning badge-sm gap-1 animate-pulse">
+                      ✨ {prediction.indicators.length}个指标共识
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {prediction.indicators.map((indicator, idx) => (
+                    <div 
+                      key={idx} 
+                      className={`badge badge-sm ${
+                        prediction.indicators.length > 1 
+                          ? 'badge-primary font-medium shadow-md' 
+                          : 'badge-outline'
+                      }`}
+                    >
+                      {indicator}
+                    </div>
+                  ))}
+                </div>
+                {prediction.indicators.length > 1 && (
+                  <div className="text-xs opacity-70 italic">
+                    💡 多个技术指标共识，置信度已提升
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>

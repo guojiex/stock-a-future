@@ -182,14 +182,47 @@ const PredictionItem: React.FC<{
           {/* 相关指标 */}
           {prediction.indicators && prediction.indicators.length > 0 && (
             <Box mt={2}>
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                相关指标
-              </Typography>
+              <Box display="flex" alignItems="center" gap={1} mb={1}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  {prediction.indicators.length > 1 ? '🔗 综合信号' : '📊 相关指标'}
+                </Typography>
+                {prediction.indicators.length > 1 && (
+                  <Chip 
+                    label={`✨ ${prediction.indicators.length}个指标共识`}
+                    size="small"
+                    sx={{
+                      background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                      color: 'white',
+                      fontWeight: 600,
+                      animation: 'pulse 2s ease-in-out infinite',
+                      '@keyframes pulse': {
+                        '0%, 100%': { opacity: 1 },
+                        '50%': { opacity: 0.85 }
+                      }
+                    }}
+                  />
+                )}
+              </Box>
               <Box display="flex" gap={1} flexWrap="wrap">
                 {prediction.indicators.map((indicator, idx) => (
-                  <Chip key={idx} label={indicator} size="small" variant="outlined" />
+                  <Chip 
+                    key={idx} 
+                    label={indicator} 
+                    size="small" 
+                    variant={prediction.indicators.length > 1 ? "filled" : "outlined"}
+                    color={prediction.indicators.length > 1 ? "primary" : "default"}
+                    sx={prediction.indicators.length > 1 ? {
+                      fontWeight: 500,
+                      boxShadow: 1
+                    } : undefined}
+                  />
                 ))}
               </Box>
+              {prediction.indicators.length > 1 && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', fontStyle: 'italic' }}>
+                  💡 多个技术指标共识，置信度已提升
+                </Typography>
+              )}
             </Box>
           )}
         </Box>

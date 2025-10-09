@@ -246,7 +246,7 @@ func (s *FavoriteService) loadFavoritesFromDB() error {
 	query := `
 		SELECT id, ts_code, name, start_date, end_date, group_id, sort_order, created_at, updated_at
 		FROM favorite_stocks
-		ORDER BY group_id, sort_order
+		ORDER BY group_id, created_at DESC
 	`
 
 	rows, err := s.db.GetDB().Query(query)

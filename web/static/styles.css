@@ -3075,6 +3075,104 @@ body {
     box-shadow: 0 2px 4px rgba(107, 114, 128, 0.3);
 }
 
+/* 预测指标列表样式 */
+.prediction-indicators {
+    margin-bottom: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background: var(--bg-hover);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--primary-color);
+}
+
+.indicators-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-right: var(--spacing-sm);
+    display: inline-block;
+}
+
+.indicators-list {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+    align-items: center;
+}
+
+.indicator-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.indicator-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.merged-hint {
+    display: inline-block;
+    margin-left: var(--spacing-sm);
+    padding: 2px 8px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: help;
+    transition: all 0.2s ease;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.merged-hint:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+    }
+}
+
+/* 合并信号的特殊样式 - 添加闪烁效果 */
+.prediction-item.merged {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(245, 158, 11, 0.05) 100%);
+}
+
+.prediction-item.merged .prediction-header {
+    position: relative;
+}
+
+.prediction-item.merged .prediction-header::before {
+    content: '✨';
+    position: absolute;
+    right: var(--spacing-md);
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.5rem;
+    animation: sparkle 3s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+    0%, 100% {
+        opacity: 0.5;
+        transform: translateY(-50%) scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: translateY(-50%) scale(1.2);
+    }
+}
+
 /* 回测结果样式 */
 .prediction-backtest {
     margin-top: var(--spacing-sm);

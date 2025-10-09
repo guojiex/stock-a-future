@@ -172,6 +172,9 @@ func (s *PredictionService) generatePredictions(data []models.StockDaily, indica
 		predictions = append(predictions, patternPredictions...)
 	}
 
+	// 合并同一天的相同类型信号
+	predictions = s.mergeSameDaySignals(predictions)
+
 	// 对预测结果进行排序：置信度和强度最高的排在前面
 	s.sortPredictionsByConfidenceAndStrength(predictions)
 
@@ -593,6 +596,165 @@ func (s *PredictionService) predictFromVolumePricePattern(pattern models.VolumeP
 		Indicators:  []string{fmt.Sprintf("量价模式:%s", pattern.Pattern)},
 		SignalDate:  pattern.TradeDate, // 信号基于识别到模式的日期
 	}
+}
+
+// mergeSameDaySignals 合并同一天的相同类型信号
+func (s *PredictionService) mergeSameDaySignals(predictions []models.TradingPointPrediction) []models.TradingPointPrediction {
+	if len(predictions) == 0 {
+		return predictions
+	}
+
+	// 创建映射：SignalDate + Type -> []TradingPointPrediction
+	signalMap := make(map[string][]models.TradingPointPrediction)
+
+	for _, pred := range predictions {
+		key := fmt.Sprintf("%s_%s", pred.SignalDate, pred.Type)
+		signalMap[key] = append(signalMap[key], pred)
+	}
+
+	// 合并信号
+	var mergedPredictions []models.TradingPointPrediction
+
+	for _, signals := range signalMap {
+		if len(signals) == 1 {
+			// 只有一个信号，直接添加
+			mergedPredictions = append(mergedPredictions, signals[0])
+		} else {
+			// 多个信号，需要合并
+			merged := s.mergeMultipleSignals(signals)
+			mergedPredictions = append(mergedPredictions, merged)
+		}
+	}
+
+	return mergedPredictions
+}
+
+// mergeMultipleSignals 合并多个相同日期和类型的信号
+func (s *PredictionService) mergeMultipleSignals(signals []models.TradingPointPrediction) models.TradingPointPrediction {
+	if len(signals) == 0 {
+		return models.TradingPointPrediction{}
+	}
+
+	// 使用第一个信号作为基础
+	merged := signals[0]
+
+	// 收集所有指标
+	indicatorSet := make(map[string]bool)
+	for _, sig := range signals {
+		for _, ind := range sig.Indicators {
+			indicatorSet[ind] = true
+		}
+	}
+
+	// 转换为切片
+	var indicators []string
+	for ind := range indicatorSet {
+		indicators = append(indicators, ind)
+	}
+	merged.Indicators = indicators
+
+	// 合并原因：选择最有说服力的几个原因
+	var reasons []string
+	reasonSet := make(map[string]bool)
+	for _, sig := range signals {
+		if sig.Reason != "" && !reasonSet[sig.Reason] {
+			reasons = append(reasons, sig.Reason)
+			reasonSet[sig.Reason] = true
+		}
+	}
+
+	// 将原因合并，但限制长度
+	if len(reasons) > 3 {
+		// 只保留前3个最重要的原因
+		merged.Reason = fmt.Sprintf("%s 等%d个信号", strings.Join(reasons[:3], "；"), len(reasons))
+	} else {
+		merged.Reason = strings.Join(reasons, "；")
+	}
+
+	// 计算综合概率：多个信号共识时应该提升置信度
+	totalProbability := decimal.Zero
+	maxProbability := decimal.Zero
+
+	for _, sig := range signals {
+		totalProbability = totalProbability.Add(sig.Probability.Decimal)
+		if sig.Probability.Decimal.GreaterThan(maxProbability) {
+			maxProbability = sig.Probability.Decimal
+		}
+	}
+
+	// 使用加权平均：基础概率是平均值，然后根据信号数量提升
+	avgProbability := totalProbability.Div(decimal.NewFromInt(int64(len(signals))))
+
+	// 信号共识度提升：每多一个信号，提升5%，但总提升不超过15%
+	consensusBonus := decimal.NewFromFloat(0.05).Mul(decimal.NewFromInt(int64(len(signals) - 1)))
+	maxBonus := decimal.NewFromFloat(0.15)
+	if consensusBonus.GreaterThan(maxBonus) {
+		consensusBonus = maxBonus
+	}
+
+	// 最终概率 = 平均概率 + 共识提升，但不超过最大概率的1.2倍，且不超过0.95
+	finalProbability := avgProbability.Add(consensusBonus)
+	maxAllowed := maxProbability.Mul(decimal.NewFromFloat(1.2))
+	if finalProbability.GreaterThan(maxAllowed) {
+		finalProbability = maxAllowed
+	}
+	if finalProbability.GreaterThan(decimal.NewFromFloat(0.95)) {
+		finalProbability = decimal.NewFromFloat(0.95)
+	}
+
+	merged.Probability = models.NewJSONDecimal(finalProbability)
+
+	// 价格选择：买入信号用最低价，卖出信号用最高价
+	if merged.Type == "BUY" {
+		lowestPrice := signals[0].Price.Decimal
+		for _, sig := range signals[1:] {
+			if sig.Price.Decimal.LessThan(lowestPrice) {
+				lowestPrice = sig.Price.Decimal
+			}
+		}
+		merged.Price = models.NewJSONDecimal(lowestPrice)
+	} else if merged.Type == "SELL" {
+		highestPrice := signals[0].Price.Decimal
+		for _, sig := range signals[1:] {
+			if sig.Price.Decimal.GreaterThan(highestPrice) {
+				highestPrice = sig.Price.Decimal
+			}
+		}
+		merged.Price = models.NewJSONDecimal(highestPrice)
+	}
+
+	// 回测信息：如果所有信号都有回测数据，使用平均值
+	allBacktested := true
+	backtestCount := 0
+	totalNextDayPrice := decimal.Zero
+	totalPriceDiff := decimal.Zero
+	totalPriceDiffRatio := decimal.Zero
+	correctCount := 0
+
+	for _, sig := range signals {
+		if sig.Backtested {
+			backtestCount++
+			totalNextDayPrice = totalNextDayPrice.Add(sig.NextDayPrice.Decimal)
+			totalPriceDiff = totalPriceDiff.Add(sig.PriceDiff.Decimal)
+			totalPriceDiffRatio = totalPriceDiffRatio.Add(sig.PriceDiffRatio.Decimal)
+			if sig.IsCorrect {
+				correctCount++
+			}
+		} else {
+			allBacktested = false
+		}
+	}
+
+	if allBacktested && backtestCount > 0 {
+		merged.Backtested = true
+		merged.NextDayPrice = models.NewJSONDecimal(totalNextDayPrice.Div(decimal.NewFromInt(int64(backtestCount))))
+		merged.PriceDiff = models.NewJSONDecimal(totalPriceDiff.Div(decimal.NewFromInt(int64(backtestCount))))
+		merged.PriceDiffRatio = models.NewJSONDecimal(totalPriceDiffRatio.Div(decimal.NewFromInt(int64(backtestCount))))
+		// 如果超过一半的信号预测正确，则认为合并后的信号正确
+		merged.IsCorrect = correctCount > len(signals)/2
+	}
+
+	return merged
 }
 
 // sortPredictionsByConfidenceAndStrength 对预测结果进行排序
