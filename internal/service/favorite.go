@@ -144,6 +144,20 @@ func (s *FavoriteService) GetFavorites() []*models.FavoriteStock {
 	// 按照分组ID和排序顺序进行稳定排序
 	sortFavorites(favorites)
 
+	// 添加详细日志，显示排序后的结果
+	fmt.Printf("\n=== 收藏列表返回顺序 (共%d个) ===\n", len(favorites))
+	for i, fav := range favorites {
+		fmt.Printf("[%d] %s (%s) | 分组: %s | 创建时间: %s | SortOrder: %d\n",
+			i+1,
+			fav.Name,
+			fav.TSCode,
+			fav.GroupID,
+			fav.CreatedAt.Format("2006-01-02 15:04:05"),
+			fav.SortOrder,
+		)
+	}
+	fmt.Printf("=== 收藏列表日志结束 ===\n\n")
+
 	return favorites
 }
 
