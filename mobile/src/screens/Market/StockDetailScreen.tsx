@@ -12,6 +12,7 @@ import KLineChart from '@/components/KLineChart';
 import TechnicalIndicators from '@/components/TechnicalIndicators';
 import PredictionSignals from '@/components/PredictionSignals';
 import FundamentalData from '@/components/FundamentalData';
+import StrategyTab from '@/components/StrategyTab';
 import { apiService } from '@/services/apiService';
 
 type StockDetailRouteProp = RouteProp<MarketStackParamList, 'StockDetail'>;
@@ -244,6 +245,7 @@ const StockDetailScreen: React.FC = () => {
             { value: 'indicators', label: '指标', icon: 'chart-bar' },
             { value: 'predictions', label: '预测', icon: 'target' },
             { value: 'fundamental', label: '基本面', icon: 'cash' },
+            { value: 'strategy', label: '策略', icon: 'bookmark' },
           ]}
           style={styles.segmentedButtons}
         />
@@ -282,6 +284,12 @@ const StockDetailScreen: React.FC = () => {
         {selectedTab === 'fundamental' && (
           <View style={styles.fullContainer}>
             <FundamentalData stockCode={stockCode} stockName={stockName} />
+          </View>
+        )}
+
+        {selectedTab === 'strategy' && (
+          <View style={styles.fullContainer}>
+            <StrategyTab stockCode={stockCode} stockName={stockName} />
           </View>
         )}
       </View>

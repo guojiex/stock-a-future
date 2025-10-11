@@ -45,9 +45,10 @@ import KLineChart from '../components/charts/KLineChart';
 import TechnicalIndicatorsView from '../components/stock/TechnicalIndicatorsView';
 import PredictionSignalsView from '../components/stock/PredictionSignalsView';
 import FundamentalDataView from '../components/stock/FundamentalDataView';
+import StrategyView from '../components/stock/StrategyView';
 
 // 标签页类型
-type TabValue = 'kline' | 'indicators' | 'predictions' | 'fundamental';
+type TabValue = 'kline' | 'indicators' | 'predictions' | 'fundamental' | 'strategy';
 
 // 时间范围选项
 const TIME_RANGES = [
@@ -361,6 +362,7 @@ const StockDetailPage: React.FC = () => {
           <Tab label="技术指标" value="indicators" />
           <Tab label="买卖预测" value="predictions" />
           <Tab label="基本面" value="fundamental" />
+          <Tab label="策略" value="strategy" />
         </Tabs>
 
         <CardContent>
@@ -415,6 +417,13 @@ const StockDetailPage: React.FC = () => {
                   暂无基本面数据
                 </Typography>
               )}
+            </Box>
+          )}
+
+          {/* 策略标签页 */}
+          {selectedTab === 'strategy' && (
+            <Box>
+              <StrategyView stockCode={stockCode || ''} stockName={stockBasic?.name || ''} />
             </Box>
           )}
         </CardContent>

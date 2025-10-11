@@ -21,10 +21,6 @@ import FavoritesScreen from '@/screens/Favorites/FavoritesScreen';
 import FavoritesManageScreen from '@/screens/Favorites/FavoritesManageScreen';
 import GroupManageScreen from '@/screens/Favorites/GroupManageScreen';
 
-import BacktestScreen from '@/screens/Backtest/BacktestScreen';
-import BacktestResultScreen from '@/screens/Backtest/BacktestResultScreen';
-import StrategyEditScreen from '@/screens/Backtest/StrategyEditScreen';
-
 import SettingsScreen from '@/screens/Settings/SettingsScreen';
 
 // 导航参数类型定义
@@ -32,7 +28,6 @@ export type RootTabParamList = {
   MarketTab: undefined;
   SearchTab: undefined;
   FavoritesTab: undefined;
-  BacktestTab: undefined;
   SettingsTab: undefined;
 };
 
@@ -67,16 +62,6 @@ export type FavoritesStackParamList = {
   };
 };
 
-export type BacktestStackParamList = {
-  BacktestHome: undefined;
-  BacktestResult: {
-    backtestId: string;
-  };
-  StrategyEdit: {
-    strategyId?: string;
-  };
-};
-
 export type SettingsStackParamList = {
   SettingsHome: undefined;
 };
@@ -86,7 +71,6 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 const MarketStack = createNativeStackNavigator<MarketStackParamList>();
 const SearchStack = createNativeStackNavigator<SearchStackParamList>();
 const FavoritesStack = createNativeStackNavigator<FavoritesStackParamList>();
-const BacktestStack = createNativeStackNavigator<BacktestStackParamList>();
 const SettingsStack = createNativeStackNavigator<SettingsStackParamList>();
 
 // 市场页面栈导航
@@ -215,48 +199,6 @@ function FavoritesStackNavigator() {
   );
 }
 
-// 回测页面栈导航
-function BacktestStackNavigator() {
-  return (
-    <BacktestStack.Navigator
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: '#f8f9fa',
-        },
-        headerTintColor: '#333',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-      }}
-    >
-      <BacktestStack.Screen
-        name="BacktestHome"
-        component={BacktestScreen}
-        options={{
-          title: '回测',
-          headerShown: false, // 在Tab中显示标题
-        }}
-      />
-      <BacktestStack.Screen
-        name="BacktestResult"
-        component={BacktestResultScreen}
-        options={{
-          title: '回测结果',
-          headerBackTitle: '返回',
-        }}
-      />
-      <BacktestStack.Screen
-        name="StrategyEdit"
-        component={StrategyEditScreen}
-        options={({ route }) => ({
-          title: route.params.strategyId ? '编辑策略' : '新建策略',
-          headerBackTitle: '返回',
-        })}
-      />
-    </BacktestStack.Navigator>
-  );
-}
-
 // 设置页面栈导航
 function SettingsStackNavigator() {
   return (
@@ -300,9 +242,6 @@ function TabNavigator() {
               break;
             case 'FavoritesTab':
               iconName = focused ? 'star' : 'star-border';
-              break;
-            case 'BacktestTab':
-              iconName = focused ? 'bar-chart' : 'bar-chart';
               break;
             case 'SettingsTab':
               iconName = focused ? 'settings' : 'settings';
@@ -359,14 +298,6 @@ function TabNavigator() {
         options={{
           title: '收藏',
           tabBarLabel: '收藏',
-        }}
-      />
-      <Tab.Screen
-        name="BacktestTab"
-        component={BacktestStackNavigator}
-        options={{
-          title: '回测',
-          tabBarLabel: '回测',
         }}
       />
       <Tab.Screen

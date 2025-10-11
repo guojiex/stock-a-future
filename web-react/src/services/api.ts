@@ -97,6 +97,14 @@ export const stockApi = createApi({
       ],
     }),
 
+    // ===== 形态识别汇总 =====
+    getPatternSummary: builder.query<ApiResponse<Record<string, any>>, string>({
+      query: (stockCode) => `patterns/summary?ts_code=${stockCode}`,
+      providesTags: (result, error, stockCode) => [
+        { type: 'Signals', id: `${stockCode}-summary` },
+      ],
+    }),
+
     // ===== 基本面数据 =====
     getFundamentalData: builder.query<ApiResponse<FundamentalData>, {
       stockCode: string;
@@ -283,6 +291,9 @@ export const {
   // 买卖预测
   useGetPredictionsQuery,
   useLazyGetPredictionsQuery,
+  
+  // 形态识别
+  useGetPatternSummaryQuery,
   
   // 基本面数据
   useGetFundamentalDataQuery,
