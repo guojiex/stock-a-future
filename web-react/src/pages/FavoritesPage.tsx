@@ -444,15 +444,6 @@ const FavoritesPage: React.FC = () => {
         <Typography variant="h4">
           我的收藏
         </Typography>
-        <Box display="flex" gap={1}>
-          <Button
-            variant="outlined"
-            startIcon={<AddIcon />}
-            onClick={() => handleOpenGroupDialog()}
-          >
-            新建分组
-          </Button>
-        </Box>
       </Box>
 
       {/* 分组标签 */}
