@@ -9,6 +9,7 @@ import { stockApi } from '../services/api';
 import appSlice from './slices/appSlice';
 import searchSlice from './slices/searchSlice';
 import favoritesSlice from './slices/favoritesSlice';
+import backtestSlice from './slices/backtestSlice';
 
 // 配置store
 export const store = configureStore({
@@ -20,6 +21,7 @@ export const store = configureStore({
     app: appSlice,
     search: searchSlice,
     favorites: favoritesSlice,
+    backtest: backtestSlice,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

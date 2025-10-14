@@ -5,6 +5,8 @@
  */
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import {
   Box,
   Container,
@@ -49,6 +51,7 @@ import {
   useDeleteStrategyMutation,
   useToggleStrategyMutation,
 } from '../services/api';
+import { setSelectedStrategies } from '../store/slices/backtestSlice';
 
 // 策略类型映射
 const STRATEGY_TYPES = {
@@ -87,6 +90,10 @@ interface StrategyPerformance {
 }
 
 const StrategiesPage: React.FC = () => {
+  // Hooks
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  
   // 状态
   const [selectedStrategy, setSelectedStrategy] = useState<Strategy | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -179,8 +186,14 @@ const StrategiesPage: React.FC = () => {
 
   // 运行回测
   const handleRunBacktest = (strategy: Strategy) => {
-    // TODO: 跳转到回测页面并预选该策略
     console.log('运行回测:', strategy.name);
+    
+    // 参考网页版的实现：
+    // 1. 设置选中的策略ID
+    dispatch(setSelectedStrategies([strategy.id]));
+    
+    // 2. 导航到回测页面
+    navigate('/backtest');
   };
 
   // 渲染策略卡片

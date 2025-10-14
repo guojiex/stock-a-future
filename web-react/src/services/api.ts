@@ -324,6 +324,30 @@ export const stockApi = createApi({
         { type: 'Strategies', id: `${id}-performance` },
       ],
     }),
+
+    // ===== 回测管理 =====
+    startBacktest: builder.mutation<ApiResponse<any>, any>({
+      query: (config) => ({
+        url: 'backtest',
+        method: 'POST',
+        body: config,
+      }),
+    }),
+
+    getBacktestProgress: builder.query<ApiResponse<any>, string>({
+      query: (id) => `backtest/${id}/progress`,
+    }),
+
+    cancelBacktest: builder.mutation<ApiResponse, string>({
+      query: (id) => ({
+        url: `backtest/${id}/cancel`,
+        method: 'POST',
+      }),
+    }),
+
+    getBacktestResults: builder.query<ApiResponse<any>, string>({
+      query: (id) => `backtest/${id}/results`,
+    }),
   }),
 });
 
@@ -391,6 +415,14 @@ export const {
   useDeleteStrategyMutation,
   useToggleStrategyMutation,
   useGetStrategyPerformanceQuery,
+  
+  // 回测管理
+  useStartBacktestMutation,
+  useGetBacktestProgressQuery,
+  useLazyGetBacktestProgressQuery,
+  useCancelBacktestMutation,
+  useGetBacktestResultsQuery,
+  useLazyGetBacktestResultsQuery,
 } = stockApi;
 
 // 导出API实例

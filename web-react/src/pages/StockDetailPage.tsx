@@ -4,6 +4,7 @@
 
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import {
   Container,
   Box,
@@ -28,6 +29,7 @@ import {
   TrendingDown,
   FavoriteBorder as FavoriteBorderIcon,
   Favorite as FavoriteIcon,
+  RocketLaunch as RocketIcon,
 } from '@mui/icons-material';
 
 import {
@@ -46,6 +48,7 @@ import TechnicalIndicatorsView from '../components/stock/TechnicalIndicatorsView
 import PredictionSignalsView from '../components/stock/PredictionSignalsView';
 import FundamentalDataView from '../components/stock/FundamentalDataView';
 import StrategyView from '../components/stock/StrategyView';
+import { updateConfig } from '../store/slices/backtestSlice';
 
 // 标签页类型
 type TabValue = 'kline' | 'indicators' | 'predictions' | 'fundamental' | 'strategy';
@@ -62,6 +65,7 @@ const TIME_RANGES = [
 const StockDetailPage: React.FC = () => {
   const { stockCode } = useParams<{ stockCode: string }>();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   // 状态
   const [selectedTab, setSelectedTab] = useState<TabValue>('kline');
@@ -187,6 +191,38 @@ const StockDetailPage: React.FC = () => {
     if (selectedTab === 'fundamental') refetchFundamental();
   };
 
+  // 处理快速回测
+  const handleQuickBacktest = () => {
+    if (!stockCode || !stockBasic) {
+      setSnackbarMessage('股票信息加载中，请稍候...');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    // 生成回测名称
+    const today = new Date().toISOString().split('T')[0];
+    const backtestName = `${stockBasic.name} - 回测分析 ${today}`;
+
+    // 计算默认时间范围（近1年）
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setFullYear(endDate.getFullYear() - 1);
+
+    // 更新Redux配置
+    dispatch(updateConfig({
+      name: backtestName,
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+      symbols: [stockCode],
+    }));
+
+    // 跳转到回测页面
+    navigate('/backtest');
+    
+    setSnackbarMessage(`已切换到回测页面，股票 ${stockCode} 已预填充`);
+    setSnackbarOpen(true);
+  };
+
   // 计算价格变化
   const getPriceChange = () => {
     if (!dailyData?.data || dailyData.data.length === 0) {
@@ -280,6 +316,16 @@ const StockDetailPage: React.FC = () => {
         <Typography variant="h5" sx={{ flexGrow: 1 }}>
           股票详情
         </Typography>
+        <Button
+          variant="contained"
+          color="success"
+          size="small"
+          startIcon={<RocketIcon />}
+          onClick={handleQuickBacktest}
+          sx={{ mr: 2 }}
+        >
+          快速回测
+        </Button>
         <IconButton onClick={handleRefresh}>
           <RefreshIcon />
         </IconButton>

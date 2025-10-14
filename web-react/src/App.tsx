@@ -14,6 +14,7 @@ import Layout from './components/common/Layout';
 import MarketSearchPage from './pages/MarketSearchPage';
 import FavoritesPage from './pages/FavoritesPage';
 import StrategiesPage from './pages/StrategiesPage';
+import BacktestPage from './pages/BacktestPage';
 import SettingsPage from './pages/SettingsPage';
 import StockDetailPage from './pages/StockDetailPage';
 
@@ -37,6 +38,7 @@ function AppContent() {
             <Route path="stock/:stockCode" element={<StockDetailPage />} />
             <Route path="favorites" element={<FavoritesPage />} />
             <Route path="strategies" element={<StrategiesPage />} />
+            <Route path="backtest" element={<BacktestPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
         </Routes>
