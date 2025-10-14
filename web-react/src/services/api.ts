@@ -326,27 +326,66 @@ export const stockApi = createApi({
     }),
 
     // ===== 回测管理 =====
-    startBacktest: builder.mutation<ApiResponse<any>, any>({
+    // 创建回测
+    createBacktest: builder.mutation<ApiResponse<any>, any>({
       query: (config) => ({
-        url: 'backtest',
+        url: 'backtests',
         method: 'POST',
         body: config,
       }),
     }),
 
-    getBacktestProgress: builder.query<ApiResponse<any>, string>({
-      query: (id) => `backtest/${id}/progress`,
-    }),
-
-    cancelBacktest: builder.mutation<ApiResponse, string>({
+    // 启动回测
+    startBacktest: builder.mutation<ApiResponse<any>, string>({
       query: (id) => ({
-        url: `backtest/${id}/cancel`,
+        url: `backtests/${id}/start`,
         method: 'POST',
       }),
     }),
 
+    // 获取回测进度
+    getBacktestProgress: builder.query<ApiResponse<any>, string>({
+      query: (id) => `backtests/${id}/progress`,
+    }),
+
+    // 取消回测
+    cancelBacktest: builder.mutation<ApiResponse, string>({
+      query: (id) => ({
+        url: `backtests/${id}/cancel`,
+        method: 'POST',
+      }),
+    }),
+
+    // 获取回测结果
     getBacktestResults: builder.query<ApiResponse<any>, string>({
-      query: (id) => `backtest/${id}/results`,
+      query: (id) => `backtests/${id}/results`,
+    }),
+
+    // 获取回测列表
+    getBacktestsList: builder.query<ApiResponse<any>, void>({
+      query: () => 'backtests',
+    }),
+
+    // 获取单个回测
+    getBacktest: builder.query<ApiResponse<any>, string>({
+      query: (id) => `backtests/${id}`,
+    }),
+
+    // 更新回测
+    updateBacktest: builder.mutation<ApiResponse<any>, { id: string; [key: string]: any }>({
+      query: ({ id, ...data }) => ({
+        url: `backtests/${id}`,
+        method: 'PUT',
+        body: data,
+      }),
+    }),
+
+    // 删除回测
+    deleteBacktest: builder.mutation<ApiResponse, string>({
+      query: (id) => ({
+        url: `backtests/${id}`,
+        method: 'DELETE',
+      }),
     }),
   }),
 });
@@ -417,12 +456,17 @@ export const {
   useGetStrategyPerformanceQuery,
   
   // 回测管理
+  useCreateBacktestMutation,
   useStartBacktestMutation,
   useGetBacktestProgressQuery,
   useLazyGetBacktestProgressQuery,
   useCancelBacktestMutation,
   useGetBacktestResultsQuery,
   useLazyGetBacktestResultsQuery,
+  useGetBacktestsListQuery,
+  useGetBacktestQuery,
+  useUpdateBacktestMutation,
+  useDeleteBacktestMutation,
 } = stockApi;
 
 // 导出API实例

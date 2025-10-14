@@ -31,6 +31,8 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -42,6 +44,7 @@ import {
 import { useAppSelector } from '../hooks/redux';
 import {
   useGetStrategiesQuery,
+  useCreateBacktestMutation,
   useStartBacktestMutation,
   useCancelBacktestMutation,
   useLazyGetBacktestProgressQuery,
@@ -54,6 +57,8 @@ import {
   clearStrategies,
   setSelectedStrategies,
 } from '../store/slices/backtestSlice';
+import EquityCurveChart from '../components/EquityCurveChart';
+import TradesTable from '../components/TradesTable';
 
 // 定义接口
 interface BacktestConfig {
@@ -112,9 +117,11 @@ const BacktestPage: React.FC = () => {
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [selectedStrategiesDialog, setSelectedStrategiesDialog] = useState(false);
+  const [selectedStrategyTab, setSelectedStrategyTab] = useState(0);
   
   // API hooks
   const { data: strategiesData } = useGetStrategiesQuery();
+  const [createBacktest] = useCreateBacktestMutation();
   const [startBacktest] = useStartBacktestMutation();
   const [cancelBacktest] = useCancelBacktestMutation();
   const [getProgress] = useLazyGetBacktestProgressQuery();
@@ -199,20 +206,32 @@ const BacktestPage: React.FC = () => {
         symbols: config.symbols,
       }));
       
-      const response = await startBacktest({
-        ...config,
+      // 创建回测（后端会自动启动）
+      setProgressMessage('创建并启动回测...');
+      const createResponse = await createBacktest({
+        name: config.name,
         strategy_ids: selectedStrategyIds,
+        start_date: config.start_date,
+        end_date: config.end_date,
+        initial_cash: config.initial_cash,
+        commission: config.commission,
+        symbols: config.symbols,
       }).unwrap();
       
-      if (response.success && response.data) {
-        setCurrentBacktestId(response.data.id);
-        startProgressMonitoring(response.data.id);
-      } else {
-        throw new Error(response.message || '启动回测失败');
+      if (!createResponse.success || !createResponse.data) {
+        throw new Error(createResponse.message || '创建回测失败');
       }
+      
+      const backtestId = createResponse.data.id;
+      setCurrentBacktestId(backtestId);
+      
+      // 后端已自动启动回测，直接开始监控进度
+      setProgressMessage('回测运行中...');
+      startProgressMonitoring(backtestId);
     } catch (error: any) {
       console.error('启动回测失败:', error);
-      alert(`启动回测失败: ${error.message || '未知错误'}`);
+      const errorMessage = error.data?.message || error.message || '未知错误';
+      alert(`启动回测失败: ${errorMessage}`);
       setIsRunning(false);
     }
   };
@@ -299,33 +318,31 @@ const BacktestPage: React.FC = () => {
     });
   };
   
-  // 渲染性能指标
-  const renderMetrics = (metrics: PerformanceMetrics) => {
+  // 渲染紧凑的性能指标（横向）
+  const renderCompactMetrics = (metrics: PerformanceMetrics) => {
     const metricsList = [
       { label: '总收益率', value: `${(metrics.total_return * 100).toFixed(2)}%`, positive: metrics.total_return >= 0 },
-      { label: '年化收益率', value: `${(metrics.annual_return * 100).toFixed(2)}%`, positive: metrics.annual_return >= 0 },
+      { label: '年化收益', value: `${(metrics.annual_return * 100).toFixed(2)}%`, positive: metrics.annual_return >= 0 },
       { label: '最大回撤', value: `${(metrics.max_drawdown * 100).toFixed(2)}%`, positive: metrics.max_drawdown >= -0.05 },
       { label: '夏普比率', value: metrics.sharpe_ratio.toFixed(2), positive: metrics.sharpe_ratio >= 1 },
       { label: '胜率', value: `${(metrics.win_rate * 100).toFixed(2)}%`, positive: metrics.win_rate >= 0.5 },
-      { label: '总交易次数', value: metrics.total_trades.toString(), positive: true },
+      { label: '交易次数', value: metrics.total_trades.toString(), positive: true },
     ];
     
     return (
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2 }}>
+      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
         {metricsList.map((metric) => (
-          <Card key={metric.label} variant="outlined">
-            <CardContent>
-              <Typography variant="body2" color="text.secondary">
-                {metric.label}
-              </Typography>
-              <Typography
-                variant="h6"
-                color={metric.positive ? 'success.main' : 'error.main'}
-              >
-                {metric.value}
-              </Typography>
-            </CardContent>
-          </Card>
+          <Box key={metric.label} sx={{ minWidth: 140 }}>
+            <Typography variant="caption" color="text.secondary" display="block">
+              {metric.label}
+            </Typography>
+            <Typography
+              variant="h6"
+              color={metric.positive ? 'success.main' : 'error.main'}
+            >
+              {metric.value}
+            </Typography>
+          </Box>
         ))}
       </Box>
     );
@@ -509,24 +526,127 @@ const BacktestPage: React.FC = () => {
           </Typography>
           <Divider sx={{ mb: 3 }} />
           
-          {/* 性能指标 */}
-          {results.performance && renderMetrics(
-            Array.isArray(results.performance) ? results.performance[0] : results.performance
+          {/* 组合整体性能（可选） */}
+          {results.combined_metrics && (
+            <Box sx={{ mb: 3, p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                组合整体表现
+              </Typography>
+              {renderCompactMetrics(results.combined_metrics)}
+            </Box>
           )}
           
-          {/* TODO: 添加权益曲线图表 */}
-          <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-            <Typography variant="body2" color="text.secondary" textAlign="center">
-              权益曲线图表将在此处显示
-            </Typography>
-          </Box>
-          
-          {/* TODO: 添加交易记录表格 */}
-          <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-            <Typography variant="body2" color="text.secondary" textAlign="center">
-              交易记录表格将在此处显示
-            </Typography>
-          </Box>
+          {/* 多策略 Tab 展示 */}
+          {results.performance && Array.isArray(results.performance) && results.performance.length > 1 ? (
+            <Box>
+              <Tabs 
+                value={selectedStrategyTab} 
+                onChange={(_, newValue) => setSelectedStrategyTab(newValue)}
+                variant="scrollable"
+                scrollButtons="auto"
+                sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}
+              >
+                {results.performance.map((_, index) => {
+                  const strategy = results.strategies?.[index];
+                  return (
+                    <Tab 
+                      key={index} 
+                      label={strategy?.name || `策略 ${index + 1}`}
+                      icon={<Chip label={index + 1} size="small" color="primary" />}
+                      iconPosition="start"
+                    />
+                  );
+                })}
+              </Tabs>
+              
+              {results.performance.map((perfMetrics, index) => {
+                const strategy = results.strategies?.[index];
+                const strategyTrades = results.trades?.filter((t: any) => t.strategy_id === strategy?.id) || [];
+                
+                return (
+                  <Box 
+                    key={index} 
+                    role="tabpanel"
+                    hidden={selectedStrategyTab !== index}
+                  >
+                    {selectedStrategyTab === index && (
+                      <Box>
+                        {/* 策略性能指标 */}
+                        <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                          <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                            {strategy?.name || `策略 ${index + 1}`}
+                          </Typography>
+                          {strategy?.description && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                              {strategy.description}
+                            </Typography>
+                          )}
+                          {renderCompactMetrics(perfMetrics)}
+                        </Box>
+                        
+                        {/* 策略权益曲线 */}
+                        {results.equity_curve && results.equity_curve.length > 0 && (
+                          <Box sx={{ mb: 3 }}>
+                            <Typography variant="subtitle2" gutterBottom>
+                              📈 权益曲线
+                            </Typography>
+                            <EquityCurveChart
+                              data={results.equity_curve}
+                              initialCash={config.initial_cash}
+                            />
+                          </Box>
+                        )}
+                        
+                        {/* 策略交易记录 */}
+                        {strategyTrades.length > 0 && (
+                          <Box>
+                            <Typography variant="subtitle2" gutterBottom>
+                              📋 交易记录 ({strategyTrades.length} 笔)
+                            </Typography>
+                            <TradesTable 
+                              trades={strategyTrades}
+                              strategies={[strategy]}
+                            />
+                          </Box>
+                        )}
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })}
+            </Box>
+          ) : results.performance && Array.isArray(results.performance) && results.performance.length === 1 ? (
+            // 单策略展示
+            <Box>
+              <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                {renderCompactMetrics(results.performance[0])}
+              </Box>
+              
+              {results.equity_curve && results.equity_curve.length > 0 && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    📈 权益曲线
+                  </Typography>
+                  <EquityCurveChart
+                    data={results.equity_curve}
+                    initialCash={config.initial_cash}
+                  />
+                </Box>
+              )}
+              
+              {results.trades && results.trades.length > 0 && (
+                <Box>
+                  <Typography variant="subtitle2" gutterBottom>
+                    📋 交易记录
+                  </Typography>
+                  <TradesTable 
+                    trades={results.trades}
+                    strategies={results.strategies}
+                  />
+                </Box>
+              )}
+            </Box>
+          ) : null}
         </Paper>
       )}
       

@@ -2,9 +2,10 @@
 
 ## 问题描述
 
-用户报告了两个问题：
+用户报告了三个问题：
 1. **已选择策略但点击回测显示"请选择至少一个策略"**
 2. **策略选择器没有默认全选功能**
+3. **启动回测失败：HTTP 405 Method Not Allowed 错误**
 
 ## 问题分析
 
@@ -89,13 +90,56 @@ import {
 } from '../store/slices/backtestSlice';
 ```
 
+### 问题 3：HTTP 405/400 错误
+
+**第一次错误：HTTP 405 Method Not Allowed**
+- **原因**：前端 API 路由定义与后端不匹配
+- 前端调用 `POST /backtest`，后端路由是 `POST /api/v1/backtests`
+
+**第二次错误：HTTP 400 Bad Request**
+- **原因**：后端在创建回测时**会自动启动回测**（见 `createBacktest` 第 201-206 行）
+- 前端尝试先创建再启动，导致第二次调用 `startBacktest` 时回测状态已经不是 `pending`
+
+**后端实际流程：**
+```go
+// internal/handler/backtest.go
+func (h *BacktestHandler) createBacktest(w http.ResponseWriter, r *http.Request) {
+    // ... 创建回测对象 ...
+    backtest.Status = models.BacktestStatusPending  // 第 184 行
+    
+    // 保存回测
+    h.backtestService.CreateBacktest(r.Context(), backtest)
+    
+    // 立即启动回测！
+    h.backtestService.StartBacktest(context.Background(), backtest, strategies)  // 第 202 行
+}
+```
+
+**修复：**
+1. 在 `api.ts` 中添加正确的 API 路由
+2. 在 `BacktestPage.tsx` 中只调用 `createBacktest`，后端会自动启动
+
 ## 修改文件
 
-- `web-react/src/pages/BacktestPage.tsx`
-  - 修改验证逻辑使用 `selectedStrategyIds`（第 156-158 行）
-  - 添加 `setSelectedStrategies` 导入（第 50-56 行）
-  - 添加默认全选 useEffect（第 125-132 行）
-  - 在策略选择对话框添加全选按钮（第 532-546 行）
+### `web-react/src/services/api.ts`
+- 修复 API 路由，添加正确的 RESTful 端点：
+  - `createBacktest`: `POST /backtests` - 创建回测
+  - `startBacktest`: `POST /backtests/{id}/start` - 启动回测
+  - `getBacktestProgress`: `GET /backtests/{id}/progress` - 获取进度
+  - `cancelBacktest`: `POST /backtests/{id}/cancel` - 取消回测
+  - `getBacktestResults`: `GET /backtests/{id}/results` - 获取结果
+  - 新增完整的 CRUD 操作：`getBacktestsList`, `getBacktest`, `updateBacktest`, `deleteBacktest`
+- 导出新增的 hooks
+
+### `web-react/src/pages/BacktestPage.tsx`
+- 修改验证逻辑使用 `selectedStrategyIds`（第 156-158 行）
+- 添加 `setSelectedStrategies` 导入（第 55 行）
+- 添加 `useCreateBacktestMutation` hook（第 45, 119 行）
+- 添加默认全选 useEffect（第 125-132 行）
+- 在策略选择对话框添加全选按钮（第 532-546 行）
+- 修改 `handleStartBacktest` 只调用 `createBacktest`（第 180-232 行）
+  - 后端会在创建回测时自动启动
+  - 前端直接开始监控进度
 
 ## 测试建议
 
@@ -115,22 +159,131 @@ import {
    - 当有6个或更多策略时，确认只选择前5个
    - 清空策略后重新进入页面，确认策略重新被默认选中
 
+## 详细修复说明
+
+### 修复问题 3：API 路由和请求流程
+
+**前端修改（api.ts）：**
+
+```typescript:328-389:web-react/src/services/api.ts
+// ===== 回测管理 =====
+// 创建回测
+createBacktest: builder.mutation<ApiResponse<any>, any>({
+  query: (config) => ({
+    url: 'backtests',
+    method: 'POST',
+    body: config,
+  }),
+}),
+
+// 启动回测
+startBacktest: builder.mutation<ApiResponse<any>, string>({
+  query: (id) => ({
+    url: `backtests/${id}/start`,
+    method: 'POST',
+  }),
+}),
+```
+
+**前端修改（BacktestPage.tsx）：**
+
+```typescript:180-232:web-react/src/pages/BacktestPage.tsx
+// 开始回测
+const handleStartBacktest = async () => {
+  const error = validateConfig();
+  if (error) {
+    alert(error);
+    return;
+  }
+  
+  try {
+    setIsRunning(true);
+    setProgress(0);
+    setProgressMessage('准备中...');
+    setShowResults(false);
+    
+    // 更新Redux配置
+    dispatch(updateConfig({
+      name: config.name,
+      startDate: config.start_date,
+      endDate: config.end_date,
+      initialCash: config.initial_cash,
+      commission: config.commission,
+      symbols: config.symbols,
+    }));
+    
+    // 创建回测（后端会自动启动）
+    setProgressMessage('创建并启动回测...');
+    const createResponse = await createBacktest({
+      name: config.name,
+      strategy_ids: selectedStrategyIds,
+      start_date: config.start_date,
+      end_date: config.end_date,
+      initial_cash: config.initial_cash,
+      commission: config.commission,
+      symbols: config.symbols,
+    }).unwrap();
+    
+    if (!createResponse.success || !createResponse.data) {
+      throw new Error(createResponse.message || '创建回测失败');
+    }
+    
+    const backtestId = createResponse.data.id;
+    setCurrentBacktestId(backtestId);
+    
+    // 后端已自动启动回测，直接开始监控进度
+    setProgressMessage('回测运行中...');
+    startProgressMonitoring(backtestId);
+  } catch (error: any) {
+    console.error('启动回测失败:', error);
+    const errorMessage = error.data?.message || error.message || '未知错误';
+    alert(`启动回测失败: ${errorMessage}`);
+    setIsRunning(false);
+  }
+};
+```
+
 ## 用户体验改进
 
 - ✅ 用户不再需要手动选择策略，提高了效率
 - ✅ 提供了"全选"快捷按钮，方便快速选择
 - ✅ 验证逻辑更加准确，避免了误报错误
 - ✅ 保持了最多选择5个策略的限制
+- ✅ API 路由与后端完全匹配，解决 405/400 错误
+- ✅ 理解后端自动启动机制，简化前端流程
+- ✅ 提供清晰的进度提示（创建并启动回测 → 回测运行中）
 
 ## 注意事项
 
 1. **Redux State 管理**：确保 Redux store 正确配置并包含 `backtestSlice`
 2. **策略数据格式**：确保后端返回的策略数据包含 `id` 字段
 3. **性能考虑**：useEffect 的依赖数组使用 `selectedStrategyIds.length` 而非整个数组，避免不必要的重新渲染
+4. **回测启动机制**：
+   - 后端 `createBacktest` 会自动启动回测
+   - `startBacktest` API 仍然保留，用于重启已停止的回测（如果将来需要）
+   - 前端正常流程只需要调用 `createBacktest`
+
+## API 路由对照表
+
+| 功能 | 前端路由 | 后端路由 | 方法 |
+|------|---------|---------|------|
+| 创建回测 | `backtests` | `/api/v1/backtests` | POST |
+| 启动回测 | `backtests/{id}/start` | `/api/v1/backtests/{id}/start` | POST |
+| 获取进度 | `backtests/{id}/progress` | `/api/v1/backtests/{id}/progress` | GET |
+| 取消回测 | `backtests/{id}/cancel` | `/api/v1/backtests/{id}/cancel` | POST |
+| 获取结果 | `backtests/{id}/results` | `/api/v1/backtests/{id}/results` | GET |
+| 回测列表 | `backtests` | `/api/v1/backtests` | GET |
+| 获取单个 | `backtests/{id}` | `/api/v1/backtests/{id}` | GET |
+| 更新回测 | `backtests/{id}` | `/api/v1/backtests/{id}` | PUT |
+| 删除回测 | `backtests/{id}` | `/api/v1/backtests/{id}` | DELETE |
+
+**注意：** 前端的 baseURL 是 `http://localhost:8081/api/v1/`，所以实际请求 URL 会自动拼接完整路径。
 
 ## 相关文件
 
 - `web-react/src/pages/BacktestPage.tsx` - 回测页面主组件
 - `web-react/src/store/slices/backtestSlice.ts` - 回测状态管理
 - `web-react/src/services/api.ts` - API 服务定义
+- `internal/handler/backtest.go` - 后端回测处理器
+- `internal/models/backtest.go` - 回测数据模型
 
