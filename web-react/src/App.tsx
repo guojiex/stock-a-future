@@ -13,6 +13,7 @@ import { getTheme } from './constants/theme';
 import Layout from './components/common/Layout';
 import MarketSearchPage from './pages/MarketSearchPage';
 import FavoritesPage from './pages/FavoritesPage';
+import StrategiesPage from './pages/StrategiesPage';
 import SettingsPage from './pages/SettingsPage';
 import StockDetailPage from './pages/StockDetailPage';
 
@@ -35,6 +36,7 @@ function AppContent() {
             <Route index element={<MarketSearchPage />} />
             <Route path="stock/:stockCode" element={<StockDetailPage />} />
             <Route path="favorites" element={<FavoritesPage />} />
+            <Route path="strategies" element={<StrategiesPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
         </Routes>

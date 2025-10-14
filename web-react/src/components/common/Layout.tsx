@@ -20,6 +20,7 @@ import {
 import {
   TrendingUp as MarketIcon,
   Star as FavoritesIcon,
+  AccountTree as StrategiesIcon,
   Settings as SettingsIcon,
 } from '@mui/icons-material';
 
@@ -33,6 +34,7 @@ const Layout: React.FC = () => {
   const navItems = [
     { label: '市场', value: '/', icon: <MarketIcon /> },
     { label: '收藏', value: '/favorites', icon: <FavoritesIcon /> },
+    { label: '策略', value: '/strategies', icon: <StrategiesIcon /> },
     { label: '设置', value: '/settings', icon: <SettingsIcon /> },
   ];
   

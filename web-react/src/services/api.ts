@@ -46,7 +46,8 @@ export const stockApi = createApi({
     'Favorites',
     'FavoriteGroups',
     'Signals',
-    'RecentViews'
+    'RecentViews',
+    'Strategies'
   ],
   endpoints: (builder) => ({
     // ===== 健康检查 =====
@@ -269,6 +270,60 @@ export const stockApi = createApi({
       }),
       invalidatesTags: ['RecentViews'],
     }),
+
+    // ===== 策略管理 =====
+    getStrategies: builder.query<ApiResponse<{total?: number, items?: any[], data?: any[]}>, void>({
+      query: () => 'strategies',
+      providesTags: ['Strategies'],
+    }),
+
+    getStrategy: builder.query<ApiResponse<any>, string>({
+      query: (id) => `strategies/${id}`,
+      providesTags: (result, error, id) => [
+        { type: 'Strategies', id },
+      ],
+    }),
+
+    createStrategy: builder.mutation<ApiResponse<any>, any>({
+      query: (strategy) => ({
+        url: 'strategies',
+        method: 'POST',
+        body: strategy,
+      }),
+      invalidatesTags: ['Strategies'],
+    }),
+
+    updateStrategy: builder.mutation<ApiResponse<any>, { id: string; [key: string]: any }>({
+      query: ({ id, ...data }) => ({
+        url: `strategies/${id}`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: ['Strategies'],
+    }),
+
+    deleteStrategy: builder.mutation<ApiResponse, string>({
+      query: (id) => ({
+        url: `strategies/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Strategies'],
+    }),
+
+    toggleStrategy: builder.mutation<ApiResponse, string>({
+      query: (id) => ({
+        url: `strategies/${id}/toggle`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Strategies'],
+    }),
+
+    getStrategyPerformance: builder.query<ApiResponse<any>, string>({
+      query: (id) => `strategies/${id}/performance`,
+      providesTags: (result, error, id) => [
+        { type: 'Strategies', id: `${id}-performance` },
+      ],
+    }),
   }),
 });
 
@@ -327,6 +382,15 @@ export const {
   useDeleteRecentViewMutation,
   useClearExpiredRecentViewsMutation,
   useClearAllRecentViewsMutation,
+  
+  // 策略管理
+  useGetStrategiesQuery,
+  useGetStrategyQuery,
+  useCreateStrategyMutation,
+  useUpdateStrategyMutation,
+  useDeleteStrategyMutation,
+  useToggleStrategyMutation,
+  useGetStrategyPerformanceQuery,
 } = stockApi;
 
 // 导出API实例
