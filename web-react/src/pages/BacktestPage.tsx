@@ -52,6 +52,7 @@ import {
   addStrategy,
   removeStrategy,
   clearStrategies,
+  setSelectedStrategies,
 } from '../store/slices/backtestSlice';
 
 // 定义接口
@@ -121,6 +122,15 @@ const BacktestPage: React.FC = () => {
   
   const strategies = (strategiesData?.data?.items || strategiesData?.data?.data || []) as any[];
   
+  // 默认全选策略（仅在首次加载时且没有选择任何策略时）
+  useEffect(() => {
+    if (strategies.length > 0 && selectedStrategyIds.length === 0) {
+      // 默认选择所有策略（最多5个）
+      const allStrategyIds = strategies.slice(0, 5).map(s => s.id);
+      dispatch(setSelectedStrategies(allStrategyIds));
+    }
+  }, [strategies, selectedStrategyIds.length, dispatch]);
+  
   // 默认日期
   function getDefaultStartDate() {
     const date = new Date();
@@ -153,8 +163,9 @@ const BacktestPage: React.FC = () => {
   // 验证配置
   const validateConfig = (): string | null => {
     if (!config.name) return '请输入回测名称';
-    if (config.strategy_ids.length === 0) return '请选择至少一个策略';
-    if (config.strategy_ids.length > 5) return '最多只能选择5个策略';
+    // 使用 Redux state 中的 selectedStrategyIds 进行验证
+    if (selectedStrategyIds.length === 0) return '请选择至少一个策略';
+    if (selectedStrategyIds.length > 5) return '最多只能选择5个策略';
     if (!config.start_date || !config.end_date) return '请选择开始和结束日期';
     if (new Date(config.start_date) >= new Date(config.end_date)) {
       return '开始日期必须早于结束日期';
@@ -528,9 +539,21 @@ const BacktestPage: React.FC = () => {
       >
         <DialogTitle>选择策略</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            最多可以选择5个策略进行回测
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              最多可以选择5个策略进行回测
+            </Typography>
+            <Button
+              size="small"
+              onClick={() => {
+                // 全选所有策略（最多5个）
+                const allStrategyIds = strategies.slice(0, 5).map(s => s.id);
+                dispatch(setSelectedStrategies(allStrategyIds));
+              }}
+            >
+              全选
+            </Button>
+          </Box>
           <Box sx={{ mt: 2 }}>
             {strategies.map((strategy) => {
               const isSelected = selectedStrategyIds.includes(strategy.id);
