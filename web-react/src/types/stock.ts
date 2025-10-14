@@ -369,3 +369,14 @@ export interface PredictionResult {
   confidence: number;              // 预测置信度 (0-1)
   updated_at: string;
 }
+
+// 形态模式摘要
+export interface PatternSummary {
+  ts_code: string;                 // 股票代码
+  period: number;                  // 统计周期（天数）
+  start_date: string;              // 开始日期 YYYYMMDD
+  end_date: string;                // 结束日期 YYYYMMDD
+  patterns: Record<string, number>; // 各种图形模式统计（形态名称 -> 出现次数）
+  signals: Record<string, number>;  // 各种信号统计（信号类型 -> 出现次数）
+  updated_at: string;              // 更新时间
+}

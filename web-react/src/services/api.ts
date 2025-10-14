@@ -10,6 +10,7 @@ import {
   TechnicalIndicators,
   FundamentalData,
   PredictionResult,
+  PatternSummary,
   Favorite,
   FavoriteGroup,
   AddFavoriteRequest,
@@ -98,7 +99,7 @@ export const stockApi = createApi({
     }),
 
     // ===== 形态识别汇总 =====
-    getPatternSummary: builder.query<ApiResponse<Record<string, any>>, string>({
+    getPatternSummary: builder.query<ApiResponse<PatternSummary>, string>({
       query: (stockCode) => `patterns/summary?ts_code=${stockCode}`,
       providesTags: (result, error, stockCode) => [
         { type: 'Signals', id: `${stockCode}-summary` },

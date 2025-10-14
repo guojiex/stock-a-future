@@ -46,6 +46,7 @@ import {
   useGetPredictionsQuery,
   useGetPatternSummaryQuery,
 } from '../../services/api';
+import { PatternSummary } from '../../types/stock';
 
 interface StrategyViewProps {
   stockCode: string;
@@ -111,7 +112,7 @@ const StrategyView: React.FC<StrategyViewProps> = ({ stockCode, stockName }) => 
   const groups = groupsData?.data?.groups || [];
   const predictionResult = predictionsData?.data;
   const predictions = predictionResult?.predictions || [];
-  const patternSummary = patternSummaryData?.data || {};
+  const patternSummary: PatternSummary | undefined = patternSummaryData?.data;
 
   // 检查当前股票是否已收藏
   const currentFavorite = useMemo(() => {
@@ -376,40 +377,99 @@ const StrategyView: React.FC<StrategyViewProps> = ({ stockCode, stockName }) => 
             )}
 
             {/* 形态识别 */}
-            {Object.keys(patternSummary).length > 0 && (
-              <Card>
+            {(patternSummary?.patterns && Object.keys(patternSummary.patterns).length > 0) && (
+              <Card sx={{ mb: 3 }}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    形态识别
+                    形态识别统计
                   </Typography>
-                  <TableContainer component={Paper} variant="outlined">
-                    <Table>
+                  
+                  {/* 统计周期信息 */}
+                  {patternSummary.start_date && patternSummary.end_date && (
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      统计周期: {patternSummary.start_date} - {patternSummary.end_date} ({patternSummary.period}天)
+                    </Typography>
+                  )}
+                  
+                  <Divider sx={{ my: 2 }} />
+                  
+                  {/* 形态模式统计 */}
+                  <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+                    形态模式
+                  </Typography>
+                  <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
+                    <Table size="small">
                       <TableHead>
                         <TableRow>
                           <TableCell>形态名称</TableCell>
-                          <TableCell align="right">数值</TableCell>
+                          <TableCell align="right">出现次数</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {Object.entries(patternSummary).map(([key, value]: [string, any]) => (
+                        {Object.entries(patternSummary.patterns || {}).map(([key, value]: [string, any]) => (
                           <TableRow key={key}>
                             <TableCell>{key}</TableCell>
                             <TableCell align="right">
-                              <Typography variant="body2" color="primary" fontWeight="bold">
-                                {typeof value === 'number' ? value.toFixed(2) : value}
-                              </Typography>
+                              <Chip 
+                                label={value} 
+                                size="small" 
+                                color="primary" 
+                                variant="outlined"
+                              />
                             </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </TableContainer>
+
+                  {/* 信号统计 */}
+                  {patternSummary.signals && Object.keys(patternSummary.signals).length > 0 && (
+                    <>
+                      <Typography variant="subtitle1" gutterBottom>
+                        信号统计
+                      </Typography>
+                      <TableContainer component={Paper} variant="outlined">
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>信号类型</TableCell>
+                              <TableCell align="right">出现次数</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {Object.entries(patternSummary.signals || {}).map(([key, value]: [string, any]) => (
+                              <TableRow key={key}>
+                                <TableCell>
+                                  <Chip
+                                    label={key}
+                                    color={
+                                      key === 'BUY' ? 'success' : 
+                                      key === 'SELL' ? 'error' : 
+                                      'default'
+                                    }
+                                    size="small"
+                                  />
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Typography variant="body2" fontWeight="bold">
+                                    {value}
+                                  </Typography>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             )}
 
             {/* 空状态 */}
-            {predictions.length === 0 && Object.keys(patternSummary).length === 0 && (
+            {predictions.length === 0 && 
+             (!patternSummary || !patternSummary.patterns || Object.keys(patternSummary.patterns).length === 0) && (
               <Alert severity="info">
                 暂无信号数据，请稍后刷新查看最新的预测信号
               </Alert>
