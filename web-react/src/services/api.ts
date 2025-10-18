@@ -19,6 +19,7 @@ import {
   UpdateFavoriteRequest,
   ApiResponse,
   SearchParams,
+  FavoritesSignalsResponse,
 } from '../types/stock';
 import { appConfig } from '../constants/config';
 
@@ -45,6 +46,7 @@ export const stockApi = createApi({
     'Predictions',
     'Favorites',
     'FavoriteGroups',
+    'FavoriteSignals',
     'Signals',
     'RecentViews',
     'Strategies'
@@ -175,6 +177,12 @@ export const stockApi = createApi({
       providesTags: (result, error, stockCode) => [
         { type: 'Favorites', id: stockCode },
       ],
+    }),
+
+    // ===== 收藏股票信号汇总 =====
+    getFavoritesSignals: builder.query<ApiResponse<FavoritesSignalsResponse>, void>({
+      query: () => 'favorites/signals',
+      providesTags: ['FavoriteSignals', 'Favorites'],
     }),
 
     // ===== 分组管理 =====
@@ -429,6 +437,8 @@ export const {
   useUpdateFavoriteMutation,
   useDeleteFavoriteMutation,
   useCheckFavoriteQuery,
+  useGetFavoritesSignalsQuery,
+  useLazyGetFavoritesSignalsQuery,
   
   // 分组管理
   useGetGroupsQuery,

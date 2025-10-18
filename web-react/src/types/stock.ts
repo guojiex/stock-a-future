@@ -380,3 +380,35 @@ export interface PatternSummary {
   signals: Record<string, number>;  // 各种信号统计（信号类型 -> 出现次数）
   updated_at: string;              // 更新时间
 }
+
+// 收藏股票的信号数据
+export interface FavoriteSignal {
+  id: string;                      // 收藏ID
+  ts_code: string;                 // 股票代码
+  name: string;                    // 股票名称
+  group_id?: string;               // 分组ID
+  current_price: string;           // 当前价格
+  trade_date: string;              // 交易日期
+  indicators: TechnicalIndicators; // 技术指标
+  predictions: TradingPointPrediction[]; // 买卖预测
+  updated_at: string;              // 更新时间
+}
+
+// 收藏股票信号汇总响应
+export interface FavoritesSignalsResponse {
+  total: number;                   // 总数
+  signals: FavoriteSignal[];       // 信号列表
+  calculating?: boolean;           // 是否正在计算
+  calculation_status?: {           // 计算状态
+    status: string;
+    message: {
+      message: string;
+    };
+    detail: {
+      is_calculating: boolean;
+      completed: number;
+      total: number;
+      last_updated: string;
+    };
+  };
+}
