@@ -168,6 +168,7 @@ type BollingerStrategyParams struct {
 }
 
 // DefaultStrategies 默认策略配置
+// 注意：使用固定的创建时间顺序，确保排序的稳定性
 var DefaultStrategies = []Strategy{
 	{
 		ID:          "macd_strategy",
@@ -183,7 +184,7 @@ var DefaultStrategies = []Strategy{
 			"sell_threshold": 0.0,
 		},
 		CreatedBy: "system",
-		CreatedAt: time.Now(),
+		CreatedAt: time.Now().Add(-3 * time.Hour), // 最早创建
 		UpdatedAt: time.Now(),
 	},
 	{
@@ -199,7 +200,7 @@ var DefaultStrategies = []Strategy{
 			"threshold":    0.01,
 		},
 		CreatedBy: "system",
-		CreatedAt: time.Now(),
+		CreatedAt: time.Now().Add(-2 * time.Hour),
 		UpdatedAt: time.Now(),
 	},
 	{
@@ -214,7 +215,7 @@ var DefaultStrategies = []Strategy{
 			"oversold":   30.0,
 		},
 		CreatedBy: "system",
-		CreatedAt: time.Now(),
+		CreatedAt: time.Now().Add(-1 * time.Hour),
 		UpdatedAt: time.Now(),
 	},
 	{
@@ -228,7 +229,7 @@ var DefaultStrategies = []Strategy{
 			"std_dev": 2.0,
 		},
 		CreatedBy: "system",
-		CreatedAt: time.Now(),
+		CreatedAt: time.Now(), // 最新创建
 		UpdatedAt: time.Now(),
 	},
 }

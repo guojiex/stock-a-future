@@ -62,7 +62,7 @@ func (s *StrategyService) GetStrategiesList(ctx context.Context, req *models.Str
 		}
 	}
 
-	// 稳定排序：优先按状态排序（active > testing > inactive），然后按创建时间排序（新的在前）
+	// 稳定排序：优先按状态排序（active > testing > inactive），然后按创建时间排序（新的在前），最后按ID排序
 	sort.Slice(results, func(i, j int) bool {
 		// 首先按状态排序
 		statusPriority := map[models.StrategyStatus]int{
@@ -79,7 +79,12 @@ func (s *StrategyService) GetStrategiesList(ctx context.Context, req *models.Str
 		}
 
 		// 状态相同时，按创建时间降序排序（新的在前）
-		return results[i].CreatedAt.After(results[j].CreatedAt)
+		if !results[i].CreatedAt.Equal(results[j].CreatedAt) {
+			return results[i].CreatedAt.After(results[j].CreatedAt)
+		}
+
+		// 创建时间相同时，按ID字典序排序（保证稳定排序）
+		return results[i].ID < results[j].ID
 	})
 
 	total := len(results)
