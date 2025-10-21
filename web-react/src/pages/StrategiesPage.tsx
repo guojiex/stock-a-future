@@ -39,14 +39,11 @@ import {
   PlayArrow as PlayArrowIcon,
   Pause as PauseIcon,
   Visibility as VisibilityIcon,
-  ContentCopy as ContentCopyIcon,
   Assessment as AssessmentIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import {
   useGetStrategiesQuery,
-  useGetStrategyQuery,
-  useCreateStrategyMutation,
   useUpdateStrategyMutation,
   useDeleteStrategyMutation,
   useToggleStrategyMutation,
@@ -79,15 +76,6 @@ interface Strategy {
   updated_at?: string;
 }
 
-interface StrategyPerformance {
-  total_return: number;
-  annual_return: number;
-  max_drawdown: number;
-  sharpe_ratio: number;
-  win_rate: number;
-  total_trades: number;
-  last_updated: string;
-}
 
 const StrategiesPage: React.FC = () => {
   // Hooks
