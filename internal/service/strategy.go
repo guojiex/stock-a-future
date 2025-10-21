@@ -55,12 +55,33 @@ func (s *StrategyService) initDefaultStrategies() {
 func (s *StrategyService) GetStrategiesList(ctx context.Context, req *models.StrategyListRequest) ([]models.Strategy, int, error) {
 	var results []models.Strategy
 
+	s.logger.Info("开始获取策略列表",
+		logger.Int("total_strategies", len(s.strategies)),
+		logger.Int("page", req.Page),
+		logger.Int("size", req.Size),
+	)
+
 	// 过滤策略
-	for _, strategy := range s.strategies {
+	for id, strategy := range s.strategies {
 		if s.matchesFilter(strategy, req) {
 			results = append(results, *strategy)
+			s.logger.Debug("策略通过过滤",
+				logger.String("id", id),
+				logger.String("name", strategy.Name),
+				logger.String("status", string(strategy.Status)),
+				logger.Time("created_at", strategy.CreatedAt),
+			)
 		}
 	}
+
+	s.logger.Info("过滤后策略数量", logger.Int("count", len(results)))
+
+	// 打印排序前的顺序
+	beforeSort := make([]string, len(results))
+	for i, r := range results {
+		beforeSort[i] = r.ID
+	}
+	s.logger.Info("排序前顺序", logger.Any("ids", beforeSort))
 
 	// 稳定排序：优先按状态排序（active > testing > inactive），然后按创建时间排序（新的在前），最后按ID排序
 	sort.Slice(results, func(i, j int) bool {
@@ -87,6 +108,13 @@ func (s *StrategyService) GetStrategiesList(ctx context.Context, req *models.Str
 		return results[i].ID < results[j].ID
 	})
 
+	// 打印排序后的顺序
+	afterSort := make([]string, len(results))
+	for i, r := range results {
+		afterSort[i] = r.ID
+	}
+	s.logger.Info("排序后顺序", logger.Any("ids", afterSort))
+
 	total := len(results)
 
 	// 分页
@@ -101,7 +129,20 @@ func (s *StrategyService) GetStrategiesList(ctx context.Context, req *models.Str
 		end = len(results)
 	}
 
-	return results[start:end], total, nil
+	finalResults := results[start:end]
+
+	// 打印最终返回的策略
+	finalIDs := make([]string, len(finalResults))
+	for i, r := range finalResults {
+		finalIDs[i] = r.ID
+	}
+	s.logger.Info("返回策略列表",
+		logger.Int("total", total),
+		logger.Int("returned", len(finalResults)),
+		logger.Any("ids", finalIDs),
+	)
+
+	return finalResults, total, nil
 }
 
 // matchesFilter 检查策略是否匹配过滤条件

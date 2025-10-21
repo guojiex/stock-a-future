@@ -87,6 +87,29 @@ func (h *StrategyHandler) getStrategiesList(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// 详细日志：记录返回的策略顺序
+	strategyIDs := make([]string, len(strategies))
+	for i, s := range strategies {
+		strategyIDs[i] = s.ID
+	}
+	h.logger.Info("返回策略列表",
+		logger.Int("total", total),
+		logger.Int("count", len(strategies)),
+		logger.Any("strategy_ids", strategyIDs),
+	)
+
+	// 打印每个策略的详细信息
+	for i, s := range strategies {
+		h.logger.Info("策略详情",
+			logger.Int("position", i),
+			logger.String("id", s.ID),
+			logger.String("name", s.Name),
+			logger.String("status", string(s.Status)),
+			logger.String("type", string(s.Type)),
+			logger.Time("created_at", s.CreatedAt),
+		)
+	}
+
 	// 返回结果
 	response := &models.StrategyListResponse{
 		Total: total,
