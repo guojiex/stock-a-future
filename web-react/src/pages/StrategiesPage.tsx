@@ -100,8 +100,6 @@ const StrategiesPage: React.FC = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<Strategy>>({});
-  const [previousOrder, setPreviousOrder] = useState<string[]>([]);
-  const [fetchCount, setFetchCount] = useState(0);
 
   // API查询
   const {
@@ -116,59 +114,12 @@ const StrategiesPage: React.FC = () => {
   const [deleteStrategy, { isLoading: deleting }] = useDeleteStrategyMutation();
   const [toggleStrategy, { isLoading: toggling }] = useToggleStrategyMutation();
 
-  // 处理策略数据
-  const strategies: Strategy[] = (strategiesData?.data?.items || strategiesData?.data?.data || []) as Strategy[];
-
-  // 监控策略顺序变化
-  React.useEffect(() => {
-    if (strategies.length === 0) return;
-
-    const currentOrder = strategies.map(s => s.id);
-    const newFetchCount = fetchCount + 1;
-    setFetchCount(newFetchCount);
-
-    console.log(`\n========== 第 ${newFetchCount} 次获取策略列表 ==========`);
-    console.log('策略顺序:', currentOrder);
-    
-    // 打印每个策略的详细信息
-    console.table(strategies.map(s => ({
-      ID: s.id,
-      名称: s.name,
-      状态: s.status,
-      类型: s.strategy_type,
-      创建时间: s.created_at,
-      更新时间: s.updated_at,
-    })));
-
-    // 检查顺序是否变化
-    if (previousOrder.length > 0) {
-      const orderChanged = currentOrder.length !== previousOrder.length || 
-        currentOrder.some((id, index) => id !== previousOrder[index]);
-
-      if (orderChanged) {
-        console.warn('⚠️ 策略顺序发生变化！');
-        console.log('上次顺序:', previousOrder);
-        console.log('本次顺序:', currentOrder);
-        
-        // 找出顺序变化的具体位置
-        const changes: string[] = [];
-        const maxLen = Math.max(currentOrder.length, previousOrder.length);
-        for (let i = 0; i < maxLen; i++) {
-          if (currentOrder[i] !== previousOrder[i]) {
-            changes.push(`位置 ${i}: ${previousOrder[i] || 'none'} -> ${currentOrder[i] || 'none'}`);
-          }
-        }
-        console.log('变化详情:', changes);
-
-        // 打印原始API响应数据
-        console.log('原始API响应:', JSON.stringify(strategiesData, null, 2));
-      } else {
-        console.log('✅ 策略顺序保持一致');
-      }
-    }
-
-    setPreviousOrder(currentOrder);
-  }, [strategies, strategiesData]);
+  // 处理策略数据并按ID排序（确保显示顺序稳定）
+  const strategies: Strategy[] = React.useMemo(() => {
+    const data = (strategiesData?.data?.items || strategiesData?.data?.data || []) as Strategy[];
+    // 按ID字母顺序排序，确保每次显示顺序一致
+    return [...data].sort((a, b) => a.id.localeCompare(b.id));
+  }, [strategiesData]);
 
   // 打开编辑对话框
   const handleEditClick = (strategy: Strategy) => {
@@ -645,10 +596,7 @@ const StrategiesPage: React.FC = () => {
           <Button
             variant="outlined"
             startIcon={<RefreshIcon />}
-            onClick={() => {
-              console.log('🔄 用户点击刷新按钮');
-              refetchStrategies();
-            }}
+            onClick={() => refetchStrategies()}
           >
             刷新
           </Button>

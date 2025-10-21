@@ -55,65 +55,17 @@ func (s *StrategyService) initDefaultStrategies() {
 func (s *StrategyService) GetStrategiesList(ctx context.Context, req *models.StrategyListRequest) ([]models.Strategy, int, error) {
 	var results []models.Strategy
 
-	s.logger.Info("开始获取策略列表",
-		logger.Int("total_strategies", len(s.strategies)),
-		logger.Int("page", req.Page),
-		logger.Int("size", req.Size),
-	)
-
 	// 过滤策略
-	for id, strategy := range s.strategies {
+	for _, strategy := range s.strategies {
 		if s.matchesFilter(strategy, req) {
 			results = append(results, *strategy)
-			s.logger.Debug("策略通过过滤",
-				logger.String("id", id),
-				logger.String("name", strategy.Name),
-				logger.String("status", string(strategy.Status)),
-				logger.Time("created_at", strategy.CreatedAt),
-			)
 		}
 	}
 
-	s.logger.Info("过滤后策略数量", logger.Int("count", len(results)))
-
-	// 打印排序前的顺序
-	beforeSort := make([]string, len(results))
-	for i, r := range results {
-		beforeSort[i] = r.ID
-	}
-	s.logger.Info("排序前顺序", logger.Any("ids", beforeSort))
-
-	// 稳定排序：优先按状态排序（active > testing > inactive），然后按创建时间排序（新的在前），最后按ID排序
+	// 简单稳定排序：按ID字母顺序排序（保证每次顺序一致）
 	sort.Slice(results, func(i, j int) bool {
-		// 首先按状态排序
-		statusPriority := map[models.StrategyStatus]int{
-			models.StrategyStatusActive:   1,
-			models.StrategyStatusTesting:  2,
-			models.StrategyStatusInactive: 3,
-		}
-
-		statusI := statusPriority[results[i].Status]
-		statusJ := statusPriority[results[j].Status]
-
-		if statusI != statusJ {
-			return statusI < statusJ
-		}
-
-		// 状态相同时，按创建时间降序排序（新的在前）
-		if !results[i].CreatedAt.Equal(results[j].CreatedAt) {
-			return results[i].CreatedAt.After(results[j].CreatedAt)
-		}
-
-		// 创建时间相同时，按ID字典序排序（保证稳定排序）
 		return results[i].ID < results[j].ID
 	})
-
-	// 打印排序后的顺序
-	afterSort := make([]string, len(results))
-	for i, r := range results {
-		afterSort[i] = r.ID
-	}
-	s.logger.Info("排序后顺序", logger.Any("ids", afterSort))
 
 	total := len(results)
 
@@ -129,20 +81,7 @@ func (s *StrategyService) GetStrategiesList(ctx context.Context, req *models.Str
 		end = len(results)
 	}
 
-	finalResults := results[start:end]
-
-	// 打印最终返回的策略
-	finalIDs := make([]string, len(finalResults))
-	for i, r := range finalResults {
-		finalIDs[i] = r.ID
-	}
-	s.logger.Info("返回策略列表",
-		logger.Int("total", total),
-		logger.Int("returned", len(finalResults)),
-		logger.Any("ids", finalIDs),
-	)
-
-	return finalResults, total, nil
+	return results[start:end], total, nil
 }
 
 // matchesFilter 检查策略是否匹配过滤条件
