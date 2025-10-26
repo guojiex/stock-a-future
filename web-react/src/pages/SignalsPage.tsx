@@ -64,6 +64,20 @@ const SignalCard: React.FC<{ signal: FavoriteSignal; onViewStock: (tsCode: strin
     return 'hold';
   }, [predictions]);
 
+  // 对于混合信号，计算主要倾向
+  const dominantSignal = useMemo(() => {
+    if (signalType !== 'mixed') return null;
+    
+    const buyPreds = predictions.filter((p) => p.type === 'BUY');
+    const sellPreds = predictions.filter((p) => p.type === 'SELL');
+    const buyConfidence = buyPreds.length > 0 ? Math.max(...buyPreds.map((p) => p.probability)) : 0;
+    const sellConfidence = sellPreds.length > 0 ? Math.max(...sellPreds.map((p) => p.probability)) : 0;
+    
+    if (buyConfidence > sellConfidence) return 'buy';
+    if (sellConfidence > buyConfidence) return 'sell';
+    return 'neutral';
+  }, [signalType, predictions]);
+
   // 获取最高置信度
   const maxConfidence = useMemo(() => {
     if (predictions.length === 0) return 0;
@@ -124,14 +138,28 @@ const SignalCard: React.FC<{ signal: FavoriteSignal; onViewStock: (tsCode: strin
               </Typography>
             </Typography>
           </Box>
-          <Chip
-            label={config.label}
-            sx={{
-              backgroundColor: config.bgColor,
-              color: config.color,
-              fontWeight: 'bold',
-            }}
-          />
+          <Box>
+            <Chip
+              label={config.label}
+              sx={{
+                backgroundColor: config.bgColor,
+                color: config.color,
+                fontWeight: 'bold',
+              }}
+            />
+            {signalType === 'mixed' && dominantSignal && (
+              <Chip
+                label={dominantSignal === 'buy' ? '倾向买入' : dominantSignal === 'sell' ? '倾向卖出' : '中性'}
+                size="small"
+                sx={{
+                  ml: 1,
+                  backgroundColor: dominantSignal === 'buy' ? '#e8f5e9' : dominantSignal === 'sell' ? '#ffebee' : '#f5f5f5',
+                  color: dominantSignal === 'buy' ? '#4caf50' : dominantSignal === 'sell' ? '#f44336' : '#757575',
+                  fontSize: '0.75rem',
+                }}
+              />
+            )}
+          </Box>
         </Box>
 
         {/* 价格和日期信息 */}
@@ -264,9 +292,29 @@ const SignalsPage: React.FC = () => {
 
       switch (currentTab) {
         case 'buy':
-          return hasBuy && !hasSell;
+          // 纯买入信号
+          if (hasBuy && !hasSell) return true;
+          // 混合信号，根据置信度判断
+          if (hasBuy && hasSell) {
+            const buyPreds = predictions.filter((p) => p.type === 'BUY');
+            const sellPreds = predictions.filter((p) => p.type === 'SELL');
+            const buyConfidence = buyPreds.length > 0 ? Math.max(...buyPreds.map((p) => p.probability)) : 0;
+            const sellConfidence = sellPreds.length > 0 ? Math.max(...sellPreds.map((p) => p.probability)) : 0;
+            return buyConfidence > sellConfidence;
+          }
+          return false;
         case 'sell':
-          return hasSell && !hasBuy;
+          // 纯卖出信号
+          if (hasSell && !hasBuy) return true;
+          // 混合信号，根据置信度判断
+          if (hasBuy && hasSell) {
+            const buyPreds = predictions.filter((p) => p.type === 'BUY');
+            const sellPreds = predictions.filter((p) => p.type === 'SELL');
+            const buyConfidence = buyPreds.length > 0 ? Math.max(...buyPreds.map((p) => p.probability)) : 0;
+            const sellConfidence = sellPreds.length > 0 ? Math.max(...sellPreds.map((p) => p.probability)) : 0;
+            return sellConfidence > buyConfidence;
+          }
+          return false;
         case 'hold':
           return !hasBuy && !hasSell;
         default:
@@ -340,9 +388,11 @@ const SignalsPage: React.FC = () => {
           收藏股票信号汇总
         </Typography>
         <Tooltip title="刷新信号数据">
-          <IconButton onClick={handleRefresh} color="primary" disabled={isLoading}>
-            <RefreshIcon />
-          </IconButton>
+          <span>
+            <IconButton onClick={handleRefresh} color="primary" disabled={isLoading}>
+              <RefreshIcon />
+            </IconButton>
+          </span>
         </Tooltip>
       </Box>
 

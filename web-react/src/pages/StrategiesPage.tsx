@@ -267,17 +267,19 @@ const StrategiesPage: React.FC = () => {
                 </IconButton>
               </Tooltip>
               <Tooltip title={strategy.status === 'active' ? '暂停' : '启用'}>
-                <IconButton
-                  size="small"
-                  onClick={() => handleToggleStrategy(strategy)}
-                  disabled={toggling}
-                >
-                  {strategy.status === 'active' ? (
-                    <PauseIcon fontSize="small" />
-                  ) : (
-                    <PlayArrowIcon fontSize="small" />
-                  )}
-                </IconButton>
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleToggleStrategy(strategy)}
+                    disabled={toggling}
+                  >
+                    {strategy.status === 'active' ? (
+                      <PauseIcon fontSize="small" />
+                    ) : (
+                      <PlayArrowIcon fontSize="small" />
+                    )}
+                  </IconButton>
+                </span>
               </Tooltip>
               <Tooltip title="删除">
                 <IconButton
