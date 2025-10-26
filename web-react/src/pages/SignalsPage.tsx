@@ -29,9 +29,10 @@ import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import { useGetFavoritesSignalsQuery } from '../services/api';
 import { FavoriteSignal, TradingPointPrediction } from '../types/stock';
 import { useNavigate } from 'react-router-dom';
+import { formatDate, formatDateTime } from '../utils/dateFormat';
 
 // 信号类型选项
-type SignalType = 'all' | 'buy' | 'sell' | 'hold';
+type SignalType = 'all' | 'buy' | 'sell';
 
 /**
  * 信号卡片组件
@@ -190,7 +191,7 @@ const SignalCard: React.FC<{ signal: FavoriteSignal; onViewStock: (tsCode: strin
             <Typography variant="body2" color="text.secondary">
               交易日期
             </Typography>
-            <Typography variant="body1">{signal.trade_date}</Typography>
+            <Typography variant="body1">{formatDate(signal.trade_date)}</Typography>
           </Box>
           <Box flex="1 1 30%">
             <Typography variant="body2" color="text.secondary">
@@ -231,14 +232,21 @@ const SignalCard: React.FC<{ signal: FavoriteSignal; onViewStock: (tsCode: strin
                   }`,
                 }}
               >
-                <Box display="flex" flexWrap="wrap" alignItems="center" justifyContent="space-between">
+                <Box display="flex" flexWrap="wrap" alignItems="flex-start" justifyContent="space-between">
                   <Box flex="1 1 60%">
-                    <Typography variant="body2" fontWeight="medium">
-                      {pred.type === 'BUY' ? '🟢 买入' : '🔴 卖出'}: {pred.reason}
-                    </Typography>
+                    <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                      <Typography variant="body2" fontWeight="medium">
+                        {pred.type === 'BUY' ? '🟢 买入' : '🔴 卖出'}: {pred.reason}
+                      </Typography>
+                    </Box>
                     {pred.indicators && pred.indicators.length > 0 && (
                       <Typography variant="caption" color="text.secondary">
                         指标: {pred.indicators.join(', ')}
+                      </Typography>
+                    )}
+                    {pred.signal_date && (
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                        信号时间: {formatDate(pred.signal_date)}
                       </Typography>
                     )}
                   </Box>
@@ -246,6 +254,11 @@ const SignalCard: React.FC<{ signal: FavoriteSignal; onViewStock: (tsCode: strin
                     <Typography variant="caption" color="text.secondary">
                       概率: {(pred.probability * 100).toFixed(1)}%
                     </Typography>
+                    {pred.price && (
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        预测价格: ¥{pred.price.toFixed(2)}
+                      </Typography>
+                    )}
                   </Box>
                 </Box>
               </Box>
@@ -268,7 +281,7 @@ const SignalCard: React.FC<{ signal: FavoriteSignal; onViewStock: (tsCode: strin
 
         {/* 更新时间 */}
         <Typography variant="caption" color="text.secondary" display="block" mt={1}>
-          更新时间: {signal.updated_at}
+          更新时间: {formatDateTime(signal.updated_at)}
         </Typography>
       </CardContent>
     </Card>
@@ -286,16 +299,14 @@ const SignalsPage: React.FC = () => {
   // 获取信号数据
   const { data, isLoading, isError, error, refetch } = useGetFavoritesSignalsQuery();
 
-  // 过滤信号
+  // 过滤信号 - 只显示有买入或卖出信号的股票
   const filteredSignals = useMemo(() => {
     if (!data?.data?.signals) return [];
 
     const signals = data.data.signals;
 
-    if (currentTab === 'all') return signals;
-
-    return signals.filter((signal) => {
-      // 获取预测数组
+    // 过滤掉没有任何预测信号的股票
+    const signalsWithPredictions = signals.filter((signal) => {
       let predictions: TradingPointPrediction[] = [];
       if (Array.isArray(signal.predictions)) {
         predictions = signal.predictions;
@@ -303,9 +314,19 @@ const SignalsPage: React.FC = () => {
         const preds = (signal.predictions as any).predictions;
         predictions = Array.isArray(preds) ? preds : [];
       }
+      return predictions.length > 0;
+    });
 
-      if (predictions.length === 0) {
-        return currentTab === 'hold';
+    if (currentTab === 'all') return signalsWithPredictions;
+
+    return signalsWithPredictions.filter((signal) => {
+      // 获取预测数组
+      let predictions: TradingPointPrediction[] = [];
+      if (Array.isArray(signal.predictions)) {
+        predictions = signal.predictions;
+      } else if (signal.predictions && typeof signal.predictions === 'object' && 'predictions' in signal.predictions) {
+        const preds = (signal.predictions as any).predictions;
+        predictions = Array.isArray(preds) ? preds : [];
       }
 
       const hasBuy = predictions.some((p) => p.type === 'BUY');
@@ -336,24 +357,22 @@ const SignalsPage: React.FC = () => {
             return sellConfidence > buyConfidence;
           }
           return false;
-        case 'hold':
-          return !hasBuy && !hasSell;
         default:
           return true;
       }
     });
   }, [data, currentTab]);
 
-  // 统计信息
+  // 统计信息 - 只统计有信号的股票
   const statistics = useMemo(() => {
     if (!data?.data?.signals) {
-      return { total: 0, buy: 0, sell: 0, hold: 0 };
+      return { total: 0, buy: 0, sell: 0 };
     }
 
     const signals = data.data.signals;
     let buy = 0;
     let sell = 0;
-    let hold = 0;
+    let totalWithSignals = 0;
 
     signals.forEach((signal) => {
       // 获取预测数组
@@ -365,30 +384,36 @@ const SignalsPage: React.FC = () => {
         predictions = Array.isArray(preds) ? preds : [];
       }
 
+      // 跳过没有信号的股票
       if (predictions.length === 0) {
-        hold++;
         return;
       }
+
+      totalWithSignals++;
 
       const hasBuy = predictions.some((p) => p.type === 'BUY');
       const hasSell = predictions.some((p) => p.type === 'SELL');
 
-      if (hasBuy && !hasSell) buy++;
-      else if (hasSell && !hasBuy) sell++;
-      else if (!hasBuy && !hasSell) hold++;
-      else {
+      if (hasBuy && !hasSell) {
+        buy++;
+      } else if (hasSell && !hasBuy) {
+        sell++;
+      } else if (hasBuy && hasSell) {
         // 混合信号，根据置信度判断
         const buyPreds = predictions.filter((p) => p.type === 'BUY');
         const sellPreds = predictions.filter((p) => p.type === 'SELL');
         const buyConfidence = buyPreds.length > 0 ? Math.max(...buyPreds.map((p) => p.probability)) : 0;
         const sellConfidence = sellPreds.length > 0 ? Math.max(...sellPreds.map((p) => p.probability)) : 0;
-        if (buyConfidence > sellConfidence) buy++;
-        else if (sellConfidence > buyConfidence) sell++;
-        else hold++;
+        if (buyConfidence > sellConfidence) {
+          buy++;
+        } else if (sellConfidence > buyConfidence) {
+          sell++;
+        }
+        // 如果置信度相等，不计入任何类别
       }
     });
 
-    return { total: signals.length, buy, sell, hold };
+    return { total: totalWithSignals, buy, sell };
   }, [data]);
 
   // 处理查看股票详情
@@ -419,17 +444,17 @@ const SignalsPage: React.FC = () => {
 
       {/* 统计卡片 */}
       <Box display="flex" flexWrap="wrap" gap={2} mb={3}>
-        <Box flex="1 1 calc(50% - 8px)" minWidth="150px">
+        <Box flex="1 1 calc(33.33% - 16px)" minWidth="150px">
           <Paper sx={{ p: 2, textAlign: 'center' }}>
             <Typography variant="h4" color="primary">
               {statistics.total}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              总数
+              有信号股票
             </Typography>
           </Paper>
         </Box>
-        <Box flex="1 1 calc(50% - 8px)" minWidth="150px">
+        <Box flex="1 1 calc(33.33% - 16px)" minWidth="150px">
           <Paper sx={{ p: 2, textAlign: 'center', bgcolor: alpha(theme.palette.success.main, 0.08) }}>
             <Typography variant="h4" sx={{ color: theme.palette.success.main }}>
               {statistics.buy}
@@ -439,23 +464,13 @@ const SignalsPage: React.FC = () => {
             </Typography>
           </Paper>
         </Box>
-        <Box flex="1 1 calc(50% - 8px)" minWidth="150px">
+        <Box flex="1 1 calc(33.33% - 16px)" minWidth="150px">
           <Paper sx={{ p: 2, textAlign: 'center', bgcolor: alpha(theme.palette.error.main, 0.08) }}>
             <Typography variant="h4" sx={{ color: theme.palette.error.main }}>
               {statistics.sell}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               卖出信号
-            </Typography>
-          </Paper>
-        </Box>
-        <Box flex="1 1 calc(50% - 8px)" minWidth="150px">
-          <Paper sx={{ p: 2, textAlign: 'center', bgcolor: alpha(theme.palette.warning.main, 0.08) }}>
-            <Typography variant="h4" sx={{ color: theme.palette.warning.main }}>
-              {statistics.hold}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              持有
             </Typography>
           </Paper>
         </Box>
@@ -520,16 +535,6 @@ const SignalsPage: React.FC = () => {
                   '&.Mui-selected': { color: theme.palette.error.main }
                 }}
               />
-              <Tab
-                label={`持有 (${statistics.hold})`}
-                value="hold"
-                icon={<RemoveCircleOutlineIcon />}
-                iconPosition="start"
-                sx={{ 
-                  color: currentTab === 'hold' ? theme.palette.warning.main : 'inherit',
-                  '&.Mui-selected': { color: theme.palette.warning.main }
-                }}
-              />
             </Tabs>
           </Box>
 
@@ -543,10 +548,10 @@ const SignalsPage: React.FC = () => {
           ) : (
             <Paper sx={{ p: 4, textAlign: 'center' }}>
               <Typography variant="h6" color="text.secondary">
-                暂无{currentTab === 'all' ? '' : currentTab === 'buy' ? '买入' : currentTab === 'sell' ? '卖出' : '持有'}信号数据
+                暂无{currentTab === 'all' ? '' : currentTab === 'buy' ? '买入' : '卖出'}信号数据
               </Typography>
               <Typography variant="body2" color="text.secondary" mt={1}>
-                请先添加收藏股票，系统会自动计算买卖信号
+                系统会自动分析收藏股票并生成买卖信号
               </Typography>
             </Paper>
           )}

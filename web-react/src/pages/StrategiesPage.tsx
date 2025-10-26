@@ -48,6 +48,7 @@ import {
   useDeleteStrategyMutation,
   useToggleStrategyMutation,
 } from '../services/api';
+import { formatDate, formatDateTime } from '../utils/dateFormat';
 import { setSelectedStrategies } from '../store/slices/backtestSlice';
 
 // 策略类型映射
@@ -249,7 +250,7 @@ const StrategiesPage: React.FC = () => {
 
             {/* 创建时间 */}
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-              创建于: {new Date(strategy.created_at).toLocaleDateString('zh-CN')}
+              创建于: {formatDate(strategy.created_at)}
             </Typography>
           </CardContent>
 
@@ -464,7 +465,7 @@ const StrategiesPage: React.FC = () => {
                     创建时间
                   </Typography>
                   <Typography variant="body1">
-                    {new Date(selectedStrategy.created_at).toLocaleString('zh-CN')}
+                    {formatDateTime(selectedStrategy.created_at)}
                   </Typography>
                 </Box>
                 <Box sx={{ gridColumn: '1 / -1' }}>

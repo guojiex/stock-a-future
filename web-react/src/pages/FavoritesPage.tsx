@@ -15,7 +15,6 @@ import {
   Card,
   CardContent,
   Box,
-  Grid,
   Button,
   IconButton,
   Chip,
@@ -33,7 +32,6 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Alert,
   CircularProgress,
   Divider,
   Paper,
@@ -63,13 +61,14 @@ import {
   useDeleteGroupMutation,
 } from '../services/api';
 import { Favorite, FavoriteGroup } from '../types/stock';
+import { formatDate } from '../utils/dateFormat';
 
 const FavoritesPage: React.FC = () => {
   const navigate = useNavigate();
 
   // API查询
   const { data: favoritesData, isLoading: favoritesLoading } = useGetFavoritesQuery();
-  const { data: groupsData, isLoading: groupsLoading } = useGetGroupsQuery();
+  const { data: groupsData } = useGetGroupsQuery();
 
   // API变更
   const [deleteFavorite] = useDeleteFavoriteMutation();
@@ -90,9 +89,9 @@ const FavoritesPage: React.FC = () => {
   const [groupMenuAnchor, setGroupMenuAnchor] = useState<null | HTMLElement>(null);
   const [menuGroupId, setMenuGroupId] = useState<string>('');
 
-  // 获取数据
-  const favorites = favoritesData?.data?.favorites || [];
-  const groups = groupsData?.data?.groups || [];
+  // 获取数据 - 使用 useMemo 包装以避免重新渲染问题
+  const favorites = useMemo(() => favoritesData?.data?.favorites || [], [favoritesData]);
+  const groups = useMemo(() => groupsData?.data?.groups || [], [groupsData]);
 
   // 按分组过滤收藏
   const filteredFavorites = useMemo(() => {
@@ -408,7 +407,7 @@ const FavoritesPage: React.FC = () => {
                     }
                     secondary={
                       <Typography variant="body2" color="text.secondary">
-                        收藏于 {new Date(favorite.created_at).toLocaleDateString()}
+                        收藏于 {formatDate(favorite.created_at)}
                       </Typography>
                     }
                   />
