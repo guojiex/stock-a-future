@@ -50,6 +50,7 @@ import {
 } from '../services/api';
 import { formatDate, formatDateTime } from '../utils/dateFormat';
 import { setSelectedStrategies } from '../store/slices/backtestSlice';
+import { CreateStrategyDialog } from '../components/CreateStrategyDialog';
 
 // 策略类型映射
 const STRATEGY_TYPES = {
@@ -85,6 +86,7 @@ const StrategiesPage: React.FC = () => {
   
   // 状态
   const [selectedStrategy, setSelectedStrategy] = useState<Strategy | null>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
@@ -594,10 +596,7 @@ const StrategiesPage: React.FC = () => {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => {
-              // TODO: 打开创建策略对话框
-              console.log('创建新策略');
-            }}
+            onClick={() => setCreateDialogOpen(true)}
           >
             创建策略
           </Button>
@@ -634,6 +633,13 @@ const StrategiesPage: React.FC = () => {
       )}
 
       {/* 对话框 */}
+      <CreateStrategyDialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        onSuccess={() => {
+          refetchStrategies();
+        }}
+      />
       {renderEditDialog()}
       {renderDetailsDialog()}
       {renderDeleteDialog()}

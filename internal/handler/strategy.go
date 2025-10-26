@@ -38,6 +38,11 @@ func (h *StrategyHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/v1/strategies/{id}", h.handleCORS(h.deleteStrategy))
 	mux.HandleFunc("GET /api/v1/strategies/{id}/performance", h.handleCORS(h.getStrategyPerformance))
 
+	// 新增: 策略模板和定义路由
+	mux.HandleFunc("GET /api/v1/strategies/templates", h.handleCORS(h.getStrategyTemplates))
+	mux.HandleFunc("GET /api/v1/strategies/types", h.handleCORS(h.getStrategyTypes))
+	mux.HandleFunc("POST /api/v1/strategies/validate", h.handleCORS(h.validateStrategyParameters))
+
 	// 策略操作路由
 	mux.HandleFunc("POST /api/v1/strategies/{id}/activate", h.handleCORS(h.activateStrategy))
 	mux.HandleFunc("POST /api/v1/strategies/{id}/deactivate", h.handleCORS(h.deactivateStrategy))
@@ -391,6 +396,70 @@ func (h *StrategyHandler) validateCreateStrategyRequest(req *models.CreateStrate
 	}
 
 	return nil
+}
+
+// getStrategyTemplates 获取策略模板
+func (h *StrategyHandler) getStrategyTemplates(w http.ResponseWriter, r *http.Request) {
+	h.logger.Info("获取策略模板请求")
+
+	templates := h.strategyService.GetStrategyTemplates()
+
+	h.writeJSONResponse(w, map[string]interface{}{
+		"success": true,
+		"data":    templates,
+		"message": "获取策略模板成功",
+	})
+}
+
+// validateStrategyParameters 验证策略参数
+func (h *StrategyHandler) validateStrategyParameters(w http.ResponseWriter, r *http.Request) {
+	h.logger.Info("验证策略参数请求")
+
+	var req struct {
+		StrategyType models.StrategyType    `json:"strategy_type"`
+		Parameters   map[string]interface{} `json:"parameters"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Error("解析验证参数请求失败", logger.ErrorField(err))
+		h.writeErrorResponse(w, "请求格式错误", http.StatusBadRequest)
+		return
+	}
+
+	errors := h.strategyService.ValidateParameters(req.StrategyType, req.Parameters)
+
+	if len(errors) == 0 {
+		h.writeJSONResponse(w, map[string]interface{}{
+			"success": true,
+			"data": map[string]interface{}{
+				"valid":  true,
+				"errors": []string{},
+			},
+			"message": "参数验证通过",
+		})
+	} else {
+		h.writeJSONResponse(w, map[string]interface{}{
+			"success": false,
+			"data": map[string]interface{}{
+				"valid":  false,
+				"errors": errors,
+			},
+			"message": "参数验证失败",
+		})
+	}
+}
+
+// getStrategyTypes 获取策略类型定义
+func (h *StrategyHandler) getStrategyTypes(w http.ResponseWriter, r *http.Request) {
+	h.logger.Info("获取策略类型定义请求")
+
+	types := h.strategyService.GetStrategyTypeDefinitions()
+
+	h.writeJSONResponse(w, map[string]interface{}{
+		"success": true,
+		"data":    types,
+		"message": "获取策略类型定义成功",
+	})
 }
 
 // handleCORS 处理CORS

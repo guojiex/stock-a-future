@@ -454,6 +454,287 @@ func (s *StrategyService) validateCompositeStrategyParameters(strategy *models.S
 	return nil
 }
 
+// GetStrategyTemplates 获取策略模板列表
+func (s *StrategyService) GetStrategyTemplates() []models.StrategyTemplate {
+	return []models.StrategyTemplate{
+		{
+			ID:          "macd_template",
+			Name:        "MACD金叉策略模板",
+			Description: "经典的MACD金叉死叉交易策略",
+			Type:        models.StrategyTypeTechnical,
+			Parameters: map[string]interface{}{
+				"fast_period":    12,
+				"slow_period":    26,
+				"signal_period":  9,
+				"buy_threshold":  0.0,
+				"sell_threshold": 0.0,
+			},
+			Category:  "技术指标",
+			Tags:      []string{"MACD", "趋势跟踪", "金叉"},
+			CreatedAt: time.Now(),
+		},
+		{
+			ID:          "ma_crossover_template",
+			Name:        "双均线策略模板",
+			Description: "短期均线突破长期均线的交易策略",
+			Type:        models.StrategyTypeTechnical,
+			Parameters: map[string]interface{}{
+				"short_period": 5,
+				"long_period":  20,
+				"ma_type":      "sma",
+				"threshold":    0.01,
+			},
+			Category:  "技术指标",
+			Tags:      []string{"均线", "趋势跟踪", "突破"},
+			CreatedAt: time.Now(),
+		},
+		{
+			ID:          "rsi_template",
+			Name:        "RSI超买超卖策略模板",
+			Description: "基于RSI指标的超买超卖交易策略",
+			Type:        models.StrategyTypeTechnical,
+			Parameters: map[string]interface{}{
+				"period":     14,
+				"overbought": 70.0,
+				"oversold":   30.0,
+			},
+			Category:  "技术指标",
+			Tags:      []string{"RSI", "超买超卖", "震荡指标"},
+			CreatedAt: time.Now(),
+		},
+		{
+			ID:          "bollinger_template",
+			Name:        "布林带策略模板",
+			Description: "基于布林带的均值回归策略",
+			Type:        models.StrategyTypeTechnical,
+			Parameters: map[string]interface{}{
+				"period":  20,
+				"std_dev": 2.0,
+			},
+			Category:  "技术指标",
+			Tags:      []string{"布林带", "均值回归", "波动率"},
+			CreatedAt: time.Now(),
+		},
+	}
+}
+
+// ValidateParameters 验证策略参数
+func (s *StrategyService) ValidateParameters(strategyType models.StrategyType, parameters map[string]interface{}) []map[string]string {
+	var errors []map[string]string
+
+	// 根据策略类型验证参数
+	switch strategyType {
+	case models.StrategyTypeTechnical:
+		errors = s.validateTechnicalParams(parameters)
+	case models.StrategyTypeFundamental:
+		errors = s.validateFundamentalParams(parameters)
+	case models.StrategyTypeML:
+		errors = s.validateMLParams(parameters)
+	case models.StrategyTypeComposite:
+		errors = s.validateCompositeParams(parameters)
+	}
+
+	return errors
+}
+
+// validateTechnicalParams 验证技术指标策略参数
+func (s *StrategyService) validateTechnicalParams(parameters map[string]interface{}) []map[string]string {
+	var errors []map[string]string
+
+	// MACD参数验证
+	if fastPeriod, ok := parameters["fast_period"].(float64); ok {
+		if fastPeriod < 1 || fastPeriod > 50 {
+			errors = append(errors, map[string]string{
+				"field":   "fast_period",
+				"message": "快线周期必须在1-50之间",
+			})
+		}
+	}
+
+	if slowPeriod, ok := parameters["slow_period"].(float64); ok {
+		if slowPeriod < 1 || slowPeriod > 100 {
+			errors = append(errors, map[string]string{
+				"field":   "slow_period",
+				"message": "慢线周期必须在1-100之间",
+			})
+		}
+	}
+
+	// 验证快线周期必须小于慢线周期
+	if fastPeriod, ok1 := parameters["fast_period"].(float64); ok1 {
+		if slowPeriod, ok2 := parameters["slow_period"].(float64); ok2 {
+			if fastPeriod >= slowPeriod {
+				errors = append(errors, map[string]string{
+					"field":   "slow_period",
+					"message": "慢线周期必须大于快线周期",
+				})
+			}
+		}
+	}
+
+	if signalPeriod, ok := parameters["signal_period"].(float64); ok {
+		if signalPeriod < 1 || signalPeriod > 50 {
+			errors = append(errors, map[string]string{
+				"field":   "signal_period",
+				"message": "信号线周期必须在1-50之间",
+			})
+		}
+	}
+
+	// 双均线参数验证
+	if shortPeriod, ok := parameters["short_period"].(float64); ok {
+		if shortPeriod < 1 || shortPeriod > 50 {
+			errors = append(errors, map[string]string{
+				"field":   "short_period",
+				"message": "短期均线周期必须在1-50之间",
+			})
+		}
+	}
+
+	if longPeriod, ok := parameters["long_period"].(float64); ok {
+		if longPeriod < 1 || longPeriod > 200 {
+			errors = append(errors, map[string]string{
+				"field":   "long_period",
+				"message": "长期均线周期必须在1-200之间",
+			})
+		}
+	}
+
+	// 验证短期均线必须小于长期均线
+	if shortPeriod, ok1 := parameters["short_period"].(float64); ok1 {
+		if longPeriod, ok2 := parameters["long_period"].(float64); ok2 {
+			if shortPeriod >= longPeriod {
+				errors = append(errors, map[string]string{
+					"field":   "long_period",
+					"message": "长期均线周期必须大于短期均线周期",
+				})
+			}
+		}
+	}
+
+	// RSI参数验证
+	if period, ok := parameters["period"].(float64); ok {
+		if period < 1 || period > 50 {
+			errors = append(errors, map[string]string{
+				"field":   "period",
+				"message": "RSI周期必须在1-50之间",
+			})
+		}
+	}
+
+	if overbought, ok := parameters["overbought"].(float64); ok {
+		if overbought < 50 || overbought > 100 {
+			errors = append(errors, map[string]string{
+				"field":   "overbought",
+				"message": "超买阈值必须在50-100之间",
+			})
+		}
+	}
+
+	if oversold, ok := parameters["oversold"].(float64); ok {
+		if oversold < 0 || oversold > 50 {
+			errors = append(errors, map[string]string{
+				"field":   "oversold",
+				"message": "超卖阈值必须在0-50之间",
+			})
+		}
+	}
+
+	// 布林带参数验证
+	if stdDev, ok := parameters["std_dev"].(float64); ok {
+		if stdDev < 0.5 || stdDev > 5 {
+			errors = append(errors, map[string]string{
+				"field":   "std_dev",
+				"message": "标准差倍数必须在0.5-5之间",
+			})
+		}
+	}
+
+	return errors
+}
+
+// validateFundamentalParams 验证基本面策略参数
+func (s *StrategyService) validateFundamentalParams(parameters map[string]interface{}) []map[string]string {
+	var errors []map[string]string
+	// TODO: 实现基本面参数验证
+	return errors
+}
+
+// validateMLParams 验证机器学习策略参数
+func (s *StrategyService) validateMLParams(parameters map[string]interface{}) []map[string]string {
+	var errors []map[string]string
+	// TODO: 实现机器学习参数验证
+	return errors
+}
+
+// validateCompositeParams 验证复合策略参数
+func (s *StrategyService) validateCompositeParams(parameters map[string]interface{}) []map[string]string {
+	var errors []map[string]string
+	// TODO: 实现复合策略参数验证
+	return errors
+}
+
+// GetStrategyTypeDefinitions 获取策略类型定义
+func (s *StrategyService) GetStrategyTypeDefinitions() []models.StrategyTypeDefinition {
+	return []models.StrategyTypeDefinition{
+		{
+			Type:        models.StrategyTypeTechnical,
+			Name:        "技术指标策略",
+			Description: "基于技术指标的交易策略",
+			Parameters: []models.ParameterDefinition{
+				{
+					Name:         "fast_period",
+					DisplayName:  "快线周期",
+					Type:         "int",
+					DefaultValue: 12,
+					MinValue:     1,
+					MaxValue:     50,
+					Required:     true,
+					Description:  "MACD快线的计算周期，通常为12天",
+				},
+				{
+					Name:         "slow_period",
+					DisplayName:  "慢线周期",
+					Type:         "int",
+					DefaultValue: 26,
+					MinValue:     1,
+					MaxValue:     100,
+					Required:     true,
+					Description:  "MACD慢线的计算周期，通常为26天",
+				},
+				{
+					Name:         "signal_period",
+					DisplayName:  "信号线周期",
+					Type:         "int",
+					DefaultValue: 9,
+					MinValue:     1,
+					MaxValue:     50,
+					Required:     true,
+					Description:  "信号线的计算周期，通常为9天",
+				},
+			},
+		},
+		{
+			Type:        models.StrategyTypeFundamental,
+			Name:        "基本面策略",
+			Description: "基于公司基本面数据的投资策略",
+			Parameters:  []models.ParameterDefinition{},
+		},
+		{
+			Type:        models.StrategyTypeML,
+			Name:        "机器学习策略",
+			Description: "基于机器学习模型的预测策略",
+			Parameters:  []models.ParameterDefinition{},
+		},
+		{
+			Type:        models.StrategyTypeComposite,
+			Name:        "复合策略",
+			Description: "结合多种策略类型的综合策略",
+			Parameters:  []models.ParameterDefinition{},
+		},
+	}
+}
+
 // ExecuteStrategy 执行策略（生成交易信号）
 func (s *StrategyService) ExecuteStrategy(ctx context.Context, strategyID string, marketData *models.MarketData) (*models.Signal, error) {
 	strategy, exists := s.strategies[strategyID]

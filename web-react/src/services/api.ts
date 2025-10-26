@@ -292,6 +292,28 @@ export const stockApi = createApi({
       ],
     }),
 
+    // 新增: 获取策略模板
+    getStrategyTemplates: builder.query<ApiResponse<any[]>, void>({
+      query: () => 'strategies/templates',
+    }),
+
+    // 新增: 获取策略类型定义
+    getStrategyTypes: builder.query<ApiResponse<any[]>, void>({
+      query: () => 'strategies/types',
+    }),
+
+    // 新增: 验证策略参数
+    validateStrategyParameters: builder.mutation<ApiResponse<{valid: boolean, errors: any[]}>, {
+      strategy_type: string;
+      parameters: Record<string, any>;
+    }>({
+      query: (data) => ({
+        url: 'strategies/validate',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+
     createStrategy: builder.mutation<ApiResponse<any>, any>({
       query: (strategy) => ({
         url: 'strategies',
@@ -459,6 +481,9 @@ export const {
   // 策略管理
   useGetStrategiesQuery,
   useGetStrategyQuery,
+  useGetStrategyTemplatesQuery,
+  useGetStrategyTypesQuery,
+  useValidateStrategyParametersMutation,
   useCreateStrategyMutation,
   useUpdateStrategyMutation,
   useDeleteStrategyMutation,
