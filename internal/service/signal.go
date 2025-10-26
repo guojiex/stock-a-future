@@ -477,6 +477,14 @@ func (s *SignalService) calculateMA(data []models.StockDaily, period int) decima
 
 // generatePredictions 生成预测（简化版本）
 func (s *SignalService) generatePredictions(stockData []models.StockDaily, _ []models.PatternRecognitionResult) *models.PredictionResult {
+	// 添加 panic 恢复机制
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("⚠️  generatePredictions panic recovered: %v", r)
+		}
+	}()
+
+	// 数据验证
 	if len(stockData) == 0 {
 		return nil
 	}
@@ -737,44 +745,28 @@ func (s *SignalService) GetLatestSignals(limit int) ([]*models.StockSignal, erro
 
 // GetRecentUpdatedSignals 获取最近一天有更新的买卖信号的股票
 func (s *SignalService) GetRecentUpdatedSignals(limit int) ([]*models.StockSignal, error) {
-	// 获取最新的信号计算日期（优先今天，如果今天没有则取昨天）
-	today := time.Now().Format("20060102")
+	// 修改策略：不再只查询最新一天，而是查询最近7天内的所有信号
+	// 这样可以避免因为部分股票更新导致旧信号被忽略的问题
+	sevenDaysAgo := time.Now().AddDate(0, 0, -7).Format("20060102")
 
-	// 首先检查今天是否有信号
-	var latestSignalDate string
-	checkQuery := `
-		SELECT signal_date FROM stock_signals 
-		WHERE signal_date = ? AND signal_type IN ('BUY', 'SELL')
-		LIMIT 1
-	`
-
-	err := s.db.GetDB().QueryRow(checkQuery, today).Scan(&latestSignalDate)
-	if err != nil {
-		// 今天没有信号，检查昨天
-		yesterday := time.Now().AddDate(0, 0, -1).Format("20060102")
-		err = s.db.GetDB().QueryRow(checkQuery, yesterday).Scan(&latestSignalDate)
-		if err != nil {
-			// 最近两天都没有买卖信号
-			return []*models.StockSignal{}, nil
-		}
-		latestSignalDate = yesterday
-	} else {
-		latestSignalDate = today
-	}
-
-	// 获取最新信号日期的所有买卖信号
+	// 获取最近7天内的所有买卖信号，每个股票只保留最新的一条
 	query := `
 		SELECT id, ts_code, name, trade_date, signal_date, signal_type, signal_strength,
 		       confidence, patterns, technical_indicators, predictions, description,
 		       created_at, updated_at
 		FROM stock_signals 
-		WHERE signal_date = ?
+		WHERE signal_date >= ?
 		  AND signal_type IN ('BUY', 'SELL')
-		ORDER BY signal_strength DESC, confidence DESC, updated_at DESC
+		  AND id IN (
+		    SELECT MAX(id) FROM stock_signals 
+		    WHERE signal_date >= ? AND signal_type IN ('BUY', 'SELL')
+		    GROUP BY ts_code
+		  )
+		ORDER BY signal_date DESC, signal_strength DESC, confidence DESC
 		LIMIT ?
 	`
 
-	rows, err := s.db.GetDB().Query(query, latestSignalDate, limit)
+	rows, err := s.db.GetDB().Query(query, sevenDaysAgo, sevenDaysAgo, limit)
 	if err != nil {
 		return nil, err
 	}
