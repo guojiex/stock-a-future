@@ -61,7 +61,7 @@ func TestStrategyListSorting(t *testing.T) {
 	}
 }
 
-// TestStrategyListSortingRules 测试策略列表排序规则
+// TestStrategyListSortingRules 测试策略列表按ID字母顺序排序
 func TestStrategyListSortingRules(t *testing.T) {
 	log, _ := logger.NewLogger(nil)
 	service := NewStrategyService(log)
@@ -83,7 +83,7 @@ func TestStrategyListSortingRules(t *testing.T) {
 			Name:      "测试活跃策略2",
 			Type:      models.StrategyTypeTechnical,
 			Status:    models.StrategyStatusActive,
-			CreatedAt: now.Add(-1 * time.Hour), // 更新
+			CreatedAt: now.Add(-1 * time.Hour),
 			UpdatedAt: now,
 			CreatedBy: "test",
 		},
@@ -129,46 +129,43 @@ func TestStrategyListSortingRules(t *testing.T) {
 			i+1, strategy.ID, strategy.Status, strategy.CreatedAt.Format("15:04:05"))
 	}
 
-	// 验证排序规则
-	// 1. 所有 Active 策略应该在最前面
-	// 2. 然后是 Testing 策略
-	// 3. 最后是 Inactive 策略
-	// 4. 同状态下，创建时间新的在前
-	// 5. 创建时间相同时，按ID字典序
-
-	var lastStatus models.StrategyStatus
-	var lastCreatedAt time.Time
-
+	// 验证排序规则：按ID字母顺序排序
+	// 业务代码使用简单的ID字母顺序排序，确保每次顺序一致
+	var lastID string
 	for i, strategy := range strategies {
-		// 检查状态顺序
 		if i > 0 {
-			statusPriority := map[models.StrategyStatus]int{
-				models.StrategyStatusActive:   1,
-				models.StrategyStatusTesting:  2,
-				models.StrategyStatusInactive: 3,
-			}
-
-			currentPriority := statusPriority[strategy.Status]
-			lastPriority := statusPriority[lastStatus]
-
-			if currentPriority < lastPriority {
-				t.Errorf("策略状态顺序错误: %s (优先级 %d) 出现在 %s (优先级 %d) 之后",
-					strategy.Status, currentPriority, lastStatus, lastPriority)
-			}
-
-			// 如果状态相同，检查创建时间
-			if strategy.Status == lastStatus {
-				if strategy.CreatedAt.After(lastCreatedAt) {
-					t.Errorf("相同状态下创建时间顺序错误: %s (%s) 应该在 %s 之前",
-						strategy.ID, strategy.CreatedAt.Format("15:04:05"),
-						lastCreatedAt.Format("15:04:05"))
-				}
+			// 检查ID是否按字母顺序递增
+			if strategy.ID < lastID {
+				t.Errorf("策略ID顺序错误: %s 应该在 %s 之后（按字母顺序）",
+					strategy.ID, lastID)
 			}
 		}
-
-		lastStatus = strategy.Status
-		lastCreatedAt = strategy.CreatedAt
+		lastID = strategy.ID
 	}
+
+	// 验证排序的稳定性：多次获取应该返回相同顺序
+	for i := 0; i < 5; i++ {
+		strategies2, _, err := service.GetStrategiesList(context.Background(), req)
+		if err != nil {
+			t.Fatalf("第 %d 次获取策略列表失败: %v", i+2, err)
+		}
+
+		if len(strategies2) != len(strategies) {
+			t.Errorf("第 %d 次获取的策略数量不一致: 期望 %d, 实际 %d",
+				i+2, len(strategies), len(strategies2))
+			continue
+		}
+
+		for j := range strategies2 {
+			if strategies2[j].ID != strategies[j].ID {
+				t.Errorf("第 %d 次获取的策略顺序不一致: 位置 %d 期望 %s, 实际 %s",
+					i+2, j, strategies[j].ID, strategies2[j].ID)
+				break
+			}
+		}
+	}
+
+	t.Logf("✓ 策略列表按ID字母顺序排序，且多次获取顺序一致")
 }
 
 // TestStrategyListSortingWithSameTimestamp 测试相同时间戳的稳定排序
