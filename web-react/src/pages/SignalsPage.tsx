@@ -18,6 +18,8 @@ import {
   Tab,
   IconButton,
   Tooltip,
+  useTheme,
+  alpha,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
@@ -38,6 +40,8 @@ const SignalCard: React.FC<{ signal: FavoriteSignal; onViewStock: (tsCode: strin
   signal,
   onViewStock,
 }) => {
+  const theme = useTheme();
+  
   // 获取预测数组（处理可能的对象格式）
   const predictions = useMemo(() => {
     if (!signal.predictions) return [];
@@ -87,26 +91,26 @@ const SignalCard: React.FC<{ signal: FavoriteSignal; onViewStock: (tsCode: strin
   // 信号类型的样式配置
   const signalConfig = {
     buy: {
-      color: '#4caf50',
-      bgColor: '#e8f5e9',
+      color: theme.palette.success.main,
+      bgColor: alpha(theme.palette.success.main, 0.1),
       icon: <TrendingUpIcon />,
       label: '买入信号',
     },
     sell: {
-      color: '#f44336',
-      bgColor: '#ffebee',
+      color: theme.palette.error.main,
+      bgColor: alpha(theme.palette.error.main, 0.1),
       icon: <TrendingDownIcon />,
       label: '卖出信号',
     },
     hold: {
-      color: '#ff9800',
-      bgColor: '#fff3e0',
+      color: theme.palette.warning.main,
+      bgColor: alpha(theme.palette.warning.main, 0.1),
       icon: <RemoveCircleOutlineIcon />,
       label: '持有',
     },
     mixed: {
-      color: '#9c27b0',
-      bgColor: '#f3e5f5',
+      color: theme.palette.secondary.main,
+      bgColor: alpha(theme.palette.secondary.main, 0.1),
       icon: <ShowChartIcon />,
       label: '混合信号',
     },
@@ -153,8 +157,18 @@ const SignalCard: React.FC<{ signal: FavoriteSignal; onViewStock: (tsCode: strin
                 size="small"
                 sx={{
                   ml: 1,
-                  backgroundColor: dominantSignal === 'buy' ? '#e8f5e9' : dominantSignal === 'sell' ? '#ffebee' : '#f5f5f5',
-                  color: dominantSignal === 'buy' ? '#4caf50' : dominantSignal === 'sell' ? '#f44336' : '#757575',
+                  backgroundColor: 
+                    dominantSignal === 'buy' 
+                      ? alpha(theme.palette.success.main, 0.1) 
+                      : dominantSignal === 'sell' 
+                      ? alpha(theme.palette.error.main, 0.1) 
+                      : alpha(theme.palette.grey[500], 0.1),
+                  color: 
+                    dominantSignal === 'buy' 
+                      ? theme.palette.success.main 
+                      : dominantSignal === 'sell' 
+                      ? theme.palette.error.main 
+                      : theme.palette.text.secondary,
                   fontSize: '0.75rem',
                 }}
               />
@@ -206,9 +220,15 @@ const SignalCard: React.FC<{ signal: FavoriteSignal; onViewStock: (tsCode: strin
                 sx={{
                   p: 1,
                   mb: 1,
-                  bgcolor: pred.type === 'BUY' ? '#e8f5e9' : '#ffebee',
+                  bgcolor: pred.type === 'BUY' 
+                    ? alpha(theme.palette.success.main, 0.08) 
+                    : alpha(theme.palette.error.main, 0.08),
                   borderRadius: 1,
-                  borderLeft: `4px solid ${pred.type === 'BUY' ? '#4caf50' : '#f44336'}`,
+                  borderLeft: `4px solid ${
+                    pred.type === 'BUY' 
+                      ? theme.palette.success.main 
+                      : theme.palette.error.main
+                  }`,
                 }}
               >
                 <Box display="flex" flexWrap="wrap" alignItems="center" justifyContent="space-between">
@@ -259,6 +279,7 @@ const SignalCard: React.FC<{ signal: FavoriteSignal; onViewStock: (tsCode: strin
  * 收藏股票信号汇总页面
  */
 const SignalsPage: React.FC = () => {
+  const theme = useTheme();
   const navigate = useNavigate();
   const [currentTab, setCurrentTab] = useState<SignalType>('all');
 
@@ -409,8 +430,8 @@ const SignalsPage: React.FC = () => {
           </Paper>
         </Box>
         <Box flex="1 1 calc(50% - 8px)" minWidth="150px">
-          <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#e8f5e9' }}>
-            <Typography variant="h4" color="#4caf50">
+          <Paper sx={{ p: 2, textAlign: 'center', bgcolor: alpha(theme.palette.success.main, 0.08) }}>
+            <Typography variant="h4" sx={{ color: theme.palette.success.main }}>
               {statistics.buy}
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -419,8 +440,8 @@ const SignalsPage: React.FC = () => {
           </Paper>
         </Box>
         <Box flex="1 1 calc(50% - 8px)" minWidth="150px">
-          <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#ffebee' }}>
-            <Typography variant="h4" color="#f44336">
+          <Paper sx={{ p: 2, textAlign: 'center', bgcolor: alpha(theme.palette.error.main, 0.08) }}>
+            <Typography variant="h4" sx={{ color: theme.palette.error.main }}>
               {statistics.sell}
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -429,8 +450,8 @@ const SignalsPage: React.FC = () => {
           </Paper>
         </Box>
         <Box flex="1 1 calc(50% - 8px)" minWidth="150px">
-          <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#fff3e0' }}>
-            <Typography variant="h4" color="#ff9800">
+          <Paper sx={{ p: 2, textAlign: 'center', bgcolor: alpha(theme.palette.warning.main, 0.08) }}>
+            <Typography variant="h4" sx={{ color: theme.palette.warning.main }}>
               {statistics.hold}
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -484,21 +505,30 @@ const SignalsPage: React.FC = () => {
                 value="buy"
                 icon={<TrendingUpIcon />}
                 iconPosition="start"
-                sx={{ color: '#4caf50' }}
+                sx={{ 
+                  color: currentTab === 'buy' ? theme.palette.success.main : 'inherit',
+                  '&.Mui-selected': { color: theme.palette.success.main }
+                }}
               />
               <Tab
                 label={`卖出 (${statistics.sell})`}
                 value="sell"
                 icon={<TrendingDownIcon />}
                 iconPosition="start"
-                sx={{ color: '#f44336' }}
+                sx={{ 
+                  color: currentTab === 'sell' ? theme.palette.error.main : 'inherit',
+                  '&.Mui-selected': { color: theme.palette.error.main }
+                }}
               />
               <Tab
                 label={`持有 (${statistics.hold})`}
                 value="hold"
                 icon={<RemoveCircleOutlineIcon />}
                 iconPosition="start"
-                sx={{ color: '#ff9800' }}
+                sx={{ 
+                  color: currentTab === 'hold' ? theme.palette.warning.main : 'inherit',
+                  '&.Mui-selected': { color: theme.palette.warning.main }
+                }}
               />
             </Tabs>
           </Box>
