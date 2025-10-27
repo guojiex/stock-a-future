@@ -3127,6 +3127,28 @@ body {
     box-shadow: 0 2px 4px rgba(107, 114, 128, 0.3);
 }
 
+/* 信号价格标签样式 */
+.signal-price-tag {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-left: var(--spacing-sm);
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.signal-price-tag::before {
+    content: '💰';
+    font-size: 0.7rem;
+}
+
 /* 预测指标列表样式 */
 .prediction-indicators {
     margin-bottom: var(--spacing-sm);

@@ -320,35 +320,49 @@ const StrategyTab: React.FC<StrategyTabProps> = ({ stockCode, stockName }) => {
               <Text style={[styles.cardTitle, { color: theme.colors.onSurface }]}>
                 预测信号
               </Text>
-              {predictions.map((pred: any, index: number) => (
-                <View key={index} style={styles.signalItem}>
-                  <View style={styles.signalHeader}>
-                    <Chip
-                      mode="flat"
-                      style={[
-                        styles.signalChip,
-                        {
-                          backgroundColor:
-                            pred.signal_type === 'BUY'
-                              ? '#ef5350'
-                              : pred.signal_type === 'SELL'
-                              ? '#26a69a'
-                              : '#9e9e9e',
-                        },
-                      ]}
-                      textStyle={styles.signalChipText}
-                    >
-                      {pred.signal_type === 'BUY' ? '买入' : pred.signal_type === 'SELL' ? '卖出' : '持有'}
-                    </Chip>
-                    <Text style={[styles.confidence, { color: theme.colors.onSurfaceVariant }]}>
-                      置信度: {(pred.confidence * 100).toFixed(1)}%
+              {predictions.map((pred: any, index: number) => {
+                // 解析价格信息
+                const signalPrice = pred.price ? parseFloat(pred.price) : null;
+                const signalType = pred.type || pred.signal_type || 'HOLD';
+                const probability = pred.probability || pred.confidence || 0;
+                
+                return (
+                  <View key={index} style={styles.signalItem}>
+                    <View style={styles.signalHeader}>
+                      <Chip
+                        mode="flat"
+                        style={[
+                          styles.signalChip,
+                          {
+                            backgroundColor:
+                              signalType === 'BUY'
+                                ? '#4caf50'
+                                : signalType === 'SELL'
+                                ? '#f44336'
+                                : '#ff9800',
+                          },
+                        ]}
+                        textStyle={styles.signalChipText}
+                      >
+                        {signalType === 'BUY' ? '买入' : signalType === 'SELL' ? '卖出' : '持有'}
+                      </Chip>
+                      <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                        <Text style={[styles.confidence, { color: theme.colors.onSurfaceVariant }]}>
+                          置信度: {(probability * 100).toFixed(1)}%
+                        </Text>
+                        {signalPrice !== null && (
+                          <Text style={[styles.signalPrice, { color: theme.colors.primary, marginTop: 2 }]}>
+                            信号价格: ¥{signalPrice.toFixed(2)}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                    <Text style={[styles.signalReason, { color: theme.colors.onSurface }]}>
+                      {pred.reason || '无详细理由'}
                     </Text>
                   </View>
-                  <Text style={[styles.signalReason, { color: theme.colors.onSurface }]}>
-                    {pred.reason || '无详细理由'}
-                  </Text>
-                </View>
-              ))}
+                );
+              })}
             </Card.Content>
           </Card>
         )}
@@ -582,6 +596,10 @@ const styles = StyleSheet.create({
   },
   confidence: {
     fontSize: 12,
+  },
+  signalPrice: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   signalReason: {
     fontSize: 14,

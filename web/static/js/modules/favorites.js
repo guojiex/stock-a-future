@@ -1691,6 +1691,7 @@ class FavoritesModule {
             let mainSignal = 'HOLD';
             let signalReason = '';
             let signalProbability = '';
+            let signalPrice = '';
             let maxConfidence = 0;
             
             if (signal.predictions && signal.predictions.predictions) {
@@ -1706,6 +1707,7 @@ class FavoritesModule {
                     mainSignal = bestPrediction.type;
                     signalReason = bestPrediction.reason;
                     signalProbability = bestPrediction.probability;
+                    signalPrice = bestPrediction.price ? parseFloat(bestPrediction.price).toFixed(2) : '';
                     maxConfidence = parseFloat(bestPrediction.probability) || 0;
                 }
             }
@@ -1733,6 +1735,7 @@ class FavoritesModule {
                         <div class="signal-info-compact">
                             <span class="signal-type-compact ${mainSignal.toLowerCase()}">${this.getSignalText(mainSignal)}</span>
                             ${confidenceLabel ? confidenceLabel.replace('confidence-label', 'confidence-label-compact') : ''}
+                            ${signalPrice ? `<span class="signal-price-tag">信号价格: ¥${signalPrice}</span>` : ''}
                         </div>
                         ${signalReason ? `<div class="signal-reason">${signalReason}</div>` : ''}
                     </div>

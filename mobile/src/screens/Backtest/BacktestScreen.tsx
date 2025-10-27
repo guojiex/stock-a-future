@@ -297,7 +297,34 @@ const BacktestScreen: React.FC = () => {
 
   // 渲染信号项
   const renderSignalItem = ({ item }: { item: any }) => {
-    const signalType = item.signal_type || 'HOLD';
+    // 解析predictions获取信号信息
+    let signalType = 'HOLD';
+    let signalPrice: number | null = null;
+    let signalReason = '';
+    let maxProbability = 0;
+    
+    if (item.predictions) {
+      const predictions = Array.isArray(item.predictions) 
+        ? item.predictions 
+        : item.predictions.predictions || [];
+      
+      if (predictions.length > 0) {
+        // 找到置信度最高的预测
+        const bestPrediction = predictions.reduce((best: any, current: any) => {
+          const currentProb = parseFloat(current.probability) || 0;
+          const bestProb = parseFloat(best.probability) || 0;
+          return currentProb > bestProb ? current : best;
+        }, predictions[0]);
+        
+        if (bestPrediction) {
+          signalType = bestPrediction.type || 'HOLD';
+          signalPrice = bestPrediction.price ? parseFloat(bestPrediction.price) : null;
+          signalReason = bestPrediction.reason || '';
+          maxProbability = parseFloat(bestPrediction.probability) || 0;
+        }
+      }
+    }
+    
     const signalColor = 
       signalType === 'BUY' ? '#4caf50' : 
       signalType === 'SELL' ? '#f44336' : '#ff9800';
@@ -326,21 +353,49 @@ const BacktestScreen: React.FC = () => {
               {signalText}
             </Chip>
           </View>
-          {item.current_price && (
-            <View style={styles.signalDetails}>
-              <Text style={[styles.signalPrice, { color: theme.colors.onSurface }]}>
-                ¥{item.current_price}
-              </Text>
-              {item.trade_date && (
-                <Text style={[styles.signalDate, { color: theme.colors.onSurfaceVariant }]}>
-                  {item.trade_date}
+          
+          {/* 价格信息 */}
+          <View style={styles.signalDetails}>
+            {item.current_price && (
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.signalLabel, { color: theme.colors.onSurfaceVariant }]}>
+                  当前价格
                 </Text>
-              )}
-            </View>
-          )}
-          {item.reason && (
+                <Text style={[styles.signalPrice, { color: theme.colors.onSurface }]}>
+                  ¥{item.current_price}
+                </Text>
+              </View>
+            )}
+            {signalPrice !== null && (
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.signalLabel, { color: theme.colors.onSurfaceVariant }]}>
+                  信号价格
+                </Text>
+                <Text style={[styles.signalPrice, { color: theme.colors.primary }]}>
+                  ¥{signalPrice.toFixed(2)}
+                </Text>
+              </View>
+            )}
+          </View>
+          
+          {/* 置信度和日期 */}
+          <View style={styles.signalMeta}>
+            {maxProbability > 0 && (
+              <Text style={[styles.signalProbability, { color: theme.colors.onSurfaceVariant }]}>
+                置信度: {(maxProbability * 100).toFixed(1)}%
+              </Text>
+            )}
+            {item.trade_date && (
+              <Text style={[styles.signalDate, { color: theme.colors.onSurfaceVariant }]}>
+                {item.trade_date}
+              </Text>
+            )}
+          </View>
+          
+          {/* 信号原因 */}
+          {signalReason && (
             <Text style={[styles.signalReason, { color: theme.colors.onSurfaceVariant }]}>
-              {item.reason}
+              {signalReason}
             </Text>
           )}
         </Card.Content>
@@ -708,12 +763,26 @@ const styles = StyleSheet.create({
   signalDetails: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+    gap: 12,
+  },
+  signalLabel: {
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  signalPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  signalMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
-  signalPrice: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  signalProbability: {
+    fontSize: 12,
   },
   signalDate: {
     fontSize: 12,
@@ -721,6 +790,7 @@ const styles = StyleSheet.create({
   signalReason: {
     fontSize: 12,
     fontStyle: 'italic',
+    marginTop: 4,
   },
   emptyState: {
     flex: 1,

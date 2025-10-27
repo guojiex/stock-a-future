@@ -256,7 +256,7 @@ const SignalCard: React.FC<{ signal: FavoriteSignal; onViewStock: (tsCode: strin
                     </Typography>
                     {pred.price && (
                       <Typography variant="caption" color="text.secondary" display="block">
-                        预测价格: ¥{pred.price.toFixed(2)}
+                        信号价格: ¥{typeof pred.price === 'number' ? pred.price.toFixed(2) : parseFloat(pred.price || '0').toFixed(2)}
                       </Typography>
                     )}
                   </Box>
