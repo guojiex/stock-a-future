@@ -420,49 +420,239 @@ const ParameterOptimizationDialog: React.FC<ParameterOptimizationDialogProps> = 
         )}
 
         {resultTab === 1 && optimizationResults.performance && (
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="subtitle2" gutterBottom fontWeight="bold">
-              回测性能指标
-            </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, mt: 2 }}>
-              <Box>
-                <Typography variant="caption" color="text.secondary">总收益率</Typography>
-                <Typography variant="h6" color={optimizationResults.performance.total_return >= 0 ? 'success.main' : 'error.main'}>
-                  {(optimizationResults.performance.total_return * 100).toFixed(2)}%
+          <Box>
+            {/* 优化前后对比 */}
+            {optimizationResults.baseline_performance && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  📊 优化效果对比
                 </Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">年化收益</Typography>
-                <Typography variant="h6">
-                  {(optimizationResults.performance.annual_return * 100).toFixed(2)}%
+                <Typography variant="body2">
+                  总收益率提升: {' '}
+                  <strong style={{ 
+                    color: (optimizationResults.performance.total_return - optimizationResults.baseline_performance.total_return) >= 0 ? 'green' : 'red' 
+                  }}>
+                    {((optimizationResults.performance.total_return - optimizationResults.baseline_performance.total_return) * 100).toFixed(2)}%
+                  </strong>
+                  {' | '}
+                  夏普比率提升: {' '}
+                  <strong style={{ 
+                    color: (optimizationResults.performance.sharpe_ratio - optimizationResults.baseline_performance.sharpe_ratio) >= 0 ? 'green' : 'red' 
+                  }}>
+                    {(optimizationResults.performance.sharpe_ratio - optimizationResults.baseline_performance.sharpe_ratio).toFixed(2)}
+                  </strong>
                 </Typography>
+              </Alert>
+            )}
+
+            {/* 优化后性能 */}
+            <Paper sx={{ p: 2, mb: 2, bgcolor: 'success.50', border: '2px solid', borderColor: 'success.main' }}>
+              <Typography variant="subtitle2" gutterBottom fontWeight="bold" color="success.main">
+                ✅ 优化后性能（最佳参数）
+              </Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, mt: 2 }}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">总收益率</Typography>
+                  <Typography variant="h6" color={optimizationResults.performance.total_return >= 0 ? 'success.main' : 'error.main'}>
+                    {(optimizationResults.performance.total_return * 100).toFixed(2)}%
+                    {optimizationResults.baseline_performance && (() => {
+                      const diff = (optimizationResults.performance.total_return - optimizationResults.baseline_performance.total_return) * 100;
+                      const isPositive = diff > 0;
+                      return (
+                        <Typography 
+                          component="span" 
+                          variant="caption" 
+                          sx={{ 
+                            ml: 0.5, 
+                            color: isPositive ? 'success.main' : diff < 0 ? 'error.main' : 'text.secondary',
+                            fontWeight: 'normal'
+                          }}
+                        >
+                          ({isPositive ? '+' : ''}{diff.toFixed(2)}%)
+                        </Typography>
+                      );
+                    })()}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">年化收益</Typography>
+                  <Typography variant="h6">
+                    {(optimizationResults.performance.annual_return * 100).toFixed(2)}%
+                    {optimizationResults.baseline_performance && (() => {
+                      const diff = (optimizationResults.performance.annual_return - optimizationResults.baseline_performance.annual_return) * 100;
+                      const isPositive = diff > 0;
+                      return (
+                        <Typography 
+                          component="span" 
+                          variant="caption" 
+                          sx={{ 
+                            ml: 0.5, 
+                            color: isPositive ? 'success.main' : diff < 0 ? 'error.main' : 'text.secondary',
+                            fontWeight: 'normal'
+                          }}
+                        >
+                          ({isPositive ? '+' : ''}{diff.toFixed(2)}%)
+                        </Typography>
+                      );
+                    })()}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">夏普比率</Typography>
+                  <Typography variant="h6">
+                    {optimizationResults.performance.sharpe_ratio.toFixed(2)}
+                    {optimizationResults.baseline_performance && (() => {
+                      const diff = optimizationResults.performance.sharpe_ratio - optimizationResults.baseline_performance.sharpe_ratio;
+                      const isPositive = diff > 0;
+                      return (
+                        <Typography 
+                          component="span" 
+                          variant="caption" 
+                          sx={{ 
+                            ml: 0.5, 
+                            color: isPositive ? 'success.main' : diff < 0 ? 'error.main' : 'text.secondary',
+                            fontWeight: 'normal'
+                          }}
+                        >
+                          ({isPositive ? '+' : ''}{diff.toFixed(2)})
+                        </Typography>
+                      );
+                    })()}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">最大回撤</Typography>
+                  <Typography variant="h6" color="error">
+                    {(optimizationResults.performance.max_drawdown * 100).toFixed(2)}%
+                    {optimizationResults.baseline_performance && (() => {
+                      const diff = (optimizationResults.performance.max_drawdown - optimizationResults.baseline_performance.max_drawdown) * 100;
+                      // 对于回撤，负值是改善，正值是恶化
+                      const isImproved = diff < 0;
+                      return (
+                        <Typography 
+                          component="span" 
+                          variant="caption" 
+                          sx={{ 
+                            ml: 0.5, 
+                            color: isImproved ? 'success.main' : diff > 0 ? 'error.main' : 'text.secondary',
+                            fontWeight: 'normal'
+                          }}
+                        >
+                          ({diff > 0 ? '+' : ''}{diff.toFixed(2)}%)
+                        </Typography>
+                      );
+                    })()}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">胜率</Typography>
+                  <Typography variant="h6">
+                    {(optimizationResults.performance.win_rate * 100).toFixed(2)}%
+                    {optimizationResults.baseline_performance && (() => {
+                      const diff = (optimizationResults.performance.win_rate - optimizationResults.baseline_performance.win_rate) * 100;
+                      const isPositive = diff > 0;
+                      return (
+                        <Typography 
+                          component="span" 
+                          variant="caption" 
+                          sx={{ 
+                            ml: 0.5, 
+                            color: isPositive ? 'success.main' : diff < 0 ? 'error.main' : 'text.secondary',
+                            fontWeight: 'normal'
+                          }}
+                        >
+                          ({isPositive ? '+' : ''}{diff.toFixed(2)}%)
+                        </Typography>
+                      );
+                    })()}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">交易次数</Typography>
+                  <Typography variant="h6">
+                    {optimizationResults.performance.total_trades}
+                    {optimizationResults.baseline_performance && (() => {
+                      const diff = optimizationResults.performance.total_trades - optimizationResults.baseline_performance.total_trades;
+                      const isPositive = diff > 0;
+                      return (
+                        <Typography 
+                          component="span" 
+                          variant="caption" 
+                          sx={{ 
+                            ml: 0.5, 
+                            color: 'text.secondary',
+                            fontWeight: 'normal'
+                          }}
+                        >
+                          ({isPositive ? '+' : ''}{diff})
+                        </Typography>
+                      );
+                    })()}
+                  </Typography>
+                </Box>
               </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">夏普比率</Typography>
-                <Typography variant="h6">
-                  {optimizationResults.performance.sharpe_ratio.toFixed(2)}
+            </Paper>
+
+            {/* 优化前性能（如果有baseline数据） */}
+            {optimizationResults.baseline_performance && (
+              <Paper 
+                sx={{ 
+                  p: 2, 
+                  bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'grey.100',
+                  border: (theme) => theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
+                }}
+              >
+                <Typography 
+                  variant="subtitle2" 
+                  gutterBottom 
+                  fontWeight="bold" 
+                  sx={{ 
+                    color: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'text.secondary'
+                  }}
+                >
+                  📋 优化前性能（原始参数）
                 </Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">最大回撤</Typography>
-                <Typography variant="h6" color="error">
-                  {(optimizationResults.performance.max_drawdown * 100).toFixed(2)}%
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">胜率</Typography>
-                <Typography variant="h6">
-                  {(optimizationResults.performance.win_rate * 100).toFixed(2)}%
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">交易次数</Typography>
-                <Typography variant="h6">
-                  {optimizationResults.performance.total_trades}
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, mt: 2 }}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">总收益率</Typography>
+                    <Typography variant="body1" color={optimizationResults.baseline_performance.total_return >= 0 ? 'success.main' : 'error.main'}>
+                      {(optimizationResults.baseline_performance.total_return * 100).toFixed(2)}%
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">年化收益</Typography>
+                    <Typography variant="body1">
+                      {(optimizationResults.baseline_performance.annual_return * 100).toFixed(2)}%
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">夏普比率</Typography>
+                    <Typography variant="body1">
+                      {optimizationResults.baseline_performance.sharpe_ratio.toFixed(2)}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">最大回撤</Typography>
+                    <Typography variant="body1" color="error">
+                      {(optimizationResults.baseline_performance.max_drawdown * 100).toFixed(2)}%
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">胜率</Typography>
+                    <Typography variant="body1">
+                      {(optimizationResults.baseline_performance.win_rate * 100).toFixed(2)}%
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">交易次数</Typography>
+                    <Typography variant="body1">
+                      {optimizationResults.baseline_performance.total_trades}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
+            )}
+          </Box>
         )}
 
         {resultTab === 2 && optimizationResults.all_results && (

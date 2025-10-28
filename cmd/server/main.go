@@ -105,12 +105,38 @@ func main() {
 			logger.Fatal("创建AKTools客户端失败", logger.ErrorField(err))
 		}
 
-		// 启动时测试AKTools连接
+		// 启动时测试AKTools连接（带重试机制）
 		logger.Info("正在测试AKTools API连接...")
-		if err := dataSourceClient.TestConnection(); err != nil {
-			logger.Fatal("AKTools API连接测试失败", logger.ErrorField(err))
+		maxRetries := 3
+		retryDelay := 2 * time.Second
+		var lastErr error
+
+		for i := 0; i < maxRetries; i++ {
+			if err := dataSourceClient.TestConnection(); err != nil {
+				lastErr = err
+				logger.Warn("AKTools API连接测试失败，正在重试...",
+					logger.Int("attempt", i+1),
+					logger.Int("max_retries", maxRetries),
+					logger.ErrorField(err),
+				)
+				if i < maxRetries-1 {
+					time.Sleep(retryDelay)
+				}
+			} else {
+				logger.Info("✓ AKTools API连接测试成功")
+				lastErr = nil
+				break
+			}
 		}
-		logger.Info("✓ AKTools API连接测试成功")
+
+		// 如果所有重试都失败，记录警告但不退出程序
+		if lastErr != nil {
+			logger.Warn("⚠️ AKTools API连接失败，服务将继续启动但数据获取功能可能不可用",
+				logger.ErrorField(lastErr),
+				logger.String("aktools_url", cfg.AKToolsBaseURL),
+			)
+			logger.Warn("请检查AKTools服务是否正常运行")
+		}
 	default:
 		logger.Fatal("不支持的数据源类型", logger.String("type", cfg.DataSourceType))
 	}

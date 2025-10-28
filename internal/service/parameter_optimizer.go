@@ -40,19 +40,21 @@ func NewParameterOptimizer(backtestService *BacktestService, strategyService *St
 
 // OptimizationTask 优化任务
 type OptimizationTask struct {
-	ID               string
-	StrategyID       string
-	Status           string // running, completed, failed, cancelled
-	Progress         int    // 0-100
-	CurrentCombo     int
-	TotalCombos      int
-	CurrentParams    map[string]interface{}
-	BestParams       map[string]interface{}
-	BestScore        float64
-	StartTime        time.Time
-	EstimatedEndTime time.Time
-	CancelFunc       context.CancelFunc
-	Results          []ParameterTestResult
+	ID                  string
+	StrategyID          string
+	Status              string // running, completed, failed, cancelled
+	Progress            int    // 0-100
+	CurrentCombo        int
+	TotalCombos         int
+	CurrentParams       map[string]interface{}
+	BestParams          map[string]interface{}
+	BestScore           float64
+	BaselineParams      map[string]interface{} // 原始参数
+	BaselinePerformance *models.BacktestResult // 原始参数的性能
+	StartTime           time.Time
+	EstimatedEndTime    time.Time
+	CancelFunc          context.CancelFunc
+	Results             []ParameterTestResult
 }
 
 // OptimizationConfig 优化配置
@@ -89,16 +91,18 @@ type GeneticAlgorithmConfig struct {
 
 // OptimizationResult 优化结果
 type OptimizationResult struct {
-	OptimizationID string                 `json:"optimization_id"`
-	StrategyID     string                 `json:"strategy_id"`
-	BestParameters map[string]interface{} `json:"best_parameters"`
-	BestScore      float64                `json:"best_score"`
-	Performance    *models.BacktestResult `json:"performance"`
-	AllResults     []ParameterTestResult  `json:"all_results"`
-	TotalTested    int                    `json:"total_tested"`
-	StartTime      time.Time              `json:"start_time"`
-	EndTime        time.Time              `json:"end_time"`
-	Duration       string                 `json:"duration"`
+	OptimizationID      string                 `json:"optimization_id"`
+	StrategyID          string                 `json:"strategy_id"`
+	BestParameters      map[string]interface{} `json:"best_parameters"`
+	BestScore           float64                `json:"best_score"`
+	Performance         *models.BacktestResult `json:"performance"`          // 优化后的性能（最佳参数）
+	BaselinePerformance *models.BacktestResult `json:"baseline_performance"` // 优化前的性能（原始参数）
+	BaselineParameters  map[string]interface{} `json:"baseline_parameters"`  // 原始参数
+	AllResults          []ParameterTestResult  `json:"all_results"`
+	TotalTested         int                    `json:"total_tested"`
+	StartTime           time.Time              `json:"start_time"`
+	EndTime             time.Time              `json:"end_time"`
+	Duration            string                 `json:"duration"`
 }
 
 // ParameterTestResult 参数测试结果
@@ -174,6 +178,27 @@ func (s *ParameterOptimizer) StartOptimization(ctx context.Context, config *Opti
 // gridSearchOptimization 网格搜索优化
 func (s *ParameterOptimizer) gridSearchOptimization(ctx context.Context, task *OptimizationTask, config *OptimizationConfig) (*OptimizationResult, error) {
 	startTime := time.Now()
+
+	// 🔧 新增：获取原始策略并测试baseline性能
+	originalStrategy, err := s.strategyService.GetStrategy(ctx, config.StrategyID)
+	if err == nil && originalStrategy != nil {
+		s.logger.Info("⏳ 测试原始参数性能作为baseline",
+			logger.String("strategy_id", config.StrategyID),
+		)
+
+		baselineResult := s.testParameters(ctx, config, originalStrategy.Parameters)
+		task.BaselineParams = originalStrategy.Parameters
+		task.BaselinePerformance = baselineResult.Performance
+
+		s.logger.Info("✅ Baseline测试完成",
+			logger.String("strategy_id", config.StrategyID),
+			logger.Float64("baseline_score", baselineResult.Score),
+		)
+	} else {
+		s.logger.Warn("无法获取原始策略，跳过baseline测试",
+			logger.String("strategy_id", config.StrategyID),
+		)
+	}
 
 	// 生成参数组合
 	parameterCombinations := s.generateParameterCombinations(config.ParameterRanges)
@@ -277,6 +302,27 @@ func (s *ParameterOptimizer) geneticAlgorithmOptimization(ctx context.Context, t
 
 	if config.GeneticConfig == nil {
 		return nil, errors.New("遗传算法配置为空")
+	}
+
+	// 🔧 新增：获取原始策略并测试baseline性能
+	originalStrategy, err := s.strategyService.GetStrategy(ctx, config.StrategyID)
+	if err == nil && originalStrategy != nil {
+		s.logger.Info("⏳ 测试原始参数性能作为baseline",
+			logger.String("strategy_id", config.StrategyID),
+		)
+
+		baselineResult := s.testParameters(ctx, config, originalStrategy.Parameters)
+		task.BaselineParams = originalStrategy.Parameters
+		task.BaselinePerformance = baselineResult.Performance
+
+		s.logger.Info("✅ Baseline测试完成",
+			logger.String("strategy_id", config.StrategyID),
+			logger.Float64("baseline_score", baselineResult.Score),
+		)
+	} else {
+		s.logger.Warn("无法获取原始策略，跳过baseline测试",
+			logger.String("strategy_id", config.StrategyID),
+		)
 	}
 
 	ga := config.GeneticConfig
@@ -601,15 +647,45 @@ func (s *ParameterOptimizer) GetOptimizationResult(optimizationID string) (*Opti
 		return nil, fmt.Errorf("优化任务尚未完成，当前状态: %s", task.Status)
 	}
 
+	// 🔧 修复：从最佳结果中获取Performance数据
+	var bestPerformance *models.BacktestResult
+	for _, result := range task.Results {
+		if result.Score == task.BestScore {
+			bestPerformance = result.Performance
+			break
+		}
+	}
+
+	// 如果没找到匹配的，使用第一个结果的Performance（兜底）
+	if bestPerformance == nil && len(task.Results) > 0 {
+		bestPerformance = task.Results[0].Performance
+		s.logger.Warn("未找到最佳得分对应的Performance，使用第一个结果",
+			logger.String("optimization_id", optimizationID),
+			logger.Float64("best_score", task.BestScore),
+		)
+	}
+
+	s.logger.Info("📊 优化结果准备完成",
+		logger.String("optimization_id", optimizationID),
+		logger.String("strategy_id", task.StrategyID),
+		logger.Int("total_tested", len(task.Results)),
+		logger.Float64("best_score", task.BestScore),
+		logger.Bool("has_performance", bestPerformance != nil),
+		logger.Bool("has_baseline", task.BaselinePerformance != nil),
+	)
+
 	return &OptimizationResult{
-		OptimizationID: task.ID,
-		StrategyID:     task.StrategyID,
-		BestParameters: task.BestParams,
-		BestScore:      task.BestScore,
-		AllResults:     task.Results,
-		TotalTested:    len(task.Results),
-		StartTime:      task.StartTime,
-		EndTime:        time.Now(),
+		OptimizationID:      task.ID,
+		StrategyID:          task.StrategyID,
+		BestParameters:      task.BestParams,
+		BestScore:           task.BestScore,
+		Performance:         bestPerformance,          // ✅ 优化后的性能
+		BaselinePerformance: task.BaselinePerformance, // ✅ 优化前的性能
+		BaselineParameters:  task.BaselineParams,      // ✅ 原始参数
+		AllResults:          task.Results,
+		TotalTested:         len(task.Results),
+		StartTime:           task.StartTime,
+		EndTime:             time.Now(),
 	}, nil
 }
 

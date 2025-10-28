@@ -1095,6 +1095,15 @@ func (s *BacktestService) GetBacktestResults(ctx context.Context, backtestID str
 	var combinedMetrics *models.BacktestResult
 	if len(performanceResults) > 1 {
 		combinedMetrics = s.calculateCombinedMetrics(performanceResults)
+
+		s.logger.Info("✅ 计算组合指标完成",
+			logger.String("backtest_id", backtestID),
+			logger.Int("strategy_count", len(performanceResults)),
+			logger.Float64("combined_total_return", combinedMetrics.TotalReturn),
+			logger.Float64("combined_annual_return", combinedMetrics.AnnualReturn),
+			logger.Float64("combined_sharpe_ratio", combinedMetrics.SharpeRatio),
+			logger.Int("combined_total_trades", combinedMetrics.TotalTrades),
+		)
 	}
 
 	// 🆕 生成每个策略的独立权益曲线
@@ -1109,6 +1118,31 @@ func (s *BacktestService) GetBacktestResults(ctx context.Context, backtestID str
 		Strategies:           strategies,
 		BacktestConfig:       backtestConfig,
 		CombinedMetrics:      combinedMetrics,
+	}
+
+	// 验证响应数据完整性
+	s.logger.Info("📊 回测结果准备完成",
+		logger.String("backtest_id", backtestID),
+		logger.Int("performance_count", len(performanceResults)),
+		logger.Int("strategy_performances_count", len(strategyPerformances)),
+		logger.Bool("has_combined_metrics", combinedMetrics != nil),
+		logger.Int("equity_curve_points", len(finalEquityCurve)),
+		logger.Int("total_trades", len(trades)),
+	)
+
+	// 输出每个策略的性能摘要
+	for i, perf := range performanceResults {
+		strategyName := "unknown"
+		if i < len(strategies) && strategies[i] != nil {
+			strategyName = strategies[i].Name
+		}
+		s.logger.Info("📈 策略性能摘要",
+			logger.String("strategy_name", strategyName),
+			logger.String("strategy_id", perf.StrategyID),
+			logger.Float64("total_return", perf.TotalReturn),
+			logger.Float64("sharpe_ratio", perf.SharpeRatio),
+			logger.Int("total_trades", perf.TotalTrades),
+		)
 	}
 
 	return response, nil
