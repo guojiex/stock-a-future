@@ -418,7 +418,7 @@ const SignalsPage: React.FC = () => {
 
   // 处理查看股票详情
   const handleViewStock = (tsCode: string) => {
-    navigate(`/market?stock=${tsCode}`);
+    navigate(`/stock/${tsCode}`);
   };
 
   // 处理刷新
