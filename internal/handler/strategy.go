@@ -46,6 +46,7 @@ func (h *StrategyHandler) RegisterRoutes(mux *http.ServeMux) {
 	// 策略操作路由
 	mux.HandleFunc("POST /api/v1/strategies/{id}/activate", h.handleCORS(h.activateStrategy))
 	mux.HandleFunc("POST /api/v1/strategies/{id}/deactivate", h.handleCORS(h.deactivateStrategy))
+	mux.HandleFunc("POST /api/v1/strategies/{id}/toggle", h.handleCORS(h.toggleStrategy))
 	mux.HandleFunc("POST /api/v1/strategies/{id}/test", h.handleCORS(h.testStrategy))
 }
 
@@ -396,6 +397,50 @@ func (h *StrategyHandler) validateCreateStrategyRequest(req *models.CreateStrate
 	}
 
 	return nil
+}
+
+// toggleStrategy 切换策略状态
+func (h *StrategyHandler) toggleStrategy(w http.ResponseWriter, r *http.Request) {
+	strategyID := r.PathValue("id")
+	h.logger.Info("切换策略状态", logger.String("strategy_id", strategyID))
+
+	// 获取策略
+	strategy, err := h.strategyService.GetStrategy(r.Context(), strategyID)
+	if err != nil {
+		h.logger.Error("获取策略失败", logger.ErrorField(err))
+		h.writeErrorResponse(w, "策略不存在", http.StatusNotFound)
+		return
+	}
+
+	// 切换状态
+	var newStatus models.StrategyStatus
+	if strategy.Status == models.StrategyStatusActive {
+		newStatus = models.StrategyStatusInactive
+	} else {
+		newStatus = models.StrategyStatusActive
+	}
+
+	// 更新策略
+	updateReq := &models.UpdateStrategyRequest{
+		Status: &newStatus,
+	}
+
+	err = h.strategyService.UpdateStrategy(r.Context(), strategyID, updateReq)
+	if err != nil {
+		h.logger.Error("更新策略状态失败", logger.ErrorField(err))
+		h.writeErrorResponse(w, "更新策略状态失败", http.StatusInternalServerError)
+		return
+	}
+
+	// 返回成功响应
+	h.writeJSONResponse(w, map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("策略状态已切换为%s", newStatus),
+		"data": map[string]interface{}{
+			"id":     strategyID,
+			"status": newStatus,
+		},
+	})
 }
 
 // getStrategyTemplates 获取策略模板

@@ -202,12 +202,17 @@ func main() {
 	backtestService := service.NewBacktestService(strategyService, dataSourceService, cacheService, logger.GetGlobalLogger())
 	logger.Info("✓ 回测服务已创建")
 
+	// 创建参数优化服务
+	parameterOptimizer := service.NewParameterOptimizer(backtestService, strategyService, logger.GetGlobalLogger())
+	logger.Info("✓ 参数优化服务已创建")
+
 	// 创建处理器
 	stockHandler := handler.NewStockHandler(dataSourceClient, cacheService, favoriteService, recentViewService, app)
 	patternHandler := handler.NewPatternHandler(patternService)
 	signalHandler := handler.NewSignalHandler(signalService)
 	strategyHandler := handler.NewStrategyHandler(strategyService, logger.GetGlobalLogger())
 	backtestHandler := handler.NewBacktestHandler(backtestService, strategyService, logger.GetGlobalLogger())
+	parameterOptimizerHandler := handler.NewParameterOptimizerHandler(parameterOptimizer, logger.GetGlobalLogger())
 
 	// 创建清理处理器
 	var cleanupHandler *handler.CleanupHandler
@@ -219,7 +224,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	// 注册路由
-	registerRoutes(mux, stockHandler, patternHandler, signalHandler, strategyHandler, backtestHandler, cleanupHandler)
+	registerRoutes(mux, stockHandler, patternHandler, signalHandler, strategyHandler, backtestHandler, parameterOptimizerHandler, cleanupHandler)
 
 	// 添加静态文件服务
 	registerStaticRoutes(mux)
@@ -315,7 +320,7 @@ func main() {
 }
 
 // registerRoutes 注册路由
-func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patternHandler *handler.PatternHandler, signalHandler *handler.SignalHandler, strategyHandler *handler.StrategyHandler, backtestHandler *handler.BacktestHandler, cleanupHandler *handler.CleanupHandler) {
+func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patternHandler *handler.PatternHandler, signalHandler *handler.SignalHandler, strategyHandler *handler.StrategyHandler, backtestHandler *handler.BacktestHandler, parameterOptimizerHandler *handler.ParameterOptimizerHandler, cleanupHandler *handler.CleanupHandler) {
 	// 健康检查
 	mux.HandleFunc("GET /api/v1/health", stockHandler.GetHealthStatus)
 
@@ -388,6 +393,9 @@ func registerRoutes(mux *http.ServeMux, stockHandler *handler.StockHandler, patt
 
 	// 回测管理API
 	backtestHandler.RegisterRoutes(mux)
+
+	// 参数优化API
+	parameterOptimizerHandler.RegisterRoutes(mux)
 
 	// 数据清理API
 	if cleanupHandler != nil {

@@ -417,6 +417,34 @@ export const stockApi = createApi({
         method: 'DELETE',
       }),
     }),
+
+    // ===== 参数优化 =====
+    // 启动参数优化
+    startParameterOptimization: builder.mutation<ApiResponse<any>, { strategyId: string; config: any }>({
+      query: ({ strategyId, config }) => ({
+        url: `strategies/${strategyId}/optimize`,
+        method: 'POST',
+        body: config,
+      }),
+    }),
+
+    // 获取优化进度
+    getOptimizationProgress: builder.query<ApiResponse<any>, string>({
+      query: (optimizationId) => `optimizations/${optimizationId}/progress`,
+    }),
+
+    // 获取优化结果
+    getOptimizationResults: builder.query<ApiResponse<any>, string>({
+      query: (optimizationId) => `optimizations/${optimizationId}/results`,
+    }),
+
+    // 取消优化
+    cancelOptimization: builder.mutation<ApiResponse, string>({
+      query: (optimizationId) => ({
+        url: `optimizations/${optimizationId}/cancel`,
+        method: 'POST',
+      }),
+    }),
   }),
 });
 
@@ -502,6 +530,12 @@ export const {
   useGetBacktestQuery,
   useUpdateBacktestMutation,
   useDeleteBacktestMutation,
+
+  // 参数优化
+  useStartParameterOptimizationMutation,
+  useLazyGetOptimizationProgressQuery,
+  useLazyGetOptimizationResultsQuery,
+  useCancelOptimizationMutation,
 } = stockApi;
 
 // 导出API实例

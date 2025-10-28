@@ -41,6 +41,7 @@ import {
   Visibility as VisibilityIcon,
   Assessment as AssessmentIcon,
   Refresh as RefreshIcon,
+  Tune as TuneIcon,
 } from '@mui/icons-material';
 import {
   useGetStrategiesQuery,
@@ -51,6 +52,7 @@ import {
 import { formatDate, formatDateTime } from '../utils/dateFormat';
 import { setSelectedStrategies } from '../store/slices/backtestSlice';
 import { CreateStrategyDialog } from '../components/CreateStrategyDialog';
+import ParameterOptimizationDialog from '../components/ParameterOptimizationDialog';
 
 // 策略类型映射
 const STRATEGY_TYPES = {
@@ -90,6 +92,7 @@ const StrategiesPage: React.FC = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [optimizationDialogOpen, setOptimizationDialogOpen] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<Strategy>>({});
 
   // API查询
@@ -191,6 +194,30 @@ const StrategiesPage: React.FC = () => {
     navigate('/backtest');
   };
 
+  // 打开参数优化对话框
+  const handleOptimizeParameters = (strategy: Strategy) => {
+    setSelectedStrategy(strategy);
+    setOptimizationDialogOpen(true);
+  };
+
+  // 处理优化完成
+  const handleOptimizationComplete = async (bestParams: Record<string, any>) => {
+    if (!selectedStrategy) return;
+
+    try {
+      await updateStrategy({
+        id: selectedStrategy.id,
+        parameters: bestParams,
+      }).unwrap();
+
+      refetchStrategies();
+      alert('策略参数已更新为最优参数！');
+    } catch (error) {
+      console.error('更新策略参数失败:', error);
+      alert('更新策略参数失败');
+    }
+  };
+
   // 渲染策略卡片
   const renderStrategyCard = (strategy: Strategy) => {
     const statusInfo = STRATEGY_STATUS[strategy.status];
@@ -283,6 +310,15 @@ const StrategiesPage: React.FC = () => {
                     )}
                   </IconButton>
                 </span>
+              </Tooltip>
+              <Tooltip title="参数优化">
+                <IconButton
+                  size="small"
+                  color="secondary"
+                  onClick={() => handleOptimizeParameters(strategy)}
+                >
+                  <TuneIcon fontSize="small" />
+                </IconButton>
               </Tooltip>
               <Tooltip title="删除">
                 <IconButton
@@ -643,6 +679,17 @@ const StrategiesPage: React.FC = () => {
       {renderEditDialog()}
       {renderDetailsDialog()}
       {renderDeleteDialog()}
+
+      {/* 参数优化对话框 */}
+      <ParameterOptimizationDialog
+        open={optimizationDialogOpen}
+        onClose={() => {
+          setOptimizationDialogOpen(false);
+          setSelectedStrategy(null);
+        }}
+        strategy={selectedStrategy}
+        onOptimizationComplete={handleOptimizationComplete}
+      />
     </Container>
   );
 };

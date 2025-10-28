@@ -112,16 +112,25 @@ type BacktestProgress struct {
 	Error               string     `json:"error,omitempty"`
 }
 
+// BacktestStrategyPerformance 单个策略的回测性能结果（包含独立权益曲线）
+// 注意：与strategy.go中的StrategyPerformance区分，这里专门用于回测结果
+type BacktestStrategyPerformance struct {
+	StrategyID  string         `json:"strategy_id"`
+	Metrics     BacktestResult `json:"metrics"`      // 策略性能指标
+	EquityCurve []EquityPoint  `json:"equity_curve"` // 该策略的独立权益曲线
+}
+
 // BacktestResultsResponse 回测结果响应
 type BacktestResultsResponse struct {
-	BacktestID      string           `json:"backtest_id"`
-	Performance     []BacktestResult `json:"performance"` // 多策略性能结果数组
-	EquityCurve     []EquityPoint    `json:"equity_curve"`
-	Trades          []Trade          `json:"trades"`
-	Positions       []Position       `json:"positions,omitempty"`
-	Strategies      []*Strategy      `json:"strategies"`                 // 多策略信息
-	BacktestConfig  BacktestConfig   `json:"backtest_config"`            // 回测配置
-	CombinedMetrics *BacktestResult  `json:"combined_metrics,omitempty"` // 组合策略整体指标
+	BacktestID           string                        `json:"backtest_id"`
+	Performance          []BacktestResult              `json:"performance"`           // 多策略性能结果数组（向后兼容）
+	StrategyPerformances []BacktestStrategyPerformance `json:"strategy_performances"` // 新增：每个策略的详细性能（包含独立权益曲线）
+	EquityCurve          []EquityPoint                 `json:"equity_curve"`          // 整体权益曲线
+	Trades               []Trade                       `json:"trades"`
+	Positions            []Position                    `json:"positions,omitempty"`
+	Strategies           []*Strategy                   `json:"strategies"`                 // 多策略信息
+	BacktestConfig       BacktestConfig                `json:"backtest_config"`            // 回测配置
+	CombinedMetrics      *BacktestResult               `json:"combined_metrics,omitempty"` // 组合策略整体指标
 }
 
 // BacktestConfig 回测配置信息

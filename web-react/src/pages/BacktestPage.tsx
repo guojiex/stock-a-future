@@ -33,6 +33,7 @@ import {
   TableRow,
   Tabs,
   Tab,
+  IconButton,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -40,6 +41,9 @@ import {
   Stop as StopIcon,
   Save as SaveIcon,
   Close as CloseIcon,
+  Add as AddIcon,
+  Bookmark as BookmarkIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import { useAppSelector } from '../hooks/redux';
 import {
@@ -49,6 +53,8 @@ import {
   useCancelBacktestMutation,
   useLazyGetBacktestProgressQuery,
   useLazyGetBacktestResultsQuery,
+  useGetFavoritesQuery,
+  useSearchStocksQuery,
 } from '../services/api';
 import {
   updateConfig,
@@ -109,7 +115,11 @@ const BacktestPage: React.FC = () => {
     symbols: storedConfig.symbols || [],
   });
   
-  const [symbolsText, setSymbolsText] = useState(storedConfig.symbols.join('\n'));
+  const [selectedSymbols, setSelectedSymbols] = useState<Array<{code: string; name: string}>>(
+    storedConfig.symbols.map((code: string) => ({ code, name: code }))
+  );
+  const [showStockSelector, setShowStockSelector] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState('');
@@ -118,9 +128,14 @@ const BacktestPage: React.FC = () => {
   const [results, setResults] = useState<any>(null);
   const [selectedStrategiesDialog, setSelectedStrategiesDialog] = useState(false);
   const [selectedStrategyTab, setSelectedStrategyTab] = useState(0);
+  const [strategyEquityCurves, setStrategyEquityCurves] = useState<Record<number, any[]>>({});
   
   // API hooks
   const { data: strategiesData } = useGetStrategiesQuery();
+  const { data: favoritesData } = useGetFavoritesQuery();
+  const { data: searchData } = useSearchStocksQuery({ q: searchQuery }, {
+    skip: searchQuery.length < 2,
+  });
   const [createBacktest] = useCreateBacktestMutation();
   const [startBacktest] = useStartBacktestMutation();
   const [cancelBacktest] = useCancelBacktestMutation();
@@ -128,6 +143,8 @@ const BacktestPage: React.FC = () => {
   const [getResults] = useLazyGetBacktestResultsQuery();
   
   const strategies = (strategiesData?.data?.items || strategiesData?.data?.data || []) as any[];
+  const favorites = favoritesData?.data?.favorites || [];
+  const searchResults = searchData?.data?.stocks || [];
   
   // 默认全选策略（仅在首次加载时且没有选择任何策略时）
   useEffect(() => {
@@ -137,6 +154,30 @@ const BacktestPage: React.FC = () => {
       dispatch(setSelectedStrategies(allStrategyIds));
     }
   }, [strategies, selectedStrategyIds.length, dispatch]);
+
+  // 根据选择的策略自动生成回测名称
+  useEffect(() => {
+    if (selectedStrategyIds.length > 0 && strategies.length > 0 && !config.name) {
+      const selectedStrategyNames = selectedStrategyIds
+        .map(id => strategies.find(s => s.id === id)?.name)
+        .filter(Boolean)
+        .slice(0, 2); // 最多显示2个策略名
+      
+      const year = new Date().getFullYear();
+      const month = new Date().getMonth() + 1;
+      
+      let autoName = '';
+      if (selectedStrategyNames.length === 1) {
+        autoName = `${selectedStrategyNames[0]}-${year}年${month}月回测`;
+      } else if (selectedStrategyNames.length > 1) {
+        autoName = `${selectedStrategyNames[0]}等${selectedStrategyIds.length}策略-${year}年${month}月`;
+      }
+      
+      if (autoName) {
+        setConfig(prev => ({ ...prev, name: autoName }));
+      }
+    }
+  }, [selectedStrategyIds, strategies, config.name]);
   
   // 默认日期
   function getDefaultStartDate() {
@@ -154,18 +195,91 @@ const BacktestPage: React.FC = () => {
     setConfig((prev) => ({ ...prev, [field]: value }));
   };
   
-  // 解析股票代码
-  const parseSymbols = useCallback(() => {
-    const symbols = symbolsText
-      .split('\n')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-    handleConfigChange('symbols', symbols);
-  }, [symbolsText]);
-  
+  // 同步选择的股票到config
   useEffect(() => {
-    parseSymbols();
-  }, [symbolsText, parseSymbols]);
+    handleConfigChange('symbols', selectedSymbols.map(s => s.code));
+  }, [selectedSymbols]);
+
+  // 股票管理函数
+  const handleAddSymbol = (code: string, name: string) => {
+    if (selectedSymbols.find(s => s.code === code)) {
+      return; // 已存在
+    }
+    setSelectedSymbols([...selectedSymbols, { code, name }]);
+  };
+
+  const handleRemoveSymbol = (code: string) => {
+    setSelectedSymbols(selectedSymbols.filter(s => s.code !== code));
+  };
+
+  const handleAddAllFavorites = () => {
+    const newSymbols = favorites
+      .filter((fav: any) => !selectedSymbols.find(s => s.code === fav.ts_code))
+      .map((fav: any) => ({ code: fav.ts_code, name: fav.name }));
+    setSelectedSymbols([...selectedSymbols, ...newSymbols]);
+  };
+
+  // 为每个策略计算独立的权益曲线
+  const calculateStrategyEquityCurve = useCallback((strategyId: string, trades: any[], initialCash: number) => {
+    if (!trades || trades.length === 0) {
+      // 如果没有交易，返回初始资金的平线
+      return [{ date: config.start_date, equity: initialCash }];
+    }
+
+    // 过滤出该策略的交易
+    const strategyTrades = trades.filter((t: any) => t.strategy_id === strategyId);
+    
+    if (strategyTrades.length === 0) {
+      return [{ date: config.start_date, equity: initialCash }];
+    }
+
+    // 按日期排序
+    const sortedTrades = [...strategyTrades].sort((a, b) => 
+      new Date(a.exit_date || a.entry_date).getTime() - new Date(b.exit_date || b.entry_date).getTime()
+    );
+
+    // 计算权益曲线
+    const equityCurve: any[] = [{ date: config.start_date, equity: initialCash }];
+    let currentEquity = initialCash;
+
+    sortedTrades.forEach((trade) => {
+      if (trade.exit_date && trade.pnl !== undefined) {
+        // 已平仓交易，更新权益
+        currentEquity += trade.pnl;
+        equityCurve.push({
+          date: trade.exit_date,
+          equity: currentEquity,
+        });
+      }
+    });
+
+    // 如果没有完成的交易，至少返回初始状态
+    if (equityCurve.length === 1) {
+      equityCurve.push({ date: config.end_date, equity: initialCash });
+    }
+
+    return equityCurve;
+  }, [config.start_date, config.end_date]);
+
+  // 当回测结果更新时，为每个策略计算权益曲线
+  useEffect(() => {
+    if (results?.performance && Array.isArray(results.performance) && results.trades) {
+      const curves: Record<number, any[]> = {};
+      
+      results.performance.forEach((_, index) => {
+        const strategy = results.strategies?.[index];
+        if (strategy) {
+          curves[index] = calculateStrategyEquityCurve(
+            strategy.id,
+            results.trades,
+            config.initial_cash
+          );
+        }
+      });
+      
+      setStrategyEquityCurves(curves);
+    }
+  }, [results, config.initial_cash, calculateStrategyEquityCurve]);
   
   // 验证配置
   const validateConfig = (): string | null => {
@@ -458,16 +572,149 @@ const BacktestPage: React.FC = () => {
             />
           </Box>
           
-          {/* 股票列表 */}
-          <TextField
-            label="股票列表"
-            value={symbolsText}
-            onChange={(e) => setSymbolsText(e.target.value)}
-            multiline
-            rows={4}
-            placeholder="输入股票代码，每行一个，例如:&#10;000001.SZ&#10;600000.SH"
-            helperText="每行输入一个股票代码"
-          />
+          {/* 股票选择 */}
+          <Box>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+              <Typography variant="subtitle2" fontWeight="bold">
+                选择股票（已选 {selectedSymbols.length} 只）
+              </Typography>
+              <Box>
+                <Button
+                  size="small"
+                  startIcon={<BookmarkIcon />}
+                  onClick={handleAddAllFavorites}
+                  disabled={favorites.length === 0}
+                >
+                  添加所有收藏
+                </Button>
+                <Button
+                  size="small"
+                  startIcon={<SearchIcon />}
+                  onClick={() => setShowStockSelector(!showStockSelector)}
+                  sx={{ ml: 1 }}
+                >
+                  {showStockSelector ? '收起' : '搜索添加'}
+                </Button>
+              </Box>
+            </Box>
+
+            {/* 已选股票列表 */}
+            {selectedSymbols.length > 0 ? (
+              <Paper variant="outlined" sx={{ p: 1, mb: 2, maxHeight: 150, overflow: 'auto' }}>
+                <Box display="flex" flexWrap="wrap" gap={1}>
+                  {selectedSymbols.map((symbol) => (
+                    <Chip
+                      key={symbol.code}
+                      label={`${symbol.name} (${symbol.code})`}
+                      onDelete={() => handleRemoveSymbol(symbol.code)}
+                      color="primary"
+                      variant="outlined"
+                      size="small"
+                    />
+                  ))}
+                </Box>
+              </Paper>
+            ) : (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                请从收藏列表或搜索结果中添加股票
+              </Alert>
+            )}
+
+            {/* 股票选择器 */}
+            {showStockSelector && (
+              <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                <TextField
+                  placeholder="搜索股票..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  size="small"
+                  fullWidth
+                  sx={{ mb: 2 }}
+                  InputProps={{
+                    startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                  }}
+                />
+
+                {/* 显示搜索结果或收藏列表 */}
+                <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
+                  {searchQuery.length >= 2 ? (
+                    // 搜索结果
+                    searchResults.length > 0 ? (
+                      searchResults.map((stock: any) => (
+                        <Box
+                          key={stock.ts_code}
+                          sx={{
+                            p: 1,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            '&:hover': { bgcolor: 'action.hover' },
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Box onClick={() => handleAddSymbol(stock.ts_code, stock.name)}>
+                            <Typography variant="body2">
+                              {stock.name} ({stock.ts_code})
+                            </Typography>
+                          </Box>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleAddSymbol(stock.ts_code, stock.name)}
+                            disabled={selectedSymbols.some(s => s.code === stock.ts_code)}
+                          >
+                            <AddIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      ))
+                    ) : (
+                      <Typography variant="body2" color="text.secondary" textAlign="center">
+                        未找到匹配的股票
+                      </Typography>
+                    )
+                  ) : (
+                    // 收藏列表
+                    favorites.length > 0 ? (
+                      favorites.map((fav: any) => (
+                        <Box
+                          key={fav.ts_code}
+                          sx={{
+                            p: 1,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            '&:hover': { bgcolor: 'action.hover' },
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Box onClick={() => handleAddSymbol(fav.ts_code, fav.name)}>
+                            <Typography variant="body2">
+                              {fav.name} ({fav.ts_code})
+                            </Typography>
+                            {fav.group_name && (
+                              <Typography variant="caption" color="text.secondary">
+                                {fav.group_name}
+                              </Typography>
+                            )}
+                          </Box>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleAddSymbol(fav.ts_code, fav.name)}
+                            disabled={selectedSymbols.some(s => s.code === fav.ts_code)}
+                          >
+                            <AddIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      ))
+                    ) : (
+                      <Typography variant="body2" color="text.secondary" textAlign="center">
+                        暂无收藏股票，请先添加收藏
+                      </Typography>
+                    )
+                  )}
+                </Box>
+              </Paper>
+            )}
+          </Box>
           
           {/* 操作按钮 */}
           <Box sx={{ display: 'flex', gap: 2 }}>
@@ -585,17 +832,23 @@ const BacktestPage: React.FC = () => {
                         </Box>
                         
                         {/* 策略权益曲线 */}
-                        {results.equity_curve && results.equity_curve.length > 0 && (
-                          <Box sx={{ mb: 3 }}>
-                            <Typography variant="subtitle2" gutterBottom>
-                              📈 权益曲线
-                            </Typography>
-                            <EquityCurveChart
-                              data={results.equity_curve}
-                              initialCash={config.initial_cash}
-                            />
-                          </Box>
-                        )}
+                        {(() => {
+                          // 优先使用后端提供的策略权益曲线
+                          const strategyPerf = results.strategy_performances?.[index];
+                          const equityCurveData = strategyPerf?.equity_curve || strategyEquityCurves[index];
+                          
+                          return equityCurveData && equityCurveData.length > 0 && (
+                            <Box sx={{ mb: 3 }}>
+                              <Typography variant="subtitle2" gutterBottom>
+                                📈 权益曲线 ({strategy?.name || `策略 ${index + 1}`})
+                              </Typography>
+                              <EquityCurveChart
+                                data={equityCurveData}
+                                initialCash={config.initial_cash}
+                              />
+                            </Box>
+                          );
+                        })()}
                         
                         {/* 策略交易记录 */}
                         {strategyTrades.length > 0 && (

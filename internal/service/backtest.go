@@ -59,13 +59,14 @@ var (
 type BacktestService struct {
 	// 在真实环境中，这里会有数据库连接
 	// 目前使用内存存储进行演示
-	backtests            map[string]*models.Backtest
-	backtestResults      map[string]*models.BacktestResult  // 单策略结果（兼容性）
-	backtestMultiResults map[string][]models.BacktestResult // 多策略结果
-	backtestEquityCurves map[string][]models.EquityPoint    // 组合权益曲线
-	backtestTrades       map[string][]models.Trade
-	backtestProgress     map[string]*models.BacktestProgress
-	runningBacktests     map[string]context.CancelFunc // 用于取消运行中的回测
+	backtests                    map[string]*models.Backtest
+	backtestResults              map[string]*models.BacktestResult          // 单策略结果（兼容性）
+	backtestMultiResults         map[string][]models.BacktestResult         // 多策略结果
+	backtestEquityCurves         map[string][]models.EquityPoint            // 组合权益曲线
+	backtestStrategyEquityCurves map[string]map[string][]models.EquityPoint // 每个策略的独立权益曲线: backtestID -> strategyID -> curve
+	backtestTrades               map[string][]models.Trade
+	backtestProgress             map[string]*models.BacktestProgress
+	runningBacktests             map[string]context.CancelFunc // 用于取消运行中的回测
 
 	strategyService   *StrategyService
 	tradingCalendar   *TradingCalendar
@@ -93,18 +94,19 @@ func NewBacktestService(strategyService *StrategyService, dataSourceService *Dat
 	}
 
 	return &BacktestService{
-		backtests:            make(map[string]*models.Backtest),
-		backtestResults:      make(map[string]*models.BacktestResult),
-		backtestMultiResults: make(map[string][]models.BacktestResult),
-		backtestEquityCurves: make(map[string][]models.EquityPoint),
-		backtestTrades:       make(map[string][]models.Trade),
-		backtestProgress:     make(map[string]*models.BacktestProgress),
-		runningBacktests:     make(map[string]context.CancelFunc),
-		strategyService:      strategyService,
-		tradingCalendar:      NewTradingCalendar(),
-		dataSourceService:    dataSourceService,
-		dailyCacheService:    dailyCacheService,
-		logger:               log,
+		backtests:                    make(map[string]*models.Backtest),
+		backtestResults:              make(map[string]*models.BacktestResult),
+		backtestMultiResults:         make(map[string][]models.BacktestResult),
+		backtestEquityCurves:         make(map[string][]models.EquityPoint),
+		backtestStrategyEquityCurves: make(map[string]map[string][]models.EquityPoint),
+		backtestTrades:               make(map[string][]models.Trade),
+		backtestProgress:             make(map[string]*models.BacktestProgress),
+		runningBacktests:             make(map[string]context.CancelFunc),
+		strategyService:              strategyService,
+		tradingCalendar:              NewTradingCalendar(),
+		dataSourceService:            dataSourceService,
+		dailyCacheService:            dailyCacheService,
+		logger:                       log,
 	}
 }
 
@@ -1095,17 +1097,160 @@ func (s *BacktestService) GetBacktestResults(ctx context.Context, backtestID str
 		combinedMetrics = s.calculateCombinedMetrics(performanceResults)
 	}
 
+	// 🆕 生成每个策略的独立权益曲线
+	strategyPerformances := s.generateStrategyPerformances(backtestID, backtest, strategies, performanceResults, trades)
+
 	response := &models.BacktestResultsResponse{
-		BacktestID:      backtestID,
-		Performance:     performanceResults,
-		EquityCurve:     finalEquityCurve,
-		Trades:          trades,
-		Strategies:      strategies,
-		BacktestConfig:  backtestConfig,
-		CombinedMetrics: combinedMetrics,
+		BacktestID:           backtestID,
+		Performance:          performanceResults,
+		StrategyPerformances: strategyPerformances, // 新增：每个策略的详细性能（含独立权益曲线）
+		EquityCurve:          finalEquityCurve,
+		Trades:               trades,
+		Strategies:           strategies,
+		BacktestConfig:       backtestConfig,
+		CombinedMetrics:      combinedMetrics,
 	}
 
 	return response, nil
+}
+
+// generateStrategyPerformances 为每个策略生成独立的性能数据（包含权益曲线）
+func (s *BacktestService) generateStrategyPerformances(
+	backtestID string,
+	backtest *models.Backtest,
+	strategies []*models.Strategy,
+	performanceResults []models.BacktestResult,
+	allTrades []models.Trade,
+) []models.BacktestStrategyPerformance {
+	var strategyPerformances []models.BacktestStrategyPerformance
+
+	// 首先检查是否已经存储了每个策略的权益曲线（后续优化：在回测执行时直接生成）
+	storedCurves, hasStoredCurves := s.backtestStrategyEquityCurves[backtestID]
+
+	for i, strategy := range strategies {
+		if strategy == nil {
+			continue
+		}
+
+		var metrics models.BacktestResult
+		if i < len(performanceResults) {
+			metrics = performanceResults[i]
+		}
+
+		// 生成该策略的独立权益曲线
+		var equityCurve []models.EquityPoint
+
+		// 优先使用存储的权益曲线
+		if hasStoredCurves {
+			if curve, exists := storedCurves[strategy.ID]; exists {
+				equityCurve = curve
+			}
+		}
+
+		// 如果没有存储的曲线，根据交易记录计算
+		if len(equityCurve) == 0 {
+			equityCurve = s.calculateEquityCurveFromTrades(backtest, strategy.ID, allTrades)
+		}
+
+		strategyPerformances = append(strategyPerformances, models.BacktestStrategyPerformance{
+			StrategyID:  strategy.ID,
+			Metrics:     metrics,
+			EquityCurve: equityCurve,
+		})
+	}
+
+	return strategyPerformances
+}
+
+// calculateEquityCurveFromTrades 根据交易记录计算策略的权益曲线
+func (s *BacktestService) calculateEquityCurveFromTrades(
+	backtest *models.Backtest,
+	strategyID string,
+	allTrades []models.Trade,
+) []models.EquityPoint {
+	// 过滤出该策略的交易
+	var strategyTrades []models.Trade
+	for _, trade := range allTrades {
+		if trade.StrategyID == strategyID {
+			strategyTrades = append(strategyTrades, trade)
+		}
+	}
+
+	// 如果没有交易，返回平坦的权益曲线
+	if len(strategyTrades) == 0 {
+		return []models.EquityPoint{
+			{
+				Date:           backtest.StartDate.Format("2006-01-02"),
+				PortfolioValue: backtest.InitialCash,
+				Cash:           backtest.InitialCash,
+				Holdings:       0,
+			},
+			{
+				Date:           backtest.EndDate.Format("2006-01-02"),
+				PortfolioValue: backtest.InitialCash,
+				Cash:           backtest.InitialCash,
+				Holdings:       0,
+			},
+		}
+	}
+
+	// 构建权益曲线
+	equityCurve := []models.EquityPoint{
+		{
+			Date:           backtest.StartDate.Format("2006-01-02"),
+			PortfolioValue: backtest.InitialCash,
+			Cash:           backtest.InitialCash,
+			Holdings:       0,
+		},
+	}
+
+	// 按时间戳排序交易
+	sortedTrades := make([]models.Trade, len(strategyTrades))
+	copy(sortedTrades, strategyTrades)
+
+	// 简单排序：按时间戳排序
+	for i := 0; i < len(sortedTrades); i++ {
+		for j := i + 1; j < len(sortedTrades); j++ {
+			if sortedTrades[i].Timestamp.After(sortedTrades[j].Timestamp) {
+				sortedTrades[i], sortedTrades[j] = sortedTrades[j], sortedTrades[i]
+			}
+		}
+	}
+
+	// 🔧 修复：遍历所有交易，使用TotalAssets字段（而不是累加PnL）
+	// TotalAssets = 现金 + 持仓市值，是每次交易后的完整资产价值
+	for _, trade := range sortedTrades {
+		// 每次交易都记录权益点，无论买入还是卖出
+		// 使用trade.TotalAssets字段，它包含了交易后的完整资产价值
+		if trade.TotalAssets > 0 {
+			equityCurve = append(equityCurve, models.EquityPoint{
+				Date:           trade.Timestamp.Format("2006-01-02"),
+				PortfolioValue: trade.TotalAssets, // 使用TotalAssets而不是累加PnL
+				Cash:           trade.CashBalance,
+				Holdings:       trade.HoldingAssets,
+			})
+		}
+	}
+
+	// 如果权益曲线只有起点，添加终点
+	if len(equityCurve) == 1 {
+		equityCurve = append(equityCurve, models.EquityPoint{
+			Date:           backtest.EndDate.Format("2006-01-02"),
+			PortfolioValue: backtest.InitialCash,
+			Cash:           backtest.InitialCash,
+			Holdings:       0,
+		})
+	}
+
+	s.logger.Info("策略权益曲线生成完成",
+		logger.String("strategy_id", strategyID),
+		logger.Int("total_trades", len(strategyTrades)),
+		logger.Int("equity_points", len(equityCurve)),
+		logger.Float64("initial_value", equityCurve[0].PortfolioValue),
+		logger.Float64("final_value", equityCurve[len(equityCurve)-1].PortfolioValue),
+	)
+
+	return equityCurve
 }
 
 // generateEquityCurve 生成权益曲线
@@ -1834,28 +1979,53 @@ func (s *BacktestService) validateSingleStockTrades(symbol string, trades []mode
 
 // validateOverallHoldingAssets 验证整体持仓资产的异常增长
 func (s *BacktestService) validateOverallHoldingAssets(trades []models.Trade, backtestID string) error {
-	// 检查是否存在明显不合理的持仓资产跳跃
-	for i := 1; i < len(trades); i++ {
-		prevTrade := trades[i-1]
-		currentTrade := trades[i]
+	// 按策略分组检查持仓资产变化
+	strategyTrades := make(map[string][]models.Trade)
+	for _, trade := range trades {
+		strategyTrades[trade.StrategyID] = append(strategyTrades[trade.StrategyID], trade)
+	}
 
-		// 如果当前是卖出操作，且持仓资产异常大幅增加（超过50%），记录警告
-		if currentTrade.Side == models.TradeSideSell &&
-			prevTrade.HoldingAssets > 0 &&
-			currentTrade.HoldingAssets > prevTrade.HoldingAssets*1.5 {
+	// 对每个策略单独检查
+	for strategyID, stratTrades := range strategyTrades {
+		// 按股票分组
+		stockTrades := make(map[string][]models.Trade)
+		for _, trade := range stratTrades {
+			stockTrades[trade.Symbol] = append(stockTrades[trade.Symbol], trade)
+		}
 
-			s.logger.Warn("⚠️ 检测到可能的异常持仓资产增长",
-				logger.String("backtest_id", backtestID),
-				logger.String("prev_trade_id", prevTrade.ID),
-				logger.String("current_trade_id", currentTrade.ID),
-				logger.String("current_symbol", currentTrade.Symbol),
-				logger.String("current_side", string(currentTrade.Side)),
-				logger.Float64("prev_holding_assets", prevTrade.HoldingAssets),
-				logger.Float64("current_holding_assets", currentTrade.HoldingAssets),
-				logger.Float64("increase_ratio", currentTrade.HoldingAssets/prevTrade.HoldingAssets),
-			)
+		// 检查每只股票的买入→卖出序列
+		for symbol, symbolTrades := range stockTrades {
+			for i := 1; i < len(symbolTrades); i++ {
+				prevTrade := symbolTrades[i-1]
+				currentTrade := symbolTrades[i]
 
-			// 注意：这里只记录警告，不返回错误，因为在多股票组合中这种情况可能是正常的
+				// 只检查同一只股票的买入→卖出序列
+				// 如果是：买入 → 卖出，那么该股票的持仓应该减少（变为0或更少）
+				if prevTrade.Side == models.TradeSideBuy &&
+					currentTrade.Side == models.TradeSideSell {
+
+					// 获取该股票在两次交易时的持仓市值
+					// 注意：这里的HoldingAssets是总持仓，不是单只股票的持仓
+					// 实际上这个检查应该在交易执行时进行，这里只做简单的合理性检查
+
+					// 如果卖出后总持仓资产异常增加（超过2倍），记录警告
+					// 这可能表示数据计算有误
+					if prevTrade.HoldingAssets > 0 &&
+						currentTrade.HoldingAssets > prevTrade.HoldingAssets*2.0 {
+
+						s.logger.Warn("⚠️ 同策略同股票买卖序列中检测到持仓资产异常增长",
+							logger.String("backtest_id", backtestID),
+							logger.String("strategy_id", strategyID),
+							logger.String("symbol", symbol),
+							logger.String("buy_trade_id", prevTrade.ID),
+							logger.String("sell_trade_id", currentTrade.ID),
+							logger.Float64("buy_holding_assets", prevTrade.HoldingAssets),
+							logger.Float64("sell_holding_assets", currentTrade.HoldingAssets),
+							logger.Float64("increase_ratio", currentTrade.HoldingAssets/prevTrade.HoldingAssets),
+						)
+					}
+				}
+			}
 		}
 	}
 
