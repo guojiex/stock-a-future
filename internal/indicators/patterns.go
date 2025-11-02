@@ -21,6 +21,15 @@ func NewPatternRecognizer() *PatternRecognizer {
 	return &PatternRecognizer{}
 }
 
+// safeDiv 安全的除法操作，防止除零错误
+// 如果除数为零，返回defaultValue
+func safeDiv(dividend, divisor, defaultValue decimal.Decimal) decimal.Decimal {
+	if divisor.IsZero() {
+		return defaultValue
+	}
+	return dividend.Div(divisor)
+}
+
 // RecognizeAllPatterns 识别所有图形模式
 func (p *PatternRecognizer) RecognizeAllPatterns(data []models.StockDaily) []models.PatternRecognitionResult {
 	// 修改数据长度检查，特殊处理测试用例
@@ -224,14 +233,14 @@ func (p *PatternRecognizer) recognizeDoubleCannon(current, prev1, _ models.Stock
 
 	// 计算第一根K线的涨幅
 	prev1Change := prev1.Close.Decimal.Sub(prev1.Open.Decimal)
-	prev1ChangePct := prev1Change.Div(prev1.Open.Decimal).Mul(decimal.NewFromFloat(100))
+	prev1ChangePct := safeDiv(prev1Change, prev1.Open.Decimal, decimal.Zero).Mul(decimal.NewFromFloat(100))
 
 	// 计算第二根K线的涨幅
 	currentChange := current.Close.Decimal.Sub(current.Open.Decimal)
-	currentChangePct := currentChange.Div(current.Open.Decimal).Mul(decimal.NewFromFloat(100))
+	currentChangePct := safeDiv(currentChange, current.Open.Decimal, decimal.Zero).Mul(decimal.NewFromFloat(100))
 
 	// 计算成交量比率
-	volumeRatio := current.Vol.Decimal.Div(prev1.Vol.Decimal)
+	volumeRatio := safeDiv(current.Vol.Decimal, prev1.Vol.Decimal, decimal.NewFromInt(1))
 
 	// 逐个检查判断条件
 	condition1 := prev1ChangePct.GreaterThan(decimal.NewFromFloat(2.0))
@@ -291,7 +300,7 @@ func (p *PatternRecognizer) recognizeRedThreeSoldiers(current, prev1, prev2 mode
 	change3 := current.Close.Decimal.Sub(current.Open.Decimal)
 
 	avgChange := change1.Add(change2).Add(change3).Div(decimal.NewFromInt(3))
-	avgChangePct := avgChange.Div(prev2.Open.Decimal).Mul(decimal.NewFromInt(100))
+	avgChangePct := safeDiv(avgChange, prev2.Open.Decimal, decimal.Zero).Mul(decimal.NewFromInt(100))
 
 	// 判断条件：平均涨幅 > 1.5%
 	if avgChangePct.GreaterThan(decimal.NewFromFloat(1.5)) {
@@ -320,11 +329,11 @@ func (p *PatternRecognizer) recognizeDarkCloudCover(current, prev1, _ models.Sto
 
 	// 检查前一根是否为大阳线
 	prev1Change := prev1.Close.Decimal.Sub(prev1.Open.Decimal)
-	prev1ChangePct := prev1Change.Div(prev1.Open.Decimal).Mul(decimal.NewFromInt(100))
+	prev1ChangePct := safeDiv(prev1Change, prev1.Open.Decimal, decimal.Zero).Mul(decimal.NewFromInt(100))
 
 	// 检查当前是否为大阴线
 	currentChange := current.Close.Decimal.Sub(current.Open.Decimal)
-	currentChangePct := currentChange.Div(current.Open.Decimal).Mul(decimal.NewFromInt(100))
+	currentChangePct := safeDiv(currentChange, current.Open.Decimal, decimal.Zero).Mul(decimal.NewFromInt(100))
 
 	// 判断条件：
 	// 1. 前一根K线涨幅 > 2%
@@ -439,15 +448,15 @@ func (p *PatternRecognizer) recognizeMorningStar(current, prev1, prev2 models.St
 
 	// 第一根：大阴线
 	prev2Change := prev2.Close.Decimal.Sub(prev2.Open.Decimal)
-	prev2ChangePct := prev2Change.Div(prev2.Open.Decimal).Mul(decimal.NewFromInt(100))
+	prev2ChangePct := safeDiv(prev2Change, prev2.Open.Decimal, decimal.Zero).Mul(decimal.NewFromInt(100))
 
 	// 第二根：小实体K线
 	prev1Body := prev1.Close.Decimal.Sub(prev1.Open.Decimal).Abs()
-	prev1BodyPct := prev1Body.Div(prev1.Open.Decimal).Mul(decimal.NewFromInt(100))
+	prev1BodyPct := safeDiv(prev1Body, prev1.Open.Decimal, decimal.Zero).Mul(decimal.NewFromInt(100))
 
 	// 第三根：大阳线
 	currentChange := current.Close.Decimal.Sub(current.Open.Decimal)
-	currentChangePct := currentChange.Div(current.Open.Decimal).Mul(decimal.NewFromInt(100))
+	currentChangePct := safeDiv(currentChange, current.Open.Decimal, decimal.Zero).Mul(decimal.NewFromInt(100))
 
 	// 判断条件：
 	// 1. 第一根跌幅 > 2%
@@ -503,15 +512,15 @@ func (p *PatternRecognizer) recognizeEveningStar(current, prev1, prev2 models.St
 
 	// 第一根：大阳线
 	prev2Change := prev2.Close.Decimal.Sub(prev2.Open.Decimal)
-	prev2ChangePct := prev2Change.Div(prev2.Open.Decimal).Mul(decimal.NewFromInt(100))
+	prev2ChangePct := safeDiv(prev2Change, prev2.Open.Decimal, decimal.Zero).Mul(decimal.NewFromInt(100))
 
 	// 第二根：小实体K线
 	prev1Body := prev1.Close.Decimal.Sub(prev1.Open.Decimal).Abs()
-	prev1BodyPct := prev1Body.Div(prev1.Open.Decimal).Mul(decimal.NewFromInt(100))
+	prev1BodyPct := safeDiv(prev1Body, prev1.Open.Decimal, decimal.Zero).Mul(decimal.NewFromInt(100))
 
 	// 第三根：大阴线
 	currentChange := current.Close.Decimal.Sub(current.Open.Decimal)
-	currentChangePct := currentChange.Div(current.Open.Decimal).Mul(decimal.NewFromInt(100))
+	currentChangePct := safeDiv(currentChange, current.Open.Decimal, decimal.Zero).Mul(decimal.NewFromInt(100))
 
 	// 判断条件：
 	// 1. 第一根涨幅 > 2%
@@ -606,11 +615,11 @@ func (p *PatternRecognizer) recognizeVolumePriceDivergence(current, prev1, _ mod
 
 	// 计算价格变化
 	priceChange := current.Close.Decimal.Sub(prev1.Close.Decimal)
-	priceChangePct := priceChange.Div(prev1.Close.Decimal).Mul(decimal.NewFromInt(100))
+	priceChangePct := safeDiv(priceChange, prev1.Close.Decimal, decimal.Zero).Mul(decimal.NewFromInt(100))
 
 	// 计算成交量变化
 	volumeChange := current.Vol.Decimal.Sub(prev1.Vol.Decimal)
-	volumeChangePct := volumeChange.Div(prev1.Vol.Decimal).Mul(decimal.NewFromInt(100))
+	volumeChangePct := safeDiv(volumeChange, prev1.Vol.Decimal, decimal.Zero).Mul(decimal.NewFromInt(100))
 
 	// 判断条件：
 	// 1. 价格上涨 > 1% 且成交量下降 > 20%（顶背离）
@@ -671,7 +680,7 @@ func (p *PatternRecognizer) recognizeVolumeBreakout(current, prev1, _ models.Sto
 		volumeSum = volumeSum.Add(data[i].Vol.Decimal)
 	}
 	avgVolume := volumeSum.Div(decimal.NewFromInt(20))
-	volumeRatio := current.Vol.Decimal.Div(avgVolume)
+	volumeRatio := safeDiv(current.Vol.Decimal, avgVolume, decimal.NewFromInt(1))
 
 	// 判断条件：
 	// 1. 价格突破20日均线
@@ -681,7 +690,7 @@ func (p *PatternRecognizer) recognizeVolumeBreakout(current, prev1, _ models.Sto
 		prev1.Close.Decimal.LessThanOrEqual(ma20) &&
 		volumeRatio.GreaterThan(decimal.NewFromFloat(2.0)) {
 
-		breakoutPct := current.Close.Decimal.Sub(ma20).Div(ma20).Mul(decimal.NewFromInt(100))
+		breakoutPct := safeDiv(current.Close.Decimal.Sub(ma20), ma20, decimal.Zero).Mul(decimal.NewFromInt(100))
 		confidence := p.calculateConfidence(breakoutPct, volumeRatio, decimal.Zero)
 		strength := p.calculateStrength(confidence)
 
@@ -821,31 +830,31 @@ func (p *PatternRecognizer) calculateCombinedSignal(candlestick []models.Candles
 // recognizeDoji 识别十字星模式
 func (p *PatternRecognizer) recognizeDoji(current models.StockDaily) *models.CandlestickPattern {
 	// 十字星：开盘价和收盘价相等或几乎相等，上下影线较长
-	
+
 	// 计算实体大小
 	body := current.Close.Decimal.Sub(current.Open.Decimal).Abs()
-	
+
 	// 计算价格范围
 	priceRange := current.High.Decimal.Sub(current.Low.Decimal)
-	
+
 	// 判断条件：
 	// 1. 实体很小（小于价格范围的5%）
 	// 2. 价格范围不为零
 	if priceRange.GreaterThan(decimal.Zero) &&
-		body.Div(priceRange).LessThan(decimal.NewFromFloat(0.05)) {
-		
+		safeDiv(body, priceRange, decimal.NewFromInt(1)).LessThan(decimal.NewFromFloat(0.05)) {
+
 		// 计算置信度（影线越长，置信度越高）
 		confidence := decimal.NewFromInt(70)
 		if priceRange.GreaterThan(decimal.Zero) {
-			shadowRatio := body.Div(priceRange)
+			shadowRatio := safeDiv(body, priceRange, decimal.Zero)
 			confidence = decimal.NewFromInt(100).Sub(shadowRatio.Mul(decimal.NewFromInt(600)))
 			if confidence.LessThan(decimal.NewFromInt(50)) {
 				confidence = decimal.NewFromInt(50)
 			}
 		}
-		
+
 		strength := p.calculateStrength(confidence)
-		
+
 		return &models.CandlestickPattern{
 			TSCode:      current.TSCode,
 			TradeDate:   current.TradeDate,
@@ -858,30 +867,30 @@ func (p *PatternRecognizer) recognizeDoji(current models.StockDaily) *models.Can
 			PriceChange: models.NewJSONDecimal(current.Close.Decimal.Sub(current.Open.Decimal)),
 		}
 	}
-	
+
 	return nil
 }
 
 // recognizeEngulfing 识别吞没模式
 func (p *PatternRecognizer) recognizeEngulfing(current, prev1 models.StockDaily) *models.CandlestickPattern {
 	// 吞没模式：当前K线的实体完全包含前一根K线的实体
-	
+
 	// 计算实体大小
 	prev1Body := prev1.Close.Decimal.Sub(prev1.Open.Decimal).Abs()
 	currentBody := current.Close.Decimal.Sub(current.Open.Decimal).Abs()
-	
+
 	// 判断前一根和当前K线的颜色是否相反
 	prev1IsGreen := prev1.Close.Decimal.GreaterThan(prev1.Open.Decimal)
 	currentIsGreen := current.Close.Decimal.GreaterThan(current.Open.Decimal)
-	
+
 	if prev1IsGreen == currentIsGreen {
 		return nil // 颜色相同，不是吞没模式
 	}
-	
+
 	// 判断吞没条件
 	var isEngulfing bool
 	var signal, description string
-	
+
 	if currentIsGreen && !prev1IsGreen {
 		// 看涨吞没：当前阳线吞没前一根阴线
 		isEngulfing = current.Open.Decimal.LessThan(prev1.Close.Decimal) &&
@@ -895,20 +904,27 @@ func (p *PatternRecognizer) recognizeEngulfing(current, prev1 models.StockDaily)
 		signal = "SELL"
 		description = "看跌吞没，强烈卖出信号"
 	}
-	
+
 	if isEngulfing && currentBody.GreaterThan(prev1Body) {
 		// 计算置信度（实体差距越大，置信度越高）
-		bodyRatio := currentBody.Div(prev1Body)
-		confidence := bodyRatio.Mul(decimal.NewFromInt(40))
-		if confidence.GreaterThan(decimal.NewFromInt(90)) {
-			confidence = decimal.NewFromInt(90)
+		var confidence decimal.Decimal
+
+		// 防止除零错误：如果前一根K线实体为0（十字星），使用默认置信度
+		if prev1Body.IsZero() {
+			confidence = decimal.NewFromInt(70) // 默认中等置信度
+		} else {
+			bodyRatio := currentBody.Div(prev1Body)
+			confidence = bodyRatio.Mul(decimal.NewFromInt(40))
+			if confidence.GreaterThan(decimal.NewFromInt(90)) {
+				confidence = decimal.NewFromInt(90)
+			}
+			if confidence.LessThan(decimal.NewFromInt(60)) {
+				confidence = decimal.NewFromInt(60)
+			}
 		}
-		if confidence.LessThan(decimal.NewFromInt(60)) {
-			confidence = decimal.NewFromInt(60)
-		}
-		
+
 		strength := p.calculateStrength(confidence)
-		
+
 		return &models.CandlestickPattern{
 			TSCode:      current.TSCode,
 			TradeDate:   current.TradeDate,
@@ -921,17 +937,17 @@ func (p *PatternRecognizer) recognizeEngulfing(current, prev1 models.StockDaily)
 			PriceChange: models.NewJSONDecimal(current.Close.Decimal.Sub(current.Open.Decimal)),
 		}
 	}
-	
+
 	return nil
 }
 
 // recognizeShootingStar 识别射击之星模式
 func (p *PatternRecognizer) recognizeShootingStar(current models.StockDaily) *models.CandlestickPattern {
 	// 射击之星：上影线很长，实体较小，下影线很短或没有，通常出现在上涨趋势末端
-	
+
 	// 计算各部分长度
 	body := current.Close.Decimal.Sub(current.Open.Decimal).Abs()
-	
+
 	// 确定最高和最低价格
 	var higherPrice, lowerPrice decimal.Decimal
 	if current.Close.Decimal.GreaterThan(current.Open.Decimal) {
@@ -941,10 +957,10 @@ func (p *PatternRecognizer) recognizeShootingStar(current models.StockDaily) *mo
 		higherPrice = current.Open.Decimal
 		lowerPrice = current.Close.Decimal
 	}
-	
+
 	upperShadow := current.High.Decimal.Sub(higherPrice)
 	lowerShadow := lowerPrice.Sub(current.Low.Decimal)
-	
+
 	// 判断条件：
 	// 1. 上影线长度 > 实体长度的2倍
 	// 2. 下影线长度 <= 实体长度的0.5倍
@@ -952,18 +968,18 @@ func (p *PatternRecognizer) recognizeShootingStar(current models.StockDaily) *mo
 	if upperShadow.GreaterThan(body.Mul(decimal.NewFromInt(2))) &&
 		lowerShadow.LessThanOrEqual(body.Mul(decimal.NewFromFloat(0.5))) &&
 		body.GreaterThan(decimal.Zero) {
-		
+
 		// 计算置信度（上影线越长，置信度越高）
-		confidence := upperShadow.Div(body).Mul(decimal.NewFromInt(30))
+		confidence := safeDiv(upperShadow, body, decimal.NewFromInt(3)).Mul(decimal.NewFromInt(30))
 		if confidence.GreaterThan(decimal.NewFromInt(85)) {
 			confidence = decimal.NewFromInt(85)
 		}
 		if confidence.LessThan(decimal.NewFromInt(60)) {
 			confidence = decimal.NewFromInt(60)
 		}
-		
+
 		strength := p.calculateStrength(confidence)
-		
+
 		return &models.CandlestickPattern{
 			TSCode:      current.TSCode,
 			TradeDate:   current.TradeDate,
@@ -976,17 +992,17 @@ func (p *PatternRecognizer) recognizeShootingStar(current models.StockDaily) *mo
 			PriceChange: models.NewJSONDecimal(current.Close.Decimal.Sub(current.Open.Decimal)),
 		}
 	}
-	
+
 	return nil
 }
 
 // recognizeInvertedHammer 识别倒锤子线模式
 func (p *PatternRecognizer) recognizeInvertedHammer(current models.StockDaily) *models.CandlestickPattern {
 	// 倒锤子线：上影线很长，实体较小，下影线很短或没有，通常出现在下跌趋势末端
-	
+
 	// 计算各部分长度
 	body := current.Close.Decimal.Sub(current.Open.Decimal).Abs()
-	
+
 	// 确定最高和最低价格
 	var higherPrice, lowerPrice decimal.Decimal
 	if current.Close.Decimal.GreaterThan(current.Open.Decimal) {
@@ -996,16 +1012,16 @@ func (p *PatternRecognizer) recognizeInvertedHammer(current models.StockDaily) *
 		higherPrice = current.Open.Decimal
 		lowerPrice = current.Close.Decimal
 	}
-	
+
 	upperShadow := current.High.Decimal.Sub(higherPrice)
 	lowerShadow := lowerPrice.Sub(current.Low.Decimal)
-	
+
 	// 判断条件：
 	// 1. 上影线长度 > 实体长度的2倍
 	// 2. 下影线长度 <= 实体长度的0.5倍
 	if upperShadow.GreaterThan(body.Mul(decimal.NewFromInt(2))) &&
 		lowerShadow.LessThanOrEqual(body.Mul(decimal.NewFromFloat(0.5))) {
-		
+
 		// 计算置信度
 		var confidence decimal.Decimal
 		if body.IsZero() {
@@ -1019,9 +1035,9 @@ func (p *PatternRecognizer) recognizeInvertedHammer(current models.StockDaily) *
 				confidence = decimal.NewFromInt(50)
 			}
 		}
-		
+
 		strength := p.calculateStrength(confidence)
-		
+
 		return &models.CandlestickPattern{
 			TSCode:      current.TSCode,
 			TradeDate:   current.TradeDate,
@@ -1034,17 +1050,17 @@ func (p *PatternRecognizer) recognizeInvertedHammer(current models.StockDaily) *
 			PriceChange: models.NewJSONDecimal(current.Close.Decimal.Sub(current.Open.Decimal)),
 		}
 	}
-	
+
 	return nil
 }
 
 // recognizeSpinningTop 识别纺锤线模式
 func (p *PatternRecognizer) recognizeSpinningTop(current models.StockDaily) *models.CandlestickPattern {
 	// 纺锤线：实体很小，上下影线都较长，表示市场犹豫
-	
+
 	// 计算各部分长度
 	body := current.Close.Decimal.Sub(current.Open.Decimal).Abs()
-	
+
 	// 确定最高和最低价格
 	var higherPrice, lowerPrice decimal.Decimal
 	if current.Close.Decimal.GreaterThan(current.Open.Decimal) {
@@ -1054,33 +1070,33 @@ func (p *PatternRecognizer) recognizeSpinningTop(current models.StockDaily) *mod
 		higherPrice = current.Open.Decimal
 		lowerPrice = current.Close.Decimal
 	}
-	
+
 	upperShadow := current.High.Decimal.Sub(higherPrice)
 	lowerShadow := lowerPrice.Sub(current.Low.Decimal)
 	priceRange := current.High.Decimal.Sub(current.Low.Decimal)
-	
+
 	// 判断条件：
 	// 1. 实体小于价格范围的30%
 	// 2. 上下影线都存在且相对较长
 	if priceRange.GreaterThan(decimal.Zero) &&
-		body.Div(priceRange).LessThan(decimal.NewFromFloat(0.3)) &&
+		safeDiv(body, priceRange, decimal.NewFromInt(1)).LessThan(decimal.NewFromFloat(0.3)) &&
 		upperShadow.GreaterThan(body) &&
 		lowerShadow.GreaterThan(body) {
-		
+
 		// 计算置信度
 		var confidence decimal.Decimal
 		if body.IsZero() {
 			confidence = decimal.NewFromInt(70) // 如果实体为0，给默认置信度
 		} else {
-			shadowRatio := upperShadow.Add(lowerShadow).Div(body)
+			shadowRatio := safeDiv(upperShadow.Add(lowerShadow), body, decimal.NewFromInt(2))
 			confidence = decimal.NewFromInt(40).Add(shadowRatio.Mul(decimal.NewFromInt(10)))
 			if confidence.GreaterThan(decimal.NewFromInt(75)) {
 				confidence = decimal.NewFromInt(75)
 			}
 		}
-		
+
 		strength := p.calculateStrength(confidence)
-		
+
 		return &models.CandlestickPattern{
 			TSCode:      current.TSCode,
 			TradeDate:   current.TradeDate,
@@ -1093,27 +1109,27 @@ func (p *PatternRecognizer) recognizeSpinningTop(current models.StockDaily) *mod
 			PriceChange: models.NewJSONDecimal(current.Close.Decimal.Sub(current.Open.Decimal)),
 		}
 	}
-	
+
 	return nil
 }
 
 // recognizeThreeBlackCrows 识别三只乌鸦模式
 func (p *PatternRecognizer) recognizeThreeBlackCrows(current, prev1, prev2 models.StockDaily) *models.CandlestickPattern {
 	// 三只乌鸦：连续三根阴线，每根都在前一根的实体内开盘，收盘价逐渐走低
-	
+
 	// 检查三根K线是否都是阴线
 	if current.Close.Decimal.GreaterThanOrEqual(current.Open.Decimal) ||
 		prev1.Close.Decimal.GreaterThanOrEqual(prev1.Open.Decimal) ||
 		prev2.Close.Decimal.GreaterThanOrEqual(prev2.Open.Decimal) {
 		return nil
 	}
-	
+
 	// 检查收盘价是否逐渐走低
 	if current.Close.Decimal.GreaterThanOrEqual(prev1.Close.Decimal) ||
 		prev1.Close.Decimal.GreaterThanOrEqual(prev2.Close.Decimal) {
 		return nil
 	}
-	
+
 	// 检查开盘价是否在前一根K线的实体范围内
 	if current.Open.Decimal.GreaterThan(prev1.Open.Decimal) ||
 		current.Open.Decimal.LessThan(prev1.Close.Decimal) ||
@@ -1121,20 +1137,20 @@ func (p *PatternRecognizer) recognizeThreeBlackCrows(current, prev1, prev2 model
 		prev1.Open.Decimal.LessThan(prev2.Close.Decimal) {
 		return nil
 	}
-	
+
 	// 计算三根K线的平均跌幅
 	change1 := prev2.Close.Decimal.Sub(prev2.Open.Decimal)
 	change2 := prev1.Close.Decimal.Sub(prev1.Open.Decimal)
 	change3 := current.Close.Decimal.Sub(current.Open.Decimal)
-	
+
 	avgChange := change1.Add(change2).Add(change3).Div(decimal.NewFromInt(3))
-	avgChangePct := avgChange.Div(prev2.Open.Decimal).Mul(decimal.NewFromInt(100)).Abs()
-	
+	avgChangePct := safeDiv(avgChange, prev2.Open.Decimal, decimal.Zero).Mul(decimal.NewFromInt(100)).Abs()
+
 	// 判断条件：平均跌幅 > 1.5%
 	if avgChangePct.GreaterThan(decimal.NewFromFloat(1.5)) {
 		confidence := p.calculateConfidence(avgChangePct, decimal.Zero, decimal.Zero)
 		strength := p.calculateStrength(confidence)
-		
+
 		return &models.CandlestickPattern{
 			TSCode:      current.TSCode,
 			TradeDate:   current.TradeDate,
@@ -1147,22 +1163,22 @@ func (p *PatternRecognizer) recognizeThreeBlackCrows(current, prev1, prev2 model
 			PriceChange: models.NewJSONDecimal(change3),
 		}
 	}
-	
+
 	return nil
 }
 
 // recognizeHarami 识别孕育线模式
 func (p *PatternRecognizer) recognizeHarami(current, prev1 models.StockDaily) *models.CandlestickPattern {
 	// 孕育线：当前K线的实体完全包含在前一根K线的实体内，颜色相反
-	
+
 	// 判断前一根和当前K线的颜色是否相反
 	prev1IsGreen := prev1.Close.Decimal.GreaterThan(prev1.Open.Decimal)
 	currentIsGreen := current.Close.Decimal.GreaterThan(current.Open.Decimal)
-	
+
 	if prev1IsGreen == currentIsGreen {
 		return nil // 颜色相同，不是孕育线
 	}
-	
+
 	// 判断当前K线是否在前一根K线实体内
 	var prev1High, prev1Low decimal.Decimal
 	if prev1IsGreen {
@@ -1172,7 +1188,7 @@ func (p *PatternRecognizer) recognizeHarami(current, prev1 models.StockDaily) *m
 		prev1High = prev1.Open.Decimal
 		prev1Low = prev1.Close.Decimal
 	}
-	
+
 	var currentHigh, currentLow decimal.Decimal
 	if currentIsGreen {
 		currentHigh = current.Close.Decimal
@@ -1181,7 +1197,7 @@ func (p *PatternRecognizer) recognizeHarami(current, prev1 models.StockDaily) *m
 		currentHigh = current.Open.Decimal
 		currentLow = current.Close.Decimal
 	}
-	
+
 	// 判断孕育条件
 	if currentHigh.LessThan(prev1High) && currentLow.GreaterThan(prev1Low) {
 		var signal, description string
@@ -1192,19 +1208,19 @@ func (p *PatternRecognizer) recognizeHarami(current, prev1 models.StockDaily) *m
 			signal = "BUY"
 			description = "看涨孕育线，可能反转上涨"
 		}
-		
+
 		// 计算置信度
 		prev1Body := prev1High.Sub(prev1Low)
 		currentBody := currentHigh.Sub(currentLow)
-		bodyRatio := currentBody.Div(prev1Body)
-		
+		bodyRatio := safeDiv(currentBody, prev1Body, decimal.NewFromFloat(0.5))
+
 		confidence := decimal.NewFromInt(80).Sub(bodyRatio.Mul(decimal.NewFromInt(40)))
 		if confidence.LessThan(decimal.NewFromInt(50)) {
 			confidence = decimal.NewFromInt(50)
 		}
-		
+
 		strength := p.calculateStrength(confidence)
-		
+
 		return &models.CandlestickPattern{
 			TSCode:      current.TSCode,
 			TradeDate:   current.TradeDate,
@@ -1217,35 +1233,35 @@ func (p *PatternRecognizer) recognizeHarami(current, prev1 models.StockDaily) *m
 			PriceChange: models.NewJSONDecimal(current.Close.Decimal.Sub(current.Open.Decimal)),
 		}
 	}
-	
+
 	return nil
 }
 
 // recognizeTriangleBreakout 识别三角形突破模式
 func (p *PatternRecognizer) recognizeTriangleBreakout(current, prev1, prev2 models.StockDaily, index int, data []models.StockDaily) *models.CandlestickPattern {
 	// 三角形突破：价格在收敛三角形后突破
-	
+
 	// 检查是否有足够的历史数据
 	if index < 10 {
 		return nil
 	}
-	
+
 	// 计算最近10天的最高价和最低价
 	var highs, lows []decimal.Decimal
 	for i := index - 9; i <= index; i++ {
 		highs = append(highs, data[i].High.Decimal)
 		lows = append(lows, data[i].Low.Decimal)
 	}
-	
+
 	// 计算价格波动范围的变化（简化的三角形检测）
 	recentRange := current.High.Decimal.Sub(current.Low.Decimal)
-	
+
 	var avgRange decimal.Decimal
 	for i := index - 9; i < index; i++ {
 		avgRange = avgRange.Add(data[i].High.Decimal.Sub(data[i].Low.Decimal))
 	}
 	avgRange = avgRange.Div(decimal.NewFromInt(9))
-	
+
 	// 判断突破条件：
 	// 1. 当前交易日的波动范围明显大于平均波动
 	// 2. 价格突破最近的高点或低点
@@ -1261,11 +1277,11 @@ func (p *PatternRecognizer) recognizeTriangleBreakout(current, prev1, prev2 mode
 			minLow = l
 		}
 	}
-	
-	rangeRatio := recentRange.Div(avgRange)
+
+	rangeRatio := safeDiv(recentRange, avgRange, decimal.NewFromInt(1))
 	upwardBreakout := current.Close.Decimal.GreaterThan(maxHigh)
 	downwardBreakout := current.Close.Decimal.LessThan(minLow)
-	
+
 	if rangeRatio.GreaterThan(decimal.NewFromFloat(1.5)) && (upwardBreakout || downwardBreakout) {
 		var signal, description string
 		if upwardBreakout {
@@ -1275,16 +1291,16 @@ func (p *PatternRecognizer) recognizeTriangleBreakout(current, prev1, prev2 mode
 			signal = "SELL"
 			description = "向下突破三角形，卖出信号"
 		}
-		
+
 		// 计算置信度
-		breakoutStrength := recentRange.Div(avgRange).Mul(decimal.NewFromInt(30))
+		breakoutStrength := safeDiv(recentRange, avgRange, decimal.NewFromInt(2)).Mul(decimal.NewFromInt(30))
 		confidence := decimal.NewFromInt(60).Add(breakoutStrength)
 		if confidence.GreaterThan(decimal.NewFromInt(90)) {
 			confidence = decimal.NewFromInt(90)
 		}
-		
+
 		strength := p.calculateStrength(confidence)
-		
+
 		return &models.CandlestickPattern{
 			TSCode:      current.TSCode,
 			TradeDate:   current.TradeDate,
@@ -1297,25 +1313,25 @@ func (p *PatternRecognizer) recognizeTriangleBreakout(current, prev1, prev2 mode
 			PriceChange: models.NewJSONDecimal(current.Close.Decimal.Sub(current.Open.Decimal)),
 		}
 	}
-	
+
 	return nil
 }
 
 // recognizeHeadAndShoulders 识别头肩形态模式
 func (p *PatternRecognizer) recognizeHeadAndShoulders(current, prev1, prev2 models.StockDaily, index int, data []models.StockDaily) *models.CandlestickPattern {
 	// 头肩形态：经典的反转形态，需要更多历史数据来识别
-	
+
 	// 检查是否有足够的历史数据
 	if index < 15 {
 		return nil
 	}
-	
+
 	// 简化的头肩形态识别：寻找三个相对高点，中间的最高
 	var peaks []struct {
 		index int
 		price decimal.Decimal
 	}
-	
+
 	// 寻找最近15天的相对高点
 	for i := index - 13; i <= index-2; i++ {
 		if i > 0 && i < len(data)-1 {
@@ -1328,12 +1344,12 @@ func (p *PatternRecognizer) recognizeHeadAndShoulders(current, prev1, prev2 mode
 			}
 		}
 	}
-	
+
 	// 需要至少3个高点
 	if len(peaks) < 3 {
 		return nil
 	}
-	
+
 	// 检查是否形成头肩形态（简化版）
 	// 取最后三个高点，检查中间的是否最高
 	if len(peaks) >= 3 {
@@ -1341,20 +1357,20 @@ func (p *PatternRecognizer) recognizeHeadAndShoulders(current, prev1, prev2 mode
 		leftShoulder := lastThree[0].price
 		head := lastThree[1].price
 		rightShoulder := lastThree[2].price
-		
+
 		// 头部应该比两肩高，两肩高度相近
 		if head.GreaterThan(leftShoulder) && head.GreaterThan(rightShoulder) {
 			shoulderDiff := leftShoulder.Sub(rightShoulder).Abs()
 			shoulderAvg := leftShoulder.Add(rightShoulder).Div(decimal.NewFromInt(2))
-			
+
 			// 两肩高度差不超过平均值的10%
-			if shoulderDiff.Div(shoulderAvg).LessThan(decimal.NewFromFloat(0.1)) {
+			if safeDiv(shoulderDiff, shoulderAvg, decimal.NewFromInt(1)).LessThan(decimal.NewFromFloat(0.1)) {
 				// 当前价格跌破颈线（两肩连线）
 				neckline := shoulderAvg
 				if current.Close.Decimal.LessThan(neckline) {
 					confidence := decimal.NewFromInt(75)
 					strength := p.calculateStrength(confidence)
-					
+
 					return &models.CandlestickPattern{
 						TSCode:      current.TSCode,
 						TradeDate:   current.TradeDate,
@@ -1370,7 +1386,7 @@ func (p *PatternRecognizer) recognizeHeadAndShoulders(current, prev1, prev2 mode
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -1379,12 +1395,12 @@ func (p *PatternRecognizer) recognizeHeadAndShoulders(current, prev1, prev2 mode
 // recognizeLowVolumePrice 识别地量地价模式
 func (p *PatternRecognizer) recognizeLowVolumePrice(current, prev1, prev2 models.StockDaily, index int, data []models.StockDaily) *models.VolumePricePattern {
 	// 地量地价：成交量和价格都处于相对低位，通常是底部信号
-	
+
 	// 检查是否有足够的历史数据
 	if index < 20 {
 		return nil
 	}
-	
+
 	// 计算20日平均成交量和平均价格
 	var volumeSum, priceSum decimal.Decimal
 	for i := index - 19; i <= index; i++ {
@@ -1393,30 +1409,30 @@ func (p *PatternRecognizer) recognizeLowVolumePrice(current, prev1, prev2 models
 	}
 	avgVolume := volumeSum.Div(decimal.NewFromInt(20))
 	avgPrice := priceSum.Div(decimal.NewFromInt(20))
-	
+
 	// 判断条件：
 	// 1. 当前成交量低于20日平均成交量的50%
 	// 2. 当前价格低于20日平均价格的95%
 	if current.Vol.Decimal.LessThan(avgVolume.Mul(decimal.NewFromFloat(0.5))) &&
 		current.Close.Decimal.LessThan(avgPrice.Mul(decimal.NewFromFloat(0.95))) {
-		
-		volumeRatio := current.Vol.Decimal.Div(avgVolume)
-		priceRatio := current.Close.Decimal.Div(avgPrice)
-		
+
+		volumeRatio := safeDiv(current.Vol.Decimal, avgVolume, decimal.NewFromFloat(0.5))
+		priceRatio := safeDiv(current.Close.Decimal, avgPrice, decimal.NewFromFloat(0.95))
+
 		// 计算置信度（量价越低，置信度越高）
 		confidence := decimal.NewFromInt(100).Sub(volumeRatio.Mul(decimal.NewFromInt(100))).
 			Add(decimal.NewFromInt(100).Sub(priceRatio.Mul(decimal.NewFromInt(100)))).
 			Div(decimal.NewFromInt(2))
-		
+
 		if confidence.GreaterThan(decimal.NewFromInt(85)) {
 			confidence = decimal.NewFromInt(85)
 		}
 		if confidence.LessThan(decimal.NewFromInt(60)) {
 			confidence = decimal.NewFromInt(60)
 		}
-		
+
 		strength := p.calculateStrength(confidence)
-		
+
 		return &models.VolumePricePattern{
 			TSCode:      current.TSCode,
 			TradeDate:   current.TradeDate,
@@ -1430,19 +1446,19 @@ func (p *PatternRecognizer) recognizeLowVolumePrice(current, prev1, prev2 models
 			VolumeRatio: models.NewJSONDecimal(volumeRatio),
 		}
 	}
-	
+
 	return nil
 }
 
 // recognizeHighVolumePrice 识别天量天价模式
 func (p *PatternRecognizer) recognizeHighVolumePrice(current, prev1, prev2 models.StockDaily, index int, data []models.StockDaily) *models.VolumePricePattern {
 	// 天量天价：成交量和价格都处于相对高位，通常是顶部信号
-	
+
 	// 检查是否有足够的历史数据
 	if index < 20 {
 		return nil
 	}
-	
+
 	// 计算20日平均成交量和最高价
 	var volumeSum decimal.Decimal
 	var maxPrice decimal.Decimal
@@ -1453,29 +1469,29 @@ func (p *PatternRecognizer) recognizeHighVolumePrice(current, prev1, prev2 model
 		}
 	}
 	avgVolume := volumeSum.Div(decimal.NewFromInt(20))
-	
+
 	// 判断条件：
 	// 1. 当前成交量高于20日平均成交量的200%
 	// 2. 当前价格接近20日最高价的95%以上
 	if current.Vol.Decimal.GreaterThan(avgVolume.Mul(decimal.NewFromInt(2))) &&
 		current.Close.Decimal.GreaterThan(maxPrice.Mul(decimal.NewFromFloat(0.95))) {
-		
-		volumeRatio := current.Vol.Decimal.Div(avgVolume)
-		priceRatio := current.Close.Decimal.Div(maxPrice)
-		
+
+		volumeRatio := safeDiv(current.Vol.Decimal, avgVolume, decimal.NewFromInt(2))
+		priceRatio := safeDiv(current.Close.Decimal, maxPrice, decimal.NewFromFloat(0.95))
+
 		// 计算置信度（量价越高，置信度越高）
 		confidence := volumeRatio.Mul(decimal.NewFromInt(20)).
 			Add(priceRatio.Mul(decimal.NewFromInt(60)))
-		
+
 		if confidence.GreaterThan(decimal.NewFromInt(90)) {
 			confidence = decimal.NewFromInt(90)
 		}
 		if confidence.LessThan(decimal.NewFromInt(60)) {
 			confidence = decimal.NewFromInt(60)
 		}
-		
+
 		strength := p.calculateStrength(confidence)
-		
+
 		return &models.VolumePricePattern{
 			TSCode:      current.TSCode,
 			TradeDate:   current.TradeDate,
@@ -1489,31 +1505,31 @@ func (p *PatternRecognizer) recognizeHighVolumePrice(current, prev1, prev2 model
 			VolumeRatio: models.NewJSONDecimal(volumeRatio),
 		}
 	}
-	
+
 	return nil
 }
 
 // recognizeVolumeDecreasePriceIncrease 识别缩量上涨模式
 func (p *PatternRecognizer) recognizeVolumeDecreasePriceIncrease(current, prev1, prev2 models.StockDaily) *models.VolumePricePattern {
 	// 缩量上涨：价格上涨但成交量减少，可能表示上涨乏力
-	
+
 	// 计算价格变化
 	priceChange := current.Close.Decimal.Sub(prev1.Close.Decimal)
-	priceChangePct := priceChange.Div(prev1.Close.Decimal).Mul(decimal.NewFromInt(100))
-	
+	priceChangePct := safeDiv(priceChange, prev1.Close.Decimal, decimal.Zero).Mul(decimal.NewFromInt(100))
+
 	// 计算成交量变化
 	volumeChange := current.Vol.Decimal.Sub(prev1.Vol.Decimal)
-	volumeChangePct := volumeChange.Div(prev1.Vol.Decimal).Mul(decimal.NewFromInt(100))
-	
+	volumeChangePct := safeDiv(volumeChange, prev1.Vol.Decimal, decimal.Zero).Mul(decimal.NewFromInt(100))
+
 	// 判断条件：
 	// 1. 价格上涨 > 1%
 	// 2. 成交量下降 > 10%
 	if priceChangePct.GreaterThan(decimal.NewFromFloat(1.0)) &&
 		volumeChangePct.LessThan(decimal.NewFromFloat(-10.0)) {
-		
+
 		confidence := p.calculateConfidence(priceChangePct, volumeChangePct.Abs(), decimal.Zero)
 		strength := p.calculateStrength(confidence)
-		
+
 		return &models.VolumePricePattern{
 			TSCode:      current.TSCode,
 			TradeDate:   current.TradeDate,
@@ -1527,31 +1543,31 @@ func (p *PatternRecognizer) recognizeVolumeDecreasePriceIncrease(current, prev1,
 			VolumeRatio: models.NewJSONDecimal(volumeChangePct),
 		}
 	}
-	
+
 	return nil
 }
 
 // recognizeVolumeIncreasePriceDecrease 识别放量下跌模式
 func (p *PatternRecognizer) recognizeVolumeIncreasePriceDecrease(current, prev1, prev2 models.StockDaily) *models.VolumePricePattern {
 	// 放量下跌：价格下跌且成交量增加，通常表示恐慌性抛售
-	
+
 	// 计算价格变化
 	priceChange := current.Close.Decimal.Sub(prev1.Close.Decimal)
-	priceChangePct := priceChange.Div(prev1.Close.Decimal).Mul(decimal.NewFromInt(100))
-	
+	priceChangePct := safeDiv(priceChange, prev1.Close.Decimal, decimal.Zero).Mul(decimal.NewFromInt(100))
+
 	// 计算成交量变化
 	volumeChange := current.Vol.Decimal.Sub(prev1.Vol.Decimal)
-	volumeChangePct := volumeChange.Div(prev1.Vol.Decimal).Mul(decimal.NewFromInt(100))
-	
+	volumeChangePct := safeDiv(volumeChange, prev1.Vol.Decimal, decimal.Zero).Mul(decimal.NewFromInt(100))
+
 	// 判断条件：
 	// 1. 价格下跌 > 1%
 	// 2. 成交量增加 > 20%
 	if priceChangePct.LessThan(decimal.NewFromFloat(-1.0)) &&
 		volumeChangePct.GreaterThan(decimal.NewFromFloat(20.0)) {
-		
+
 		confidence := p.calculateConfidence(priceChangePct.Abs(), volumeChangePct, decimal.Zero)
 		strength := p.calculateStrength(confidence)
-		
+
 		return &models.VolumePricePattern{
 			TSCode:      current.TSCode,
 			TradeDate:   current.TradeDate,
@@ -1565,6 +1581,6 @@ func (p *PatternRecognizer) recognizeVolumeIncreasePriceDecrease(current, prev1,
 			VolumeRatio: models.NewJSONDecimal(volumeChangePct),
 		}
 	}
-	
+
 	return nil
 }
