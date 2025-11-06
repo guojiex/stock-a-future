@@ -216,7 +216,7 @@ func (s *PredictionService) predictFromMACD(macd *models.MACDIndicator, currentP
 	return &models.TradingPointPrediction{
 		Type:        predictType,
 		Price:       models.NewJSONDecimal(signalPrice),
-		Date:        time.Now().AddDate(0, 0, 1).Format("20060102"), // 预测明天
+		Date:        signalDate, // 使用实际数据的交易日期
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
 		Indicators:  []string{"MACD"},
@@ -253,7 +253,7 @@ func (s *PredictionService) predictFromRSI(rsi *models.RSIIndicator, currentPric
 	return &models.TradingPointPrediction{
 		Type:        predictType,
 		Price:       models.NewJSONDecimal(signalPrice),
-		Date:        time.Now().AddDate(0, 0, 1).Format("20060102"),
+		Date:        signalDate, // 使用实际数据的交易日期
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
 		Indicators:  []string{"RSI"},
@@ -290,7 +290,7 @@ func (s *PredictionService) predictFromBollingerBands(boll *models.BollingerBand
 	return &models.TradingPointPrediction{
 		Type:        predictType,
 		Price:       models.NewJSONDecimal(signalPrice),
-		Date:        time.Now().AddDate(0, 0, 2).Format("20060102"), // 布林带信号预测后天
+		Date:        signalDate, // 使用实际数据的交易日期
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
 		Indicators:  []string{"BOLL"},
@@ -327,7 +327,7 @@ func (s *PredictionService) predictFromKDJ(kdj *models.KDJIndicator, currentPric
 	return &models.TradingPointPrediction{
 		Type:        predictType,
 		Price:       models.NewJSONDecimal(signalPrice),
-		Date:        time.Now().AddDate(0, 0, 1).Format("20060102"),
+		Date:        signalDate, // 使用实际数据的交易日期
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
 		Indicators:  []string{"KDJ"},
@@ -370,7 +370,7 @@ func (s *PredictionService) predictFromMA(ma *models.MovingAverageIndicator, cur
 	return &models.TradingPointPrediction{
 		Type:        predictType,
 		Price:       models.NewJSONDecimal(signalPrice),
-		Date:        time.Now().AddDate(0, 0, 3).Format("20060102"), // 均线信号预测3天后
+		Date:        signalDate, // 使用实际数据的交易日期
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
 		Indicators:  []string{"MA"},
@@ -539,7 +539,7 @@ func (s *PredictionService) predictFromCandlestickPattern(pattern models.Candles
 	return &models.TradingPointPrediction{
 		Type:        predictType,
 		Price:       models.NewJSONDecimal(signalPrice),
-		Date:        time.Now().AddDate(0, 0, 1).Format("20060102"), // 图形模式预测明天
+		Date:        pattern.TradeDate, // 使用实际数据的交易日期
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
 		Indicators:  []string{fmt.Sprintf("图形模式:%s", pattern.Pattern)},
@@ -590,7 +590,7 @@ func (s *PredictionService) predictFromVolumePricePattern(pattern models.VolumeP
 	return &models.TradingPointPrediction{
 		Type:        predictType,
 		Price:       models.NewJSONDecimal(signalPrice),
-		Date:        time.Now().AddDate(0, 0, 1).Format("20060102"), // 量价模式预测明天
+		Date:        pattern.TradeDate, // 使用实际数据的交易日期
 		Probability: models.NewJSONDecimal(probability),
 		Reason:      reason,
 		Indicators:  []string{fmt.Sprintf("量价模式:%s", pattern.Pattern)},

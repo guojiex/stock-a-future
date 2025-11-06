@@ -96,11 +96,7 @@ func (tc *TradingCalendar) IsWorkingDay(date time.Time) bool {
 
 	// 检查是否为节假日
 	dateStr := date.Format("2006-01-02")
-	if tc.holidays[dateStr] {
-		return false
-	}
-
-	return true
+	return !tc.holidays[dateStr]
 }
 
 // IsTradingDay 判断是否为交易日（工作日的别名，更符合股票交易语境）

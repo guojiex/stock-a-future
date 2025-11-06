@@ -1238,7 +1238,7 @@ func (p *PatternRecognizer) recognizeHarami(current, prev1 models.StockDaily) *m
 }
 
 // recognizeTriangleBreakout 识别三角形突破模式
-func (p *PatternRecognizer) recognizeTriangleBreakout(current, prev1, prev2 models.StockDaily, index int, data []models.StockDaily) *models.CandlestickPattern {
+func (p *PatternRecognizer) recognizeTriangleBreakout(current, _, _ models.StockDaily, index int, data []models.StockDaily) *models.CandlestickPattern {
 	// 三角形突破：价格在收敛三角形后突破
 
 	// 检查是否有足够的历史数据
@@ -1318,7 +1318,7 @@ func (p *PatternRecognizer) recognizeTriangleBreakout(current, prev1, prev2 mode
 }
 
 // recognizeHeadAndShoulders 识别头肩形态模式
-func (p *PatternRecognizer) recognizeHeadAndShoulders(current, prev1, prev2 models.StockDaily, index int, data []models.StockDaily) *models.CandlestickPattern {
+func (p *PatternRecognizer) recognizeHeadAndShoulders(current, _, _ models.StockDaily, index int, data []models.StockDaily) *models.CandlestickPattern {
 	// 头肩形态：经典的反转形态，需要更多历史数据来识别
 
 	// 检查是否有足够的历史数据
@@ -1393,7 +1393,7 @@ func (p *PatternRecognizer) recognizeHeadAndShoulders(current, prev1, prev2 mode
 // ========== 新增量价模式识别函数 ==========
 
 // recognizeLowVolumePrice 识别地量地价模式
-func (p *PatternRecognizer) recognizeLowVolumePrice(current, prev1, prev2 models.StockDaily, index int, data []models.StockDaily) *models.VolumePricePattern {
+func (p *PatternRecognizer) recognizeLowVolumePrice(current, prev1, _ models.StockDaily, index int, data []models.StockDaily) *models.VolumePricePattern {
 	// 地量地价：成交量和价格都处于相对低位，通常是底部信号
 
 	// 检查是否有足够的历史数据
@@ -1451,7 +1451,7 @@ func (p *PatternRecognizer) recognizeLowVolumePrice(current, prev1, prev2 models
 }
 
 // recognizeHighVolumePrice 识别天量天价模式
-func (p *PatternRecognizer) recognizeHighVolumePrice(current, prev1, prev2 models.StockDaily, index int, data []models.StockDaily) *models.VolumePricePattern {
+func (p *PatternRecognizer) recognizeHighVolumePrice(current, prev1, _ models.StockDaily, index int, data []models.StockDaily) *models.VolumePricePattern {
 	// 天量天价：成交量和价格都处于相对高位，通常是顶部信号
 
 	// 检查是否有足够的历史数据
@@ -1510,7 +1510,7 @@ func (p *PatternRecognizer) recognizeHighVolumePrice(current, prev1, prev2 model
 }
 
 // recognizeVolumeDecreasePriceIncrease 识别缩量上涨模式
-func (p *PatternRecognizer) recognizeVolumeDecreasePriceIncrease(current, prev1, prev2 models.StockDaily) *models.VolumePricePattern {
+func (p *PatternRecognizer) recognizeVolumeDecreasePriceIncrease(current, prev1, _ models.StockDaily) *models.VolumePricePattern {
 	// 缩量上涨：价格上涨但成交量减少，可能表示上涨乏力
 
 	// 计算价格变化
@@ -1548,7 +1548,7 @@ func (p *PatternRecognizer) recognizeVolumeDecreasePriceIncrease(current, prev1,
 }
 
 // recognizeVolumeIncreasePriceDecrease 识别放量下跌模式
-func (p *PatternRecognizer) recognizeVolumeIncreasePriceDecrease(current, prev1, prev2 models.StockDaily) *models.VolumePricePattern {
+func (p *PatternRecognizer) recognizeVolumeIncreasePriceDecrease(current, prev1, _ models.StockDaily) *models.VolumePricePattern {
 	// 放量下跌：价格下跌且成交量增加，通常表示恐慌性抛售
 
 	// 计算价格变化
