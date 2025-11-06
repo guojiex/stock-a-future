@@ -358,13 +358,13 @@ const StrategyView: React.FC<StrategyViewProps> = ({ stockCode, stockName }) => 
                           <TableRow key={index}>
                             <TableCell>
                               <Chip
-                                label={getSignalText(pred.signal_type)}
-                                color={getSignalColor(pred.signal_type) as any}
+                                label={getSignalText(pred.type)}
+                                color={getSignalColor(pred.type) as any}
                                 size="small"
                               />
                             </TableCell>
                             <TableCell>
-                              {(pred.confidence * 100).toFixed(1)}%
+                              {(pred.probability * 100).toFixed(1)}%
                             </TableCell>
                             <TableCell>{pred.reason || '无详细理由'}</TableCell>
                           </TableRow>
