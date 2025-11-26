@@ -27,6 +27,7 @@
     "web-vitals": "^2.1.4"
   },
   "devDependencies": {
+    "baseline-browser-mapping": "^2.8.31",
     "cross-env": "^7.0.3"
   },
   "scripts": {
