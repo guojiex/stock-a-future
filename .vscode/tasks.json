@@ -5,7 +5,10 @@
             "label": "启动 Go API 服务器 (端口8081)",
             "type": "shell",
             "command": "go",
-            "args": ["run", "cmd/server/main.go"],
+            "args": [
+                "run",
+                "cmd/server/main.go"
+            ],
             "group": {
                 "kind": "build",
                 "isDefault": false
@@ -31,7 +34,12 @@
             "label": "启动 AKTools 服务 (端口8080)",
             "type": "shell",
             "command": "python",
-            "args": ["-m", "aktools", "--port", "8080"],
+            "args": [
+                "-m",
+                "aktools",
+                "--port",
+                "8080"
+            ],
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -51,7 +59,14 @@
             "label": "启动 AKTools 服务 (Windows专用)",
             "type": "shell",
             "command": "cmd.exe",
-            "args": ["/c", "python", "-m", "aktools", "--port", "8080"],
+            "args": [
+                "/c",
+                "python",
+                "-m",
+                "aktools",
+                "--port",
+                "8080"
+            ],
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -71,7 +86,9 @@
             "label": "启动 React Web (开发模式)",
             "type": "shell",
             "command": "npm",
-            "args": ["start"],
+            "args": [
+                "start"
+            ],
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -91,7 +108,10 @@
             "label": "启动 React Web (生产模式)",
             "type": "shell",
             "command": "npm",
-            "args": ["run", "start:prod"],
+            "args": [
+                "run",
+                "start:prod"
+            ],
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -111,7 +131,9 @@
             "label": "启动 React Native Metro",
             "type": "shell",
             "command": "npm",
-            "args": ["start"],
+            "args": [
+                "start"
+            ],
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -131,7 +153,10 @@
             "label": "启动 React Native Android",
             "type": "shell",
             "command": "npm",
-            "args": ["run", "android"],
+            "args": [
+                "run",
+                "android"
+            ],
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -146,13 +171,18 @@
                 "cwd": "${workspaceFolder}/mobile"
             },
             "detail": "启动React Native Android应用 (开发模式，使用npm)",
-            "dependsOn": ["启动 React Native Metro"]
+            "dependsOn": [
+                "启动 React Native Metro"
+            ]
         },
         {
             "label": "启动 React Native iOS",
             "type": "shell",
             "command": "npm",
-            "args": ["run", "ios"],
+            "args": [
+                "run",
+                "ios"
+            ],
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -167,7 +197,9 @@
                 "cwd": "${workspaceFolder}/mobile"
             },
             "detail": "启动React Native iOS应用 (开发模式，需要macOS，使用npm)",
-            "dependsOn": ["启动 React Native Metro"]
+            "dependsOn": [
+                "启动 React Native Metro"
+            ]
         },
         {
             "label": "🚀 启动完整开发环境",
