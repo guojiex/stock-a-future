@@ -90,7 +90,7 @@ func (c *TushareClient) GetDailyData(tsCode, startDate, endDate, adjust string) 
 	}
 
 	if response.Code != 0 {
-		return nil, fmt.Errorf("tushare API错误: %s (代码: %d)", response.Msg, response.Code)
+		return nil, fmt.Errorf("tushare API错误: %s (代码: %d) [接口: %s, 参数: %v]", response.Msg, response.Code, request.APIName, request.Params)
 	}
 
 	return c.parseDailyData(response.Data)
@@ -115,7 +115,7 @@ func (c *TushareClient) GetDailyDataByDate(tradeDate string) ([]models.StockDail
 	}
 
 	if response.Code != 0 {
-		return nil, fmt.Errorf("tushare API错误: %s (代码: %d)", response.Msg, response.Code)
+		return nil, fmt.Errorf("tushare API错误: %s (代码: %d) [接口: %s, 参数: %v]", response.Msg, response.Code, request.APIName, request.Params)
 	}
 
 	return c.parseDailyData(response.Data)
@@ -125,12 +125,12 @@ func (c *TushareClient) GetDailyDataByDate(tradeDate string) ([]models.StockDail
 func (c *TushareClient) makeRequest(req TushareRequest) (*TushareResponse, error) {
 	jsonData, err := json.Marshal(req)
 	if err != nil {
-		return nil, fmt.Errorf("序列化请求失败: %w", err)
+		return nil, fmt.Errorf("序列化请求失败 [接口: %s]: %w", req.APIName, err)
 	}
 
 	httpReq, err := http.NewRequest("POST", c.baseURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil, fmt.Errorf("创建HTTP请求失败: %w", err)
+		return nil, fmt.Errorf("创建HTTP请求失败 [接口: %s, URL: %s]: %w", req.APIName, c.baseURL, err)
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
@@ -138,7 +138,7 @@ func (c *TushareClient) makeRequest(req TushareRequest) (*TushareResponse, error
 
 	resp, err := c.client.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("发送HTTP请求失败: %w", err)
+		return nil, fmt.Errorf("发送HTTP请求失败 [接口: %s, URL: %s]: %w", req.APIName, c.baseURL, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -147,17 +147,17 @@ func (c *TushareClient) makeRequest(req TushareRequest) (*TushareResponse, error
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP请求失败，状态码: %d", resp.StatusCode)
+		return nil, fmt.Errorf("HTTP请求失败 [接口: %s, URL: %s]，状态码: %d", req.APIName, c.baseURL, resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("读取响应体失败: %w", err)
+		return nil, fmt.Errorf("读取响应体失败 [接口: %s]: %w", req.APIName, err)
 	}
 
 	var tushareResp TushareResponse
 	if err := json.Unmarshal(body, &tushareResp); err != nil {
-		return nil, fmt.Errorf("解析响应失败: %w", err)
+		return nil, fmt.Errorf("解析响应失败 [接口: %s]: %w", req.APIName, err)
 	}
 
 	return &tushareResp, nil
@@ -256,7 +256,7 @@ func (c *TushareClient) GetStockBasic(tsCode string) (*models.StockBasic, error)
 	}
 
 	if response.Code != 0 {
-		return nil, fmt.Errorf("tushare API错误: %s (代码: %d)", response.Msg, response.Code)
+		return nil, fmt.Errorf("tushare API错误: %s (代码: %d) [接口: %s, 参数: %v]", response.Msg, response.Code, request.APIName, request.Params)
 	}
 
 	return c.parseStockBasic(response.Data, tsCode)
@@ -356,7 +356,7 @@ func (c *TushareClient) GetStockList() ([]models.StockBasic, error) {
 	}
 
 	if response.Code != 0 {
-		return nil, fmt.Errorf("tushare API错误: %s (代码: %d)", response.Msg, response.Code)
+		return nil, fmt.Errorf("tushare API错误: %s (代码: %d) [接口: %s, 参数: %v]", response.Msg, response.Code, request.APIName, request.Params)
 	}
 
 	return c.parseStockList(response.Data)
@@ -429,17 +429,25 @@ func (c *TushareClient) parseStockList(data *TushareData) ([]models.StockBasic, 
 
 // TestConnection 测试Tushare连接
 func (c *TushareClient) TestConnection() error {
-	// 使用轻量级的API调用测试连接 - 获取股票基本信息
-	// 选择000001.SZ（平安银行）作为测试股票，这是A股中比较稳定的股票
+	// 使用 daily 接口测试连接（最低积分要求120分，是门槛最低的股票数据接口）
+	// stock_basic 需要2000分，很多用户积分不够
+	now := time.Now()
+	tradeDate := now.Format("20060102")
+	if now.Hour() < 17 {
+		tradeDate = now.AddDate(0, 0, -1).Format("20060102")
+	}
+
 	testParams := map[string]interface{}{
-		"ts_code": "000001.SZ",
+		"ts_code":    "000001.SZ",
+		"start_date": tradeDate,
+		"end_date":   tradeDate,
 	}
 
 	request := TushareRequest{
-		APIName: "stock_basic",
+		APIName: "daily",
 		Token:   c.token,
 		Params:  testParams,
-		Fields:  "ts_code,symbol,name",
+		Fields:  "ts_code,trade_date,close",
 	}
 
 	// 设置较短的超时时间用于连接测试
@@ -450,12 +458,12 @@ func (c *TushareClient) TestConnection() error {
 	// 创建测试请求
 	jsonData, err := json.Marshal(request)
 	if err != nil {
-		return fmt.Errorf("序列化测试请求失败: %w", err)
+		return fmt.Errorf("序列化测试请求失败 [接口: %s, URL: %s]: %w", request.APIName, c.baseURL, err)
 	}
 
 	httpReq, err := http.NewRequest("POST", c.baseURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("创建测试HTTP请求失败: %w", err)
+		return fmt.Errorf("创建测试HTTP请求失败 [接口: %s, URL: %s]: %w", request.APIName, c.baseURL, err)
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
@@ -464,7 +472,7 @@ func (c *TushareClient) TestConnection() error {
 	// 发送测试请求
 	resp, err := testClient.Do(httpReq)
 	if err != nil {
-		return fmt.Errorf("tushare连接测试失败: %w", err)
+		return fmt.Errorf("tushare连接测试失败 [接口: %s, URL: %s]: %w", request.APIName, c.baseURL, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -474,32 +482,32 @@ func (c *TushareClient) TestConnection() error {
 
 	// 检查HTTP状态码
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("tushare API返回非200状态码: %d", resp.StatusCode)
+		return fmt.Errorf("tushare API返回非200状态码: %d [接口: %s, URL: %s]", resp.StatusCode, request.APIName, c.baseURL)
 	}
 
 	// 读取响应体
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("读取测试响应体失败: %w", err)
+		return fmt.Errorf("读取测试响应体失败 [接口: %s]: %w", request.APIName, err)
 	}
 
 	// 解析响应
 	var tushareResp TushareResponse
 	if err := json.Unmarshal(body, &tushareResp); err != nil {
-		return fmt.Errorf("解析测试响应失败: %w", err)
+		return fmt.Errorf("解析测试响应失败 [接口: %s]: %w", request.APIName, err)
 	}
 
 	// 检查API响应码
 	if tushareResp.Code != 0 {
-		return fmt.Errorf("tushare API错误: %s (代码: %d)", tushareResp.Msg, tushareResp.Code)
+		return fmt.Errorf("tushare API错误: %s (代码: %d) [接口: %s, URL: %s, 参数: %v]", tushareResp.Msg, tushareResp.Code, request.APIName, c.baseURL, request.Params)
 	}
 
-	// 验证返回的数据
-	if tushareResp.Data == nil || len(tushareResp.Data.Items) == 0 {
-		return fmt.Errorf("tushare API返回空数据")
+	// daily 接口在非交易日可能返回空数据，只要 API 响应码为 0 就说明连接和权限正常
+	if tushareResp.Data != nil && len(tushareResp.Data.Items) > 0 {
+		log.Printf("Tushare连接测试成功 - 接口: %s, URL: %s, 获取到数据: %v", request.APIName, c.baseURL, tushareResp.Data.Items[0])
+	} else {
+		log.Printf("Tushare连接测试成功 - 接口: %s, URL: %s (当日无交易数据，但API权限验证通过)", request.APIName, c.baseURL)
 	}
-
-	log.Printf("Tushare连接测试成功 - 获取到股票数据: %v", tushareResp.Data.Items[0])
 	return nil
 }
 
